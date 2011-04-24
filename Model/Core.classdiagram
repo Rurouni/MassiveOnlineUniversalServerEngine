@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<logicalClassDesignerModel xmlns:dm0="http://schemas.microsoft.com/VisualStudio/2008/DslTools/Core" xmlns:dm1="http://schemas.microsoft.com/dsltools/Kernel" xmlns:dm2="http://schemas.microsoft.com/dsltools/Component" xmlns:dm3="http://schemas.microsoft.com/dsltools/UseCase" xmlns:dm4="http://schemas.microsoft.com/dsltools/Activity" xmlns:dm5="http://schemas.microsoft.com/dsltools/Interaction" xmlns:dm6="http://schemas.microsoft.com/dsltools/UmlModelLibrary" xmlns:dm7="http://schemas.microsoft.com/dsltools/UmlDiagrams" xmlns:dm8="http://schemas.microsoft.com/dsltools/ModelStore" dslVersion="1.0.0.0" Id="b637402f-aa1f-4588-afdc-820cdb445c7c" name="Core" linkedPackageId="e4e52b46-85ca-4172-9765-a0ad48e43d2c" xmlns="http://schemas.microsoft.com/dsltools/LogicalClassDesigner">
+  <packagedElements>
+    <logicalClassDesignerModelHasTypes>
+      <class Id="ddce1619-564a-4685-8129-b043309027f0" name="NodeEntitiesHost" isAbstract="false" isLeaf="false" isActiveClass="false">
+        <elementDefinition Id="0cb1139f-0da1-457c-a185-899aba7c93f9" />
+        <ownedAttributesInternal>
+          <property Id="0cf3561f-fae6-4055-8949-e35849928c31" name="DataStorage" isLeaf="false" isStatic="false" isReadOnly="false" isUnique="false" isDerived="false" isDerivedUnion="false" aggregation="None" isComposite="false">
+            <elementDefinition Id="3c8ec5eb-be5e-4cee-9263-696f0ada4766" />
+          </property>
+        </ownedAttributesInternal>
+      </class>
+    </logicalClassDesignerModelHasTypes>
+    <logicalClassDesignerModelHasTypes>
+      <class Id="ec3e9a8c-b069-4cab-9a46-8786cdba3aa7" name="NodeEntity" isAbstract="true" isLeaf="false" isActiveClass="false">
+        <description>Entity that is dynamically clustered among nodes</description>
+        <elementDefinition Id="9629f4b5-fed7-4447-a03e-0219652c40d4" />
+        <ownedOperationsInternal>
+          <operation Id="4aa837f4-4260-4681-b9d8-f52d21949f78" name="Handle" isLeaf="false" isStatic="false" isAbstract="false" concurrency="Sequential" isQuery="false">
+            <elementDefinition Id="3f916768-df0e-4ed5-b20e-fd14bddddf97" />
+            <ownedParameters>
+              <operationHasOwnedParameters>
+                <parameter Id="a22879a7-2377-459d-bdd7-921b9b7f3127" name="handler" direction="In" isUnique="false">
+                  <elementDefinition Id="2b37b9e7-f127-464b-a87f-4c310cfc6874" />
+                  <type_NamedElement>
+                    <referencedTypeMoniker Id="41751cb7-c2b7-4861-9c27-386e07e9c320" LastKnownName="BaseHandler" />
+                  </type_NamedElement>
+                </parameter>
+              </operationHasOwnedParameters>
+            </ownedParameters>
+          </operation>
+        </ownedOperationsInternal>
+      </class>
+    </logicalClassDesignerModelHasTypes>
+    <packageHasNamedElement>
+      <referencedType Id="41751cb7-c2b7-4861-9c27-386e07e9c320" name="BaseHandler" isAbstract="false" isLeaf="false" cachedFullName="BaseHandler">
+        <elementDefinition Id="f8f8a7a4-a35e-436e-a50a-2b7b13ccf150" />
+      </referencedType>
+    </packageHasNamedElement>
+  </packagedElements>
+  <package Id="e4e52b46-85ca-4172-9765-a0ad48e43d2c" name="Model">
+    <elementDefinition Id="991a598e-812b-4f91-b058-517fa007a218" />
+    <profileInstances>
+      <packageHasProfileInstances Id="c3de48e4-4b55-46b5-bcd3-404f1a2fd929">
+        <profileInstance Id="da6d9944-c8b6-48cb-a891-90361677d31c" name="StandardProfileL2">
+          <elementDefinition Id="e34d544e-0fea-4ed6-ac5e-1b74119ac791" />
+        </profileInstance>
+        <elementDefinition Id="0caec977-1f8c-4ba3-a7db-8cc9ad9cc73b" />
+      </packageHasProfileInstances>
+      <packageHasProfileInstances Id="47eeec45-84a8-4318-ab9f-4a2d5fa3be52">
+        <profileInstance Id="d435db52-29f5-4129-a973-af552341c750" name="StandardProfileL3">
+          <elementDefinition Id="532ea607-fb19-44b8-8502-3351b05452be" />
+        </profileInstance>
+        <elementDefinition Id="29349502-908c-4fda-9054-c48619c59ed0" />
+      </packageHasProfileInstances>
+    </profileInstances>
+  </package>
+</logicalClassDesignerModel>

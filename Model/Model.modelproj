@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{52c77eed-87a5-4726-b8ab-aee83fc70ec8}</ProjectGuid>
+    <ArchitectureToolsVersion>1.0.0.0</ArchitectureToolsVersion>
+    <Name>Model</Name>
+    <RootNamespace>Model</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\</OutputPath>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v10.0\ArchitectureTools\Microsoft.VisualStudio.TeamArchitect.ModelingProject.targets" />
+  <ItemGroup>
+    <Folder Include="ModelDefinition\" />
+    <Content Include="Core.classdiagram">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="Core.classdiagram.layout">
+      <SubType>Content</SubType>
+      <DependentUpon>Core.classdiagram</DependentUpon>
+    </Content>
+    <Content Include="ModelDefinition\Model.uml">
+      <SubType>Content</SubType>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Validate Include="Core.layerdiagram">
+      <SubType>Content</SubType>
+    </Validate>
+    <Validate Include="Core.layerdiagram.layout">
+      <SubType>Content</SubType>
+      <DependentUpon>Core.layerdiagram</DependentUpon>
+    </Validate>
+    <Validate Include="Core.layerdiagram.suppressions">
+      <SubType>Content</SubType>
+      <DependentUpon>Core.layerdiagram</DependentUpon>
+    </Validate>
+  </ItemGroup>
+</Project>
