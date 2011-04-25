@@ -71,7 +71,7 @@ type NodeEvent =
 
 type IProtocolDescription =
     abstract Deserialize: operationId:uint64 * operationData:InPacket -> IOperation
-    abstract Serialize : IOperation -> OutPacket
+    abstract Serialize : IOperation * OutPacket -> unit
     abstract Contains:  operationId:uint64 -> bool
 
 type IOperationDispatcher = 

@@ -34,8 +34,10 @@ StartupResult RakPeerInterface::Startup(String ^ip, unsigned short port, unsigne
     strncpy(sd.hostAddress, str2, sizeof(sd.hostAddress) - 1);
     sd.hostAddress[sizeof(sd.hostAddress) - 1] = 0;
     sd.port = port;
+    StartupResult res = (StartupResult)_rakPeer->Startup(maxConnections, &sd, 1);
+	_rakPeer->SetMaximumIncomingConnections(maxConnections);
 	_rakPeer->SetTimeoutTime(timeoutTimeMs, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
-    return (StartupResult)_rakPeer->Startup(maxConnections, &sd, 1);
+	return res;
 }
 
 int RakPeerInterface::Send(NetId netId, OutPacket^ packet, MessagePriority priority, MessageReliability reliability,

@@ -16,7 +16,7 @@ type NodeCommand =
     |Connect of string * uint16 * AsyncReplyChannel<ConnectionAttemptResult>
     |Disconnect of NetId
     |ReceiveMessages
-    |Send of NetId * OutPacket * OperationPriority * OperationReliability
+    |Send of NetId * IOperation
     |LoopbackSend of IOperation
 
 
@@ -62,8 +62,8 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOp
                         |Some(sourceNode) ->
                             if protocol.Contains(header.OperationId) then 
                                 let operation = protocol.Deserialize(header.OperationId, msg)
-                                do operation.Header = header
-                                do operation.Context = new OperationContext(this, sourceNode)
+                                do operation.Header <- header
+                                do operation.Context <- new OperationContext(this, sourceNode)
                                 do dispatcher.Dispatch(NodeOperation(operation))
                             else Log.Error("Received unknown operationId:{0} from Node<Id:{1}>", header.OperationId, sourceNode)
                     | _ -> Log.Warn("Unhandled MessageType:{0} from Node<Id:{1}>", netMsgId, msg.SenderNetId.Id)
@@ -75,10 +75,14 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOp
                 match command with
                 |Connect(ip, port, replyChannel) -> replyChannel.Reply(netPeer.Connect(ip, port))
                 |Disconnect(netId) -> netPeer.CloseConnection(netId, true, byte(0))
-                |Send(netId, packet, priority, reliability) -> 
-                    netPeer.Send(netId, packet,
-                        enum<MessagePriority>(int32(priority)),
-                        enum<MessageReliability>(int32(reliability)), sbyte(0), false) |> ignore
+                |Send(netId, operation) -> 
+                    if protocol.Contains(operation.Header.OperationId) then
+                        use packet = new OutPacket();
+                        do protocol.Serialize(operation, packet)
+                        netPeer.Send(netId, packet,
+                            enum<MessagePriority>(int32(operation.Description.Priority)),
+                            enum<MessageReliability>(int32(operation.Description.Reliability)), sbyte(0), false) |> ignore
+                    else failwith("Cant serialize operationId:" + operation.Header.OperationId.ToString())
                 |LoopbackSend(operation)-> dispatcher.Dispatch(NodeOperation(operation))
                 |ReceiveMessages ->
                     do receiveMessages(maxMessagesPerTick)
@@ -96,13 +100,13 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOp
     //member this.OnChannelOpened with get() = _onMessage and set(func) = _onChannelOpened <-func 
     //member this.OnChannelClosed with get() = _onMessage and set(func) = _onChannelClosed <-func 
     member this.Start() =
-            nodeLoop.Start()
+        Log.Info("Node<Id:{0}> has started on {1}:{2}", this.Id, selfIp, selfPort)
+        nodeLoop.Start()
+        nodeLoop.Post(ReceiveMessages)
 
     member this.SendTo(netId: NetId, operation:IOperation) =
-        if protocol.Contains(operation.Header.OperationId) then
-            let packet = protocol.Serialize operation
-            nodeLoop.Post(Send(netId, packet, operation.Description.Priority, operation.Description.Reliability))
-        else failwith("Cant serialize operationId:" + operation.Header.OperationId.ToString())
+        nodeLoop.Post(Send(netId, operation))
+        
 
     member this.SendLoopback(operation:IOperation) =
         nodeLoop.Post(LoopbackSend(operation))
@@ -112,9 +116,11 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOp
         match result with
         |ConnectionAttemptResult.CONNECTION_ATTEMPT_STARTED -> ()
         |code -> Log.Error("Connection error: {0}", code)
+    
+    member this.Id with get():uint64 = netPeer.Id().Id;
 
     interface INode with
-        member x.Id with get():uint64 = netPeer.Id().Id;
+        member x.Id with get() = x.Id;
         member x.Connect(host, port) = this.Connect(host, port)
         member x.Execute(operation) = this.SendLoopback(operation)
 end

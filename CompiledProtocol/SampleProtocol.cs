@@ -6,12 +6,10 @@ using System.Text;
 using MOUSE.Core;
 using RakNetWrapper;
 
-namespace CompiledProtocol
+namespace Protocol.Generated
 {
     public class Ping: IOperation
     {
-        public const ulong OperationId = 10001;
-
         public int RequestId;
 
         public Ping(int requestId)
@@ -19,25 +17,36 @@ namespace CompiledProtocol
             RequestId = requestId;
         }
 
-        public ulong Id
+        public Ping(InPacket packet)
         {
-            get
-            {
-                return OperationId;
-            }
+            RequestId = packet.ReadInt32();
         }
+
+        public void Serialize(OutPacket packet)
+        {
+            packet.WriteInt32(RequestId);
+        }
+
+        public const ulong OperationId = 10001;
+        private OperationHeader _header = new OperationHeader(OperationId);
+        private readonly OperationDescription _description = new OperationDescription(OperationPriority.Medium, OperationReliability.Unreliable);
 
         public OperationHeader Header
         {
-            get { throw new NotImplementedException(); }
+            get { return _header; }
+            set { _header = value; }
+        }
+
+        public OperationContext Context { get; set; }
+
+        public OperationDescription Description
+        {
+            get { return _description; }
         }
     }
-    
 
-    public class Pong
+    public class Pong: IOperation
     {
-        public const ulong OperationId = 10002;
-
         public int RequestId;
 
         public Pong(int requestId)
@@ -45,12 +54,32 @@ namespace CompiledProtocol
             RequestId = requestId;
         }
 
-        public ulong Id
+        public Pong(InPacket packet)
         {
-            get
-            {
-                return OperationId;
-            }
+            RequestId = packet.ReadInt32();
+        }
+
+        public void Serialize(OutPacket packet)
+        {
+            packet.WriteInt32(RequestId);
+        }
+
+        public const ulong OperationId = 10002;
+        private OperationHeader _header = new OperationHeader(OperationId);
+        private readonly OperationDescription _description = new OperationDescription(OperationPriority.Medium, OperationReliability.Unreliable);
+        
+
+        public OperationHeader Header
+        {
+            get { return _header; }
+            set { _header = value; }
+        }
+
+        public OperationContext Context { get; set; }
+
+        public OperationDescription Description
+        {
+            get { return _description; }
         }
     }
 
@@ -60,14 +89,22 @@ namespace CompiledProtocol
         {
             switch (operationId)
             {
-                case Ping.OperationId: return new Ping(operationData.) ;
-                case Pong.OperationId: return true;
+                case Ping.OperationId: return new Ping(operationData);
+                case Pong.OperationId: return new Pong(operationData);
+
+                default: throw new Exception("Cant deserialize OperationId:" + operationId);
             }
         }
 
-        public Tuple<OperationDescription, OutPacket> Serialize(IOperation obj0)
+        public void Serialize(IOperation operation, OutPacket packet)
         {
-            throw new NotImplementedException();
+            switch (operation.Header.OperationId)
+            {
+                case Ping.OperationId: (operation as Ping).Serialize(packet); break;
+                case Pong.OperationId: (operation as Pong).Serialize(packet); break;
+
+                default: throw new Exception("Cant serialize " + operation);
+            }
         }
 
         public bool Contains(ulong operationId)

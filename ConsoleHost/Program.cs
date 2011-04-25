@@ -5,7 +5,9 @@ using System.Text;
 using System.Threading;
 using MOUSE.Core;
 using NLog;
+using Protocol.Generated;
 using RakNetWrapper;
+using SampleServer;
 
 
 namespace MOUSE.ConsoleHost
@@ -19,7 +21,10 @@ namespace MOUSE.ConsoleHost
             Log.Info("Started");
             try
             {
-                var node = new Node("127.0.0.1", 4567, 1000, 100000, 1);
+                var domain = new PingPongServer();
+                domain.Init();
+
+                var node = new Node(NodeType.Master, new PingPongProtocol(), domain, "127.0.0.1", 4567, 1000, 100000, 1);
                 node.Start();
 
                 while (true)

@@ -641,7 +641,9 @@ namespace RakNetWrapper
 
 		!OutPacket()
 		{
-			delete _stream;
+			if(_stream != nullptr)
+				delete _stream;
+			_stream = nullptr;
 		}
 
 		RakNet::BitStream* GetInternalStream()

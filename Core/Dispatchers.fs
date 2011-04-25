@@ -29,9 +29,12 @@ type EventDispatcher() =
     let onDisconnectedEvent = new Event<OperationContext>()
     let onOperationEvent = new Event<IOperation>() 
 
-    member x.OnConnected with get() = onConnectedEvent
-    member x.OnDisconnected with get() = onDisconnectedEvent
-    member x.OnOperation with get() = onOperationEvent
+    [<CLIEvent>]
+    member x.OnConnected with get() = onConnectedEvent.Publish
+    [<CLIEvent>]
+    member x.OnDisconnected with get() = onDisconnectedEvent.Publish
+    [<CLIEvent>]
+    member x.OnOperation with get() = onOperationEvent.Publish
     
     interface IOperationDispatcher with
         member x.Dispatch(operation) = 
@@ -41,25 +44,20 @@ type EventDispatcher() =
             |NodeOperation(operation) -> do onOperationEvent.Trigger(operation)
 
 type ObservableDispatcher() = 
-    let onConnectedEvent = new Event<OperationContext>()
-    let onDisconnectedEvent = new Event<OperationContext>()
-    let onOperationEvent = new Event<IOperation>() 
+    let onConnectedEvent = new Subject<OperationContext>()
+    let onDisconnectedEvent = new Subject<OperationContext>()
+    let onOperationEvent = new Subject<IOperation>() 
 
-    let fromEvent (event:IEvent<_,_>) =      
-        Observable.Create<_>(fun x ->
-            event.Subscribe x.OnNext |> ignore
-            new System.Action(fun () -> ()))   
-
-    member x.OnConnected with get():IObservable<OperationContext> =  fromEvent onConnectedEvent
-    member x.OnDisconnected with get() = onDisconnectedEvent
-    member x.OnOperation with get() = onOperationEvent
+    member x.OnConnected with get() =  onConnectedEvent.AsObservable()
+    member x.OnDisconnected with get() = onDisconnectedEvent.AsObservable()
+    member x.OnOperation with get() = onOperationEvent.AsObservable()
     
     interface IOperationDispatcher with
         member x.Dispatch(operation) = 
             match operation with
-            |NodeConnected(context) -> do onConnectedEvent.Trigger(context)
-            |NodeDisconnected(context) -> do onDisconnectedEvent.Trigger(context)
-            |NodeOperation(operation) -> do onOperationEvent.Trigger(operation)
+            |NodeConnected(context) -> do onConnectedEvent.OnNext(context)
+            |NodeDisconnected(context) -> do onDisconnectedEvent.OnNext(context)
+            |NodeOperation(operation) -> do onOperationEvent.OnNext(operation)
             
 
 
