@@ -41,17 +41,22 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SampleProtocol.cs" />
-    <Compile Include="Serialization.cs">
+    <Compile Include="ProtocolGenerator.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
-      <DependentUpon>Serialization.tt</DependentUpon>
+      <DependentUpon>ProtocolGenerator.tt</DependentUpon>
     </Compile>
+    <Compile Include="SampleProtocol.cs" />
+    <Compile Include="TTHelper.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Serialization.tt">
+    <None Include="MessagesSerialization.ttinclude" />
+    <None Include="POCOSerialization.ttinclude">
+      <LastGenOutput>POCOSerialization.cs</LastGenOutput>
+    </None>
+    <None Include="ProtocolGenerator.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Serialization.cs</LastGenOutput>
+      <LastGenOutput>ProtocolGenerator.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>

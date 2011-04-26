@@ -7,7 +7,7 @@ using MOUSE.Core;
 namespace Protocol
 {
     [NodeEntityContract]
-    internal interface IClient : IChatParticipant
+    public interface IClient : IChatParticipant
     {
     }
 
