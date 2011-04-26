@@ -29,7 +29,7 @@ namespace Protocol.Generated
 
         public const ulong OperationId = 10001;
         private OperationHeader _header = new OperationHeader(OperationId);
-        private readonly OperationDescription _description = new OperationDescription(OperationPriority.Medium, OperationReliability.Unreliable);
+        private readonly OperationDescription _description = new OperationDescription(OperationPriority.Immediate, OperationReliability.ReliableOrdered);
 
         public OperationHeader Header
         {
@@ -66,7 +66,7 @@ namespace Protocol.Generated
 
         public const ulong OperationId = 10002;
         private OperationHeader _header = new OperationHeader(OperationId);
-        private readonly OperationDescription _description = new OperationDescription(OperationPriority.Medium, OperationReliability.Unreliable);
+        private readonly OperationDescription _description = new OperationDescription(OperationPriority.Immediate, OperationReliability.ReliableOrdered);
         
 
         public OperationHeader Header

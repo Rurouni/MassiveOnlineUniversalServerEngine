@@ -35,7 +35,7 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOp
                 use msg = netPeer.Receive()
                 if msg <> null then
                     let sourceNodeId = msg.SenderNetId.Id
-                    let netMsgId = enum<RakNetMessages>(int32(msg.ReadByte()))
+                    let netMsgId = enum<RakNetMessages>(int32(msg.ReadUByte()))
                     Log.Trace("Received {0} from Node<Id:{1}>", netMsgId, sourceNodeId)
 
                     match netMsgId with
@@ -69,26 +69,31 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOp
                     | _ -> Log.Warn("Unhandled MessageType:{0} from Node<Id:{1}>", netMsgId, msg.SenderNetId.Id)
                     receiveMessages(counter - 1)
 
-        async{  
+        async{
             while true do
-                let! command = inbox.Receive()
-                match command with
-                |Connect(ip, port, replyChannel) -> replyChannel.Reply(netPeer.Connect(ip, port))
-                |Disconnect(netId) -> netPeer.CloseConnection(netId, true, byte(0))
-                |Send(netId, operation) -> 
-                    if protocol.Contains(operation.Header.OperationId) then
-                        use packet = new OutPacket();
-                        do protocol.Serialize(operation, packet)
-                        netPeer.Send(netId, packet,
-                            enum<MessagePriority>(int32(operation.Description.Priority)),
-                            enum<MessageReliability>(int32(operation.Description.Reliability)), sbyte(0), false) |> ignore
-                    else failwith("Cant serialize operationId:" + operation.Header.OperationId.ToString())
-                |LoopbackSend(operation)-> dispatcher.Dispatch(NodeOperation(operation))
-                |ReceiveMessages ->
-                    do receiveMessages(maxMessagesPerTick)
-                    do! Async.Sleep(sleepTimeMs)
-                    do inbox.Post(ReceiveMessages)  
-            })
+                try   
+                    let! command = inbox.Receive()
+                    match command with
+                    |Connect(ip, port, replyChannel) -> replyChannel.Reply(netPeer.Connect(ip, port))
+                    |Disconnect(netId) -> netPeer.CloseConnection(netId, true, byte(0))
+                    |Send(netId, operation) -> 
+                        if protocol.Contains(operation.Header.OperationId) then
+                            use packet = new OutPacket();
+                            packet.WriteUByte(byte(RakNetMessages.ID_USER_PACKET_ENUM))
+                            OperationHeader.Write(operation.Header, packet);
+                            do protocol.Serialize(operation, packet)
+                            netPeer.Send(netId, packet,
+                                enum<MessagePriority>(int32(operation.Description.Priority)),
+                                enum<MessageReliability>(int32(operation.Description.Reliability)), sbyte(0), false) |> ignore
+                        else failwith("Cant serialize operationId:" + operation.Header.OperationId.ToString())
+                    |LoopbackSend(operation)-> dispatcher.Dispatch(NodeOperation(operation))
+                    |ReceiveMessages ->
+                        do receiveMessages(maxMessagesPerTick)
+                        do! Async.Sleep(sleepTimeMs)
+                        do inbox.Post(ReceiveMessages)  
+                with 
+                | ex -> Log.Error("Unhandled exception in main node loop -"+ ex.ToString())
+       })
 
     
     

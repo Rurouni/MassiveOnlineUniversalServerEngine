@@ -36,6 +36,8 @@ StartupResult RakPeerInterface::Startup(String ^ip, unsigned short port, unsigne
     sd.port = port;
     StartupResult res = (StartupResult)_rakPeer->Startup(maxConnections, &sd, 1);
 	_rakPeer->SetMaximumIncomingConnections(maxConnections);
+	_rakPeer->SetOccasionalPing(true);
+	_rakPeer->SetUnreliableTimeout(1000);
 	_rakPeer->SetTimeoutTime(timeoutTimeMs, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
 	return res;
 }
@@ -93,3 +95,5 @@ void RakPeerInterface::SetDisconnectTimeoutFor(int time, NetId netId)
 {
     _rakPeer->SetTimeoutTime(time, _rakPeer->GetSystemAddressFromGuid(netId.GetRakGuid()));
 }
+
+

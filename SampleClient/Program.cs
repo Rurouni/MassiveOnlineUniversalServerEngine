@@ -26,7 +26,7 @@ namespace SimpleClient
 
         public override void  OnOperation(INode self, INode source, IOperation operation)
         {
-            if(operation.Header.OperationId == Pong.OperationId)
+            if (operation.Header.OperationId == Pong.OperationId)
             {
                 Pong pong = (Pong)operation;
                 Console.WriteLine("Received Pong:{0}", pong.RequestId);

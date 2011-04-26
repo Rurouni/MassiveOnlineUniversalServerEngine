@@ -740,5 +740,13 @@ namespace RakNetWrapper
 			NetId id(_rakPeer->GetMyGUID());
 			return id;
 		}
+
+		virtual String^ ToString() override
+		{
+			char text[2048];
+			RakNet::RakNetStatistics* rss =_rakPeer->GetStatistics(_rakPeer->GetSystemAddressFromIndex(0));
+			RakNet::StatisticsToString(rss, text, 2);
+			return gcnew String(&text[0]);
+		}
     };
 }
