@@ -44,12 +44,12 @@ type NodeEntityOperationAttribute() =
     inherit Attribute()
 
     let mutable _targetType = OperationTargetType.Instance
-    let mutable _isReliable = false
-    let mutable _isOrdered = false
+    let mutable _reliability = OperationReliability.ReliableOrdered
+    let mutable _priority = OperationPriority.Medium
     let mutable _additionalResultCode:Type = null
 
     member this.Target               with get() = _targetType            and set(x) = do _targetType<-x
-    member this.IsReliable           with get() = _isReliable            and set(x) = do _isReliable<-x 
-    member this.IsOrdered            with get() = _isOrdered             and set(x) = do _isOrdered<-x
+    member this.Reliability          with get() = _reliability           and set(x) = do _reliability<-x 
+    member this.Priority             with get() = _priority              and set(x) = do _priority<-x
     member this.AdditionalResultCode with get() = _additionalResultCode  and set(x) = do _additionalResultCode<-x
 

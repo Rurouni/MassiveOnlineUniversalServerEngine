@@ -91,6 +91,7 @@
     <Compile Include="Misc.fs" />
     <Compile Include="OperationAttributes.fs" />
     <Compile Include="Interfaces.fs" />
+    <Compile Include="BaseEntity.fs" />
     <Compile Include="Node.fs" />
     <Compile Include="Dispatchers.fs" />
   </ItemGroup>

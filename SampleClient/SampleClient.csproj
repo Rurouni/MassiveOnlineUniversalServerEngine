@@ -88,9 +88,9 @@
     <None Include="NLog.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CompiledProtocol\CompiledProtocol.csproj">
+    <ProjectReference Include="..\CompiledProtocol\CompiledDomain.csproj">
       <Project>{D834EADA-527D-491D-80F5-0715D29BAF5B}</Project>
-      <Name>CompiledProtocol</Name>
+      <Name>CompiledDomain</Name>
     </ProjectReference>
     <ProjectReference Include="..\Core\Core.fsproj">
       <Project>{5E6EC24B-886B-453B-8274-C1552ABA52E0}</Project>
