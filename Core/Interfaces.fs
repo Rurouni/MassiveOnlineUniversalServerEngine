@@ -21,6 +21,7 @@ type OperationHeader(operationId:uint64) =
             match header.TargetEntityId with
             |Some(id) -> packet.WriteUInt64(id)
             |None -> packet.WriteUInt64(0UL)
+            packet.WriteUInt64(header.TransactionId)
 
         | _ -> 
             packet.WriteByte(sbyte(OperationHeaderType.BasicHeader))
@@ -36,7 +37,8 @@ type OperationHeader(operationId:uint64) =
                 match packet.ReadUInt64() with
                 | 0UL -> None
                 | id -> Some(id)
-            new EntityOperationHeader(sourceEntityId,targetEntityId, operationId) :> OperationHeader
+            let transactionId = packet.ReadUInt64()
+            new EntityOperationHeader(operationId, sourceEntityId,targetEntityId, transactionId) :> OperationHeader
 
         | OperationHeaderType.BasicHeader ->
             let operationId = packet.ReadUInt64()
@@ -44,10 +46,11 @@ type OperationHeader(operationId:uint64) =
         | _ -> failwith ("Unknown header type : " + headerType.ToString())
        
 
-and EntityOperationHeader(sourceEntityId:uint64, targetEntityId:option<uint64>, operationId:uint64) =
+and EntityOperationHeader(operationId:uint64, sourceEntityId:uint64, targetEntityId:option<uint64>, transactionId:uint64) =
     inherit OperationHeader(operationId)
     member x.SourceEntityId with get() = sourceEntityId
     member x.TargetEntityId with get() = targetEntityId
+    member x.TransactionId with get() = transactionId
 
 
 type IOperation =

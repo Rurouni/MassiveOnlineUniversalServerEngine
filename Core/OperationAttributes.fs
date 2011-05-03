@@ -17,13 +17,6 @@ type OperationPriority =
     |Medium = 2
     |Low = 3
 
-type OperationDescription = {
-    Priority : OperationPriority
-    Reliability : OperationReliability
-}
-
-
-
 type OperationResultCode = 
     |Ok = 200
     |Failed_NotConnected = 400
@@ -34,6 +27,14 @@ type OperationTargetType =
     |Any = 1
     |Instance = 2
     |All = 3
+
+type OperationDescription = {
+    OperationId : uint64
+    Priority : OperationPriority
+    Reliability : OperationReliability
+    TargetType : OperationTargetType
+}
+
 
 [<AttributeUsage(AttributeTargets.Interface, Inherited = false, AllowMultiple = false)>]
 type NodeEntityContractAttribute() = 

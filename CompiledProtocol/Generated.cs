@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.FSharp.Control;
+using Microsoft.FSharp.Core;
 using MOUSE.Core;
 using RakNetWrapper;
 using SampleDomain;
@@ -30,7 +31,7 @@ namespace SampleDomain.Generated
 
         public const ulong OperationId = 10001;
         private OperationHeader _header = new OperationHeader(OperationId);
-        private readonly OperationDescription _description = new OperationDescription(OperationPriority.Medium, OperationReliability.ReliableOrdered);
+        private readonly OperationDescription _description = new OperationDescription(OperationId, OperationPriority.Medium, OperationReliability.ReliableOrdered);
 
         public OperationHeader Header
         {
@@ -48,21 +49,21 @@ namespace SampleDomain.Generated
 
     public class PingReply: IOperation
     {
-        public int RequestId;
+        public int RetVal;
 
         public PingReply(InPacket packet)
         {
-            RequestId = packet.ReadInt32();
+            RetVal = packet.ReadInt32();
         }
 
         public void Serialize(OutPacket packet)
         {
-            packet.WriteInt32(RequestId);
+            packet.WriteInt32(RetVal);
         }
 
         public const ulong OperationId = 10002;
         private OperationHeader _header = new OperationHeader(OperationId);
-        private readonly OperationDescription _description = new OperationDescription(OperationPriority.Immediate, OperationReliability.ReliableOrdered);
+        private readonly OperationDescription _description = new OperationDescription(OperationId, OperationPriority.Immediate, OperationReliability.ReliableOrdered);
         
 
         public OperationHeader Header
@@ -114,27 +115,32 @@ namespace SampleDomain.Generated
         }
     }
 
-    public class PingerProxy : IPinger
+    public class IPingerProxy : BaseEntityProxy IPinger
     {
-        private INode _host;
         private EntityOperationDispatcher _dispatcher;
+        private BaseEntity _owner;
+        private FSharpOption<ulong> _entityId;
+        static private readonly FSharpFunc<PingReply, int> getRetValFunc;
 
-        public PingerProxy(INode host, IOperationDispatcher dispatcher)
+        static IPingerProxy()
         {
-            _host = host;
-            _dispatcher = (EntityOperationDispatcher) dispatcher;
+            Converter<PingReply, int> converter = reply => reply.RetVal;
+            getRetValFunc = FSharpFunc<PingReply, int>.FromConverter(converter);
+        }
+
+        public IPingerProxy(BaseEntity proxyOwner, EntityOperationDispatcher dispatcher, FSharpOption<ulong> entityId)
+        {
+            _dispatcher = dispatcher;
+            _entityId = new FSharpOption<ulong>(entityId.Value);
+            _owner = proxyOwner;
         }
 
         public FSharpAsync<int> Ping(int requestId)
         {
-            var operation = new PingRequest();
-            operation.requestId = requestId;
-            return _dispatcher.SendAndAwaitOperation<PingReply, PingRequest>()
-            _host.Execute(operation);
-            FSharpAsync.
+            var request = new PingRequest();
+            request.requestId = requestId;
+            return _dispatcher.ExecuteAndWaitReply(_owner, request, getRetValFunc, _entityId);
             
         }
     }
-
-    public class
 }

@@ -1,6 +1,7 @@
 ﻿namespace MOUSE.Core
 open System.Collections.Generic
 
+[<AutoOpen>]
 module public DictionaryExtensions =
   
   let tryFind (d:Dictionary<'K,'T>) key =
