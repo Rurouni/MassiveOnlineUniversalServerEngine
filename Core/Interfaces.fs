@@ -6,51 +6,82 @@ open System.Collections.Generic
 open RakNetWrapper
 
 type OperationHeaderType = 
-    |BasicHeader = 1
-    |EntityHeader = 2
+    |Basic = 1
+    |EntityTypeOperation = 2
+    |EntityInstanceOperation = 3
+
+type NodeType = 
+    |Master = 1
+    |Client = 2
 
 type OperationHeader(operationId:uint64) =
+    new(packet:InPacket) = new OperationHeader(packet.ReadUInt64())
+
     member x.OperationId with get() = operationId
 
-    static member Write(header:OperationHeader, packet:OutPacket) =
-        match header with
-        | :? EntityOperationHeader as header ->
-            packet.WriteByte(sbyte(OperationHeaderType.EntityHeader))
-            packet.WriteUInt64(header.OperationId)
-            packet.WriteUInt64(header.SourceEntityId)
-            match header.TargetEntityId with
-            |Some(id) -> packet.WriteUInt64(id)
-            |None -> packet.WriteUInt64(0UL)
-            packet.WriteUInt64(header.TransactionId)
+    abstract member HeaderType: OperationHeaderType with get
+    default x.HeaderType with get() = OperationHeaderType.Basic
 
-        | _ -> 
-            packet.WriteByte(sbyte(OperationHeaderType.BasicHeader))
-            packet.WriteUInt64(header.OperationId)
+    abstract member Write: OutPacket ->unit
+    default x.Write(packet:OutPacket) = 
+        packet.WriteUInt64(x.OperationId)
+
+    static member Write(header:OperationHeader, packet:OutPacket) =
+        packet.WriteByte(sbyte(header.HeaderType))
+        header.Write(packet)
 
     static member Read(packet:InPacket): OperationHeader =
         let headerType = enum<OperationHeaderType>(int32(packet.ReadByte()))
         match headerType with
-        | OperationHeaderType.EntityHeader ->
-            let operationId = packet.ReadUInt64()
-            let sourceEntityId = packet.ReadUInt64()
-            let targetEntityId = 
-                match packet.ReadUInt64() with
-                | 0UL -> None
-                | id -> Some(id)
-            let transactionId = packet.ReadUInt64()
-            new EntityOperationHeader(operationId, sourceEntityId,targetEntityId, transactionId) :> OperationHeader
-
-        | OperationHeaderType.BasicHeader ->
-            let operationId = packet.ReadUInt64()
-            new OperationHeader(operationId)
+        | OperationHeaderType.EntityInstanceOperation ->
+            new EntityInstanceOperationHeader(packet) :> OperationHeader
+        | OperationHeaderType.EntityTypeOperation ->
+            new EntityTypeOperationHeader(packet) :> OperationHeader
+        | OperationHeaderType.Basic ->
+            new OperationHeader(packet)
         | _ -> failwith ("Unknown header type : " + headerType.ToString())
        
 
-and EntityOperationHeader(operationId:uint64, sourceEntityId:uint64, targetEntityId:option<uint64>, transactionId:uint64) =
-    inherit OperationHeader(operationId)
-    member x.SourceEntityId with get() = sourceEntityId
-    member x.TargetEntityId with get() = targetEntityId
-    member x.TransactionId with get() = transactionId
+and EntityTypeOperationHeader =
+    inherit OperationHeader
+    val sourceEntityId:uint64
+    val transactionId:uint64
+
+    new (operationId:uint64, sourceEntityId, transactionId) = {
+        inherit OperationHeader(operationId)
+        sourceEntityId = sourceEntityId
+        transactionId = transactionId 
+    }
+
+    new (packet :InPacket) = {
+        inherit OperationHeader(packet);
+        sourceEntityId = packet.ReadUInt64()
+        transactionId = packet.ReadUInt64() 
+    }
+    
+    override x.Write(packet:OutPacket) = 
+        packet.WriteUInt64(x.sourceEntityId)
+        packet.WriteUInt64(x.sourceEntityId)
+    override x.HeaderType with get() = OperationHeaderType.EntityTypeOperation
+    member x.SourceEntityId with get() = x.sourceEntityId
+    member x.TransactionId with get() = x.transactionId
+
+and EntityInstanceOperationHeader =
+    inherit EntityTypeOperationHeader
+    val targetEntityId:uint64
+
+    new (operationId, sourceEntityId, transactionId, targetEntityId) = {
+        inherit EntityTypeOperationHeader(operationId, sourceEntityId, transactionId)
+        targetEntityId = targetEntityId
+    }
+
+    new (packet :InPacket) = {
+        inherit EntityTypeOperationHeader(packet);
+        targetEntityId = packet.ReadUInt64()
+    }
+
+    override x.HeaderType with get() = OperationHeaderType.EntityInstanceOperation
+    member x.TargetEntityId with get() = x.targetEntityId
 
 
 type IOperation =
@@ -60,8 +91,9 @@ type IOperation =
 
 and INode = 
     abstract Id : uint64 with get
+    abstract Type: NodeType with get
     abstract Execute: IOperation -> unit
-    abstract Connect: string * uint16 -> unit
+    abstract Connect: string * uint16 -> Async<unit>
 
 and OperationContext(self:INode, source:INode) = 
     member this.Source with get() = source
@@ -77,5 +109,5 @@ type IProtocolDescription =
     abstract Serialize : IOperation * OutPacket -> unit
     abstract Contains:  operationId:uint64 -> bool
 
-type IOperationDispatcher = 
-    abstract Dispatch: NodeEvent -> unit
+type INodeEventProcessor = 
+    abstract Process: NodeEvent -> unit

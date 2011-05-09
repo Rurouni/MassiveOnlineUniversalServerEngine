@@ -23,17 +23,20 @@ type OperationResultCode =
     |Failed_EntityNotFound = 404
     |Failed_NotProcessed = 500
 
-type OperationTargetType = 
-    |Any = 1
-    |Instance = 2
-    |All = 3
 
-type OperationDescription = {
-    OperationId : uint64
-    Priority : OperationPriority
-    Reliability : OperationReliability
-    TargetType : OperationTargetType
-}
+type OperationDescription(operationId : uint64, priority : OperationPriority, reliability : OperationReliability) =
+    member x.OperationId with get() = operationId
+    member x.Priority with get() = priority
+    member x.Reliability with get() = reliability
+    
+type EntityOperationType = 
+    |Global = 1
+    |Instance = 2
+
+type EntityOperationDescription(operationId, priority, reliability, operationType : EntityOperationType) =
+    inherit OperationDescription(operationId, priority, reliability)
+
+    member x.OperationType with get() = operationType
 
 
 [<AttributeUsage(AttributeTargets.Interface, Inherited = false, AllowMultiple = false)>]
@@ -44,7 +47,7 @@ type NodeEntityContractAttribute() =
 type NodeEntityOperationAttribute() = 
     inherit Attribute()
 
-    let mutable _targetType = OperationTargetType.Instance
+    let mutable _targetType = EntityOperationType.Instance
     let mutable _reliability = OperationReliability.ReliableOrdered
     let mutable _priority = OperationPriority.Medium
     let mutable _additionalResultCode:Type = null

@@ -7,10 +7,7 @@ open System.Collections.Generic
 open NLog
 open DictionaryExtensions
 
-type NodeType = 
-    |Master = 1
-    |Server = 2
-    |Client = 3
+
 
 type NodeCommand = 
     |Connect of string * uint16 * AsyncReplyChannel<ConnectionAttemptResult>
@@ -20,55 +17,63 @@ type NodeCommand =
     |LoopbackSend of IOperation
 
 
-type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOperationDispatcher,
+type Node(nodeType : NodeType, protocol : IProtocolDescription, processor : INodeEventProcessor,
           selfIp, selfPort, maxConnections, maxMessagesPerTick, sleepTimeMs) as this = class
     
     let Log = LogManager.GetCurrentClassLogger()
     
     let netPeer = new RakPeerInterface()
     let startUpResult = netPeer.Startup(selfIp, selfPort, maxConnections, 30000)
+    let channels = new Dictionary<uint64, INode>()
 
-    let rec nodeLoop = new MailboxProcessor<NodeCommand>(fun inbox ->
-        let channels = new Dictionary<uint64, INode>()
+    let processInternalMessage()
+
+    let processNetMessage(netMsgId:RakNetMessages, msg:InPacket, senderId:uint64) =
+        match netMsgId with
+        | RakNetMessages.ID_NEW_INCOMING_CONNECTION -> ()//remove unintriduced nodes later
+        | RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED ->
+            Send(new NodeIntroductionRequest(nodeType))
+            let connectedNode = new NodeProxy( senderId, this)
+            processor.Process(NodeConnected(new OperationContext(this, connectedNode)))
+            channels.Add( msg.SenderNetId.Id, connectedNode)
+
+        | RakNetMessages.ID_DISCONNECTION_NOTIFICATION
+        | RakNetMessages.ID_DETECT_LOST_CONNECTIONS
+        | RakNetMessages.ID_CONNECTION_LOST
+        | RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED ->
+            match DictionaryExtensions.tryFind channels senderId with
+            |None -> Log.Warn("Received disconnection event:{0} from unregistered Node<Id:{1}>", netMsgId, senderId)
+            |Some(disconnectedNode) ->
+                processor.Process(NodeDisconnected(new OperationContext(this, disconnectedNode)))
+                channels.Remove(msg.SenderNetId.Id) |> ignore
+
+        | RakNetMessages.ID_USER_PACKET_ENUM -> 
+            let header = OperationHeader.Read(msg)
+            processInternalMessage(header, msg)
+            match DictionaryExtensions.tryFind channels senderId with
+            |None -> Log.Error("Received operationId:{0} from unregistered Node<Id:{1}>", header.OperationId, senderId)
+            |Some(sourceNode) ->
+                if protocol.Contains(header.OperationId) then 
+                    let operation = protocol.Deserialize(header.OperationId, msg)
+                    operation.Header <- header
+                    operation.Context <- new OperationContext(this, sourceNode)
+                    processor.Process(NodeOperation(operation))
+                else Log.Error("Received unknown operationId:{0} from Node<Id:{1}>", header.OperationId, sourceNode)
+        | _ -> Log.Warn("Unhandled MessageType:{0} from Node<Id:{1}>", netMsgId, msg.SenderNetId.Id)
+
+    let rec loop(inbox:MailboxProcessor<NodeCommand>) = 
+        
+
         let rec receiveMessages(counter)  = 
-            if(counter > 0) then
+            if counter > 0 then
                 use msg = netPeer.Receive()
                 if msg <> null then
-                    let sourceNodeId = msg.SenderNetId.Id
+                    let senderId = msg.SenderNetId.Id
                     let netMsgId = enum<RakNetMessages>(int32(msg.ReadUByte()))
-                    Log.Trace("Received {0} from Node<Id:{1}>", netMsgId, sourceNodeId)
-
-                    match netMsgId with
-                    | RakNetMessages.ID_NEW_INCOMING_CONNECTION
-                    | RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED ->
-                        let connectedNode = new NodeProxy( msg.SenderNetId, this)
-                        do dispatcher.Dispatch(NodeConnected(new OperationContext(this, connectedNode)))
-                        do channels.Add( msg.SenderNetId.Id, connectedNode)
-
-                    | RakNetMessages.ID_DISCONNECTION_NOTIFICATION
-                    | RakNetMessages.ID_DETECT_LOST_CONNECTIONS
-                    | RakNetMessages.ID_CONNECTION_LOST
-                    | RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED ->
-                        match DictionaryExtensions.tryFind channels sourceNodeId with
-                        |None -> Log.Error("Received disconnection event:{0} from unregistered Node<Id:{1}>", netMsgId, sourceNodeId)
-                        |Some(disconnectedNode) ->
-                            do dispatcher.Dispatch(NodeDisconnected(new OperationContext(this, disconnectedNode)))
-                            do channels.Remove(msg.SenderNetId.Id) |> ignore
-
-                    | RakNetMessages.ID_USER_PACKET_ENUM -> 
-                        let header = OperationHeader.Read(msg)
-                        match DictionaryExtensions.tryFind channels sourceNodeId with
-                        |None -> Log.Error("Received operationId:{0} from unregistered Node<Id:{1}>", header.OperationId, sourceNodeId)
-                        |Some(sourceNode) ->
-                            if protocol.Contains(header.OperationId) then 
-                                let operation = protocol.Deserialize(header.OperationId, msg)
-                                do operation.Header <- header
-                                do operation.Context <- new OperationContext(this, sourceNode)
-                                do dispatcher.Dispatch(NodeOperation(operation))
-                            else Log.Error("Received unknown operationId:{0} from Node<Id:{1}>", header.OperationId, sourceNode)
-                    | _ -> Log.Warn("Unhandled MessageType:{0} from Node<Id:{1}>", netMsgId, msg.SenderNetId.Id)
+                    Log.Trace("Received {0} from Node<Id:{1}>", netMsgId, senderId)
+                    processNetMessage(netMsgId, msg, senderId)
                     receiveMessages(counter - 1)
-
+            
         async{
             while true do
                 try   
@@ -81,22 +86,25 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOp
                             use packet = new OutPacket();
                             packet.WriteUByte(byte(RakNetMessages.ID_USER_PACKET_ENUM))
                             OperationHeader.Write(operation.Header, packet);
-                            do protocol.Serialize(operation, packet)
+                            protocol.Serialize(operation, packet)
                             netPeer.Send(netId, packet,
                                 enum<MessagePriority>(int32(operation.Description.Priority)),
                                 enum<MessageReliability>(int32(operation.Description.Reliability)), sbyte(0), false) |> ignore
                         else failwith("Cant serialize operationId:" + operation.Header.OperationId.ToString())
-                    |LoopbackSend(operation)-> dispatcher.Dispatch(NodeOperation(operation))
+                    |LoopbackSend(operation)-> processor.Process(NodeOperation(operation))
                     |ReceiveMessages ->
-                        do receiveMessages(maxMessagesPerTick)
+                        receiveMessages(maxMessagesPerTick)
                         do! Async.Sleep(sleepTimeMs)
-                        do inbox.Post(ReceiveMessages)  
+                        inbox.Post(ReceiveMessages)  
                 with 
-                | ex -> Log.Error("Unhandled exception in main node loop -"+ ex.ToString())
-       })
+                | ex -> 
+                    Log.Error("Unhandled exception in main node loop -"+ ex.ToString())
+ 
+                
+        }
 
     
-    
+    let agent = new MailboxProcessor<NodeCommand>(loop)
     //let mutable _onMessage       = fun (node:Node) (msg:IMessage)    -> Log.Info("OnMessage Id:{0}", msg.Id)
     //let mutable _onChannelOpened = fun (node:Node) (address:SystemAddress) -> Log.Info("OnChannelOpened Id:{0}", address.GUID)
     //let mutable _onChannelClosed = fun (node:Node) (address:SystemAddress) -> Log.Info("OnChannelClosed Id:{0}", address.GUID)
@@ -106,31 +114,37 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, dispatcher : IOp
     //member this.OnChannelClosed with get() = _onMessage and set(func) = _onChannelClosed <-func 
     member this.Start() =
         Log.Info("Node<Id:{0}> has started on {1}:{2}", this.Id, selfIp, selfPort)
-        nodeLoop.Start()
-        nodeLoop.Post(ReceiveMessages)
+        agent.Start()
+        agent.Post(ReceiveMessages)
 
     member this.SendTo(netId: NetId, operation:IOperation) =
-        nodeLoop.Post(Send(netId, operation))
-        
+        agent.Post(Send(netId, operation))
 
     member this.SendLoopback(operation:IOperation) =
-        nodeLoop.Post(LoopbackSend(operation))
+        agent.Post(LoopbackSend(operation))
 
     member this.Connect(host, port) = 
-        let result = nodeLoop.PostAndReply(fun replyChannel -> Connect(host, port, replyChannel))
+        let result = agent.PostAndReply(fun replyChannel -> Connect(host, port, replyChannel))
         match result with
         |ConnectionAttemptResult.CONNECTION_ATTEMPT_STARTED -> ()
         |code -> Log.Error("Connection error: {0}", code)
     
-    member this.Id with get():uint64 = netPeer.Id().Id;
+    member this.Id with get() = netPeer.Id().Id;
+    member this.Type with get() = nodeType
 
     interface INode with
-        member x.Id with get() = x.Id;
+        member x.Id with get() = this.Id;
+        member x.Type with get() = this.Type
         member x.Connect(host, port) = this.Connect(host, port)
         member x.Execute(operation) = this.SendLoopback(operation)
+        
 end
-and NodeProxy(netId:NetId, owner:Node) = 
+and NodeProxy(netId:NetId, owner:Node, nodeType:NodeType, ?master:INode) = 
     interface INode with
         member x.Id with get():uint64 = netId.Id
+        member x.Type with get() = nodeType
         member x.Execute(operation:IOperation) = owner.SendTo(netId, operation)
         member x.Connect(host, port) = failwith "This is only projection of connected node, so this operation is useless"
+
+
+

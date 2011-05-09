@@ -8,6 +8,7 @@ using MOUSE.Core;
 using NLog;
 using Protocol.Generated;
 using RakNetWrapper;
+using SampleDomain.Generated;
 
 
 namespace SimpleClient
@@ -63,14 +64,16 @@ namespace SimpleClient
                 .TakeUntil(nodeEvents.OnDisconnected.Where(c => c.Source.Id == connectedNode.Id))
                 .Subscribe((_) =>
                 {
-                    var ping = new Ping(requestId++);
-                    messages.Enqueue(string.Format("Sending Ping<RequestId:{0}> to Node<Id:{1}>", ping.RequestId, context.Source.Id));
+                    var ping = new PingRequest();
+                    ping.requestId = requestId++;
+                    messages.Enqueue(string.Format("Sending Ping<RequestId:{0}> to Node<Id:{1}>", ping.requestId, context.Source.Id));
                     context.Source.Execute(ping);
                 }, OnException);
             }, OnException);
 
             nodeEvents.OnDisconnected.Subscribe(context => messages.Enqueue(string.Format("We have disconnected from Node<Id:{0}>", context.Source.Id)));
-            nodeEvents.OnOperation.OfType<Pong>().Subscribe(pong => messages.Enqueue(string.Format("Received Pong<RequestId:{0}> from Node<Id:{1}>", pong.RequestId, pong.Context.Source.Id)));
+            nodeEvents.OnOperation.OfType<PingReply>().Subscribe(pong => messages.Enqueue(string.Format("Received Pong<RequestId:{0}> from Node<Id:{1}>",
+                                                                                                        pong.RetVal, pong.Context.Source.Id)));
 
             var node = new Node(NodeType.Client, new PingPongProtocol(), nodeEvents, "127.0.0.1", 5678, 10, 10000, 1);
             node.Start();

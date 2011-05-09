@@ -25,6 +25,13 @@
       <SubType>Content</SubType>
       <DependentUpon>Core.classdiagram</DependentUpon>
     </Content>
+    <Content Include="EntityOperationNavigation.activitydiagram">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="EntityOperationNavigation.activitydiagram.layout">
+      <SubType>Content</SubType>
+      <DependentUpon>EntityOperationNavigation.activitydiagram</DependentUpon>
+    </Content>
     <Content Include="ModelDefinition\Model.uml">
       <SubType>Content</SubType>
     </Content>

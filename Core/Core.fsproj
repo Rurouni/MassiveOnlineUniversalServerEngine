@@ -91,11 +91,12 @@
     <Compile Include="Misc.fs" />
     <Compile Include="OperationAttributes.fs" />
     <Compile Include="Interfaces.fs" />
+    <Compile Include="InternalOperations.fs" />
     <Compile Include="NodeEntity.fs" />
     <Compile Include="NodeEntityRepository.fs" />
     <Compile Include="Node.fs" />
     <Compile Include="Dispatchers.fs" />
-    <Compile Include="EntityOperationDispatcher.fs" />
+    <Compile Include="EntityOperationProcessor.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

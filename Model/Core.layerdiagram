@@ -3,24 +3,24 @@
   <layers>
     <layer Id="c368daf0-7a51-4407-b818-1944cf6eb670" name="NodeEntitiesHostLayer">
       <childLayers>
-        <layer Id="3043c405-16cd-4516-afe3-222a481cba9b" name="TransportLayer">
+        <layer Id="3043c405-16cd-4516-afe3-222a481cba9b" name="TransportLayer&#xD;&#xA;(Node)">
           <description>Serialize/Deserialize issues and send/receive them over Udp\tcp sockets</description>
         </layer>
-        <layer Id="e37d5a16-fc24-4bd9-8f9f-c419ef072e44" name="IssueNavigationLayer">
+        <layer Id="e37d5a16-fc24-4bd9-8f9f-c419ef072e44" name="OperationNavigationLayer&#xD;&#xA;(Dispatcher,  Protocol)">
           <dependencyToLayers>
             <dependencyFromLayerToLayer Id="72d61382-5709-42ca-8743-0bf15b5c1217" direction="Bidirectional">
               <layerMoniker Id="3043c405-16cd-4516-afe3-222a481cba9b" />
             </dependencyFromLayerToLayer>
           </dependencyToLayers>
         </layer>
-        <layer Id="3c050655-037e-4239-b173-69f0687384bb" name="IssueProcessingLayer">
+        <layer Id="3c050655-037e-4239-b173-69f0687384bb" name="OperationProcessingLayer&#xD;&#xA;(User domain entities)">
           <dependencyToLayers>
             <dependencyFromLayerToLayer Id="aba83d77-efcc-40b2-bf50-7139fa048c69" direction="Bidirectional">
               <layerMoniker Id="e37d5a16-fc24-4bd9-8f9f-c419ef072e44" />
             </dependencyFromLayerToLayer>
           </dependencyToLayers>
         </layer>
-        <layer Id="f640d509-3053-4bf8-9149-eb58b43e5b2b" name="DataStorageLayer">
+        <layer Id="f640d509-3053-4bf8-9149-eb58b43e5b2b" name="DataStorageLayer&#xD;&#xA;(PersistanceProvider, EntityRepository)">
           <dependencyToLayers>
             <dependencyFromLayerToLayer Id="b6af03ef-9808-496f-bc59-3e898c71d18a" direction="Bidirectional">
               <layerMoniker Id="3c050655-037e-4239-b173-69f0687384bb" />

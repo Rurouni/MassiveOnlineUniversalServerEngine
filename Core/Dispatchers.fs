@@ -16,8 +16,8 @@ type BasicDispatcher() as this =
 
     abstract member OnOperation: self:INode * source:INode * IOperation -> unit
 
-    interface IOperationDispatcher with
-        member x.Dispatch(operation) = 
+    interface INodeEventProcessor with
+        member x.Process(operation) = 
             match operation with
             |NodeConnected(context) -> do this.OnConnected(context.Self, context.Source)
             |NodeDisconnected(context) -> do this.OnDisconnected(context.Self, context.Source)
@@ -36,8 +36,8 @@ type EventDispatcher() =
     [<CLIEvent>]
     member x.OnOperation with get() = onOperationEvent.Publish
     
-    interface IOperationDispatcher with
-        member x.Dispatch(operation) = 
+    interface INodeEventProcessor with
+        member x.Process(operation) = 
             match operation with
             |NodeConnected(context) -> do onConnectedEvent.Trigger(context)
             |NodeDisconnected(context) -> do onDisconnectedEvent.Trigger(context)
@@ -52,8 +52,8 @@ type ObservableDispatcher() =
     member x.OnDisconnected with get() = onDisconnectedEvent.AsObservable()
     member x.OnOperation with get() = onOperationEvent.AsObservable()
     
-    interface IOperationDispatcher with
-        member x.Dispatch(operation) = 
+    interface INodeEventProcessor with
+        member x.Process(operation) = 
             match operation with
             |NodeConnected(context) -> do onConnectedEvent.OnNext(context)
             |NodeDisconnected(context) -> do onDisconnectedEvent.OnNext(context)

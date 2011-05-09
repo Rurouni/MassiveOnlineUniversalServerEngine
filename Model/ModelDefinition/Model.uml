@@ -1,8 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<modelStoreModel xmlns:dm0="http://schemas.microsoft.com/VisualStudio/2008/DslTools/Core" xmlns:dm1="http://schemas.microsoft.com/dsltools/Kernel" xmlns:dm2="http://schemas.microsoft.com/dsltools/Component" xmlns:dm3="http://schemas.microsoft.com/dsltools/UseCase" xmlns:dm4="http://schemas.microsoft.com/dsltools/Activity" xmlns:dm5="http://schemas.microsoft.com/dsltools/Interaction" xmlns:dm6="http://schemas.microsoft.com/dsltools/UmlModelLibrary" xmlns:dm7="http://schemas.microsoft.com/dsltools/UmlDiagrams" xmlns:dm8="http://schemas.microsoft.com/dsltools/LogicalClassDesigner"
+<modelStoreModel xmlns:dm0="http://schemas.microsoft.com/VisualStudio/2008/DslTools/Core" xmlns:dm1="http://schemas.microsoft.com/dsltools/Kernel" xmlns:dm2="http://schemas.microsoft.com/dsltools/Component" xmlns:dm3="http://schemas.microsoft.com/dsltools/Activity" xmlns:dm4="http://schemas.microsoft.com/dsltools/Interaction" xmlns:dm5="http://schemas.microsoft.com/dsltools/UseCase" xmlns:dm6="http://schemas.microsoft.com/dsltools/UmlModelLibrary" xmlns:dm7="http://schemas.microsoft.com/dsltools/UmlDiagrams" xmlns:dm8="http://schemas.microsoft.com/dsltools/LogicalClassDesigner" xmlns:dm9="http://schemas.microsoft.com/dsltools/SimpleShapesModel" xmlns:dm10="http://schemas.microsoft.com/VisualStudio/TeamArchitect/ActivityDesigner"
   dslVersion="1.0.0.0"
   Id="991a598e-812b-4f91-b058-517fa007a218"
   name="Model" xmlns="http://schemas.microsoft.com/dsltools/ModelStore">
+  <ownedCommentsInternal>
+    <comment
+      Id="243a30eb-3ee7-4f9d-a8ee-c6b1c3d0d479">
+      <body>Operation executed in EntityProxy</body>
+    </comment>
+  </ownedCommentsInternal>
   <profileInstances>
     <packageHasProfileInstances
       Id="0caec977-1f8c-4ba3-a7db-8cc9ad9cc73b">
@@ -81,6 +87,303 @@
       <undefinedType
         Id="f8f8a7a4-a35e-436e-a50a-2b7b13ccf150"
         name="BaseHandler" />
+    </packageHasNamedElement>
+    <packageHasNamedElement>
+      <activity
+        Id="d8f7af59-15c6-475c-9c7f-09ce5396bf53"
+        name="EntityOperationNavigation"
+        isAbstract="false"
+        isLeaf="false"
+        isActiveClass="false"
+        isReentrant="false"
+        isReadOnly="false"
+        isSingleExecution="false">
+        <nodes>
+          <opaqueAction
+            Id="626e2f53-112e-4146-bdea-6e950b16bc1d"
+            name="Check Operation Type"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="c45e72f4-f7f2-4c8e-bec7-ecab2b8db2b8"
+                isLeaf="false">
+                <decisionNodeMoniker
+                  Id="75bbd097-fea0-494e-a8d6-d4568ff64d4d"
+                  LastKnownName="dfgdfgdfgdfg"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </opaqueAction>
+          <decisionNode
+            Id="75bbd097-fea0-494e-a8d6-d4568ff64d4d"
+            name="dfgdfgdfgdfg"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="142847a3-c54c-4ff9-a827-f35d114f895c"
+                guard="Instance"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="ad01325e-51c5-4fca-be8e-108f76cfc01e"
+                  LastKnownName="Find entity in local repository"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+              <controlFlow
+                Id="bb04c10b-0de3-4962-97ef-7664bf5326ef"
+                guard="Type"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="279875cd-1ca6-4cb2-9bce-69a59d043f11"
+                  LastKnownName="Get statically mapped  type controller node for this entityId and execute operation there"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </decisionNode>
+          <initialNode
+            Id="f203c986-6f73-44ab-ac95-54854ee2172a"
+            name="Initial1"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="1e8755f0-4809-448b-bfaf-4c8eb7c324de"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="626e2f53-112e-4146-bdea-6e950b16bc1d"
+                  LastKnownName="Check Operation Type"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </initialNode>
+          <opaqueAction
+            Id="ad01325e-51c5-4fca-be8e-108f76cfc01e"
+            name="Find entity in local repository"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="86ba21c6-5064-4ab9-be75-68dcc64fbbb5"
+                isLeaf="false">
+                <decisionNodeMoniker
+                  Id="3da34ff6-b2f3-4ab2-8f5e-8c0523a7a5b4"
+                  LastKnownName="Decision1"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+            <pins>
+              <opaqueActionHasInputValues>
+                <inputPin
+                  Id="87a25d32-6815-419d-a743-49d5381426ab"
+                  name="EntityId"
+                  isLeaf="false"
+                  ordering="Unordered"
+                  isControlType="false"
+                  isControl="false">
+                  <upperBound>
+                    <literalInteger
+                      Id="7329d4cb-6ee6-43a5-bdf7-95068afec47a"
+                      name="2147483647"
+                      value="2147483647" />
+                  </upperBound>
+                </inputPin>
+              </opaqueActionHasInputValues>
+            </pins>
+          </opaqueAction>
+          <decisionNode
+            Id="3da34ff6-b2f3-4ab2-8f5e-8c0523a7a5b4"
+            name="Decision1"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="c44c001c-ce8d-4520-8106-cde35b781082"
+                guard="Found"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="51ce855e-e6b3-48ac-9a28-236dd93ad682"
+                  LastKnownName="Execute operation in current node"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+              <controlFlow
+                Id="7f6b4af6-c21e-4d11-a5af-79ec661b52c6"
+                guard="Not"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="08467e3f-63dc-4fb1-85a6-ef80194ed108"
+                  LastKnownName="Are we  master Node?"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </decisionNode>
+          <opaqueAction
+            Id="51ce855e-e6b3-48ac-9a28-236dd93ad682"
+            name="Execute operation in current node"
+            isLeaf="false" />
+          <opaqueAction
+            Id="279875cd-1ca6-4cb2-9bce-69a59d043f11"
+            name="Get statically mapped  type controller node for this entityId and execute operation there"
+            isLeaf="false" />
+          <opaqueAction
+            Id="08467e3f-63dc-4fb1-85a6-ef80194ed108"
+            name="Are we  master Node?"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="bb666a42-4d6e-49c0-9be0-7c788ae8f0a1"
+                isLeaf="false">
+                <decisionNodeMoniker
+                  Id="b831474c-c4d9-4010-a355-5555c81558ab"
+                  LastKnownName="Decision2"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </opaqueAction>
+          <decisionNode
+            Id="b831474c-c4d9-4010-a355-5555c81558ab"
+            name="Decision2"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="cc3e9cdb-2570-4fcd-babc-a7b53d035c32"
+                guard="No"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="0ff399d5-72cb-4ec6-b54c-f4cbbd154725"
+                  LastKnownName="Connect to master if not"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+              <controlFlow
+                Id="ab74b11f-0527-4d64-8fd0-f123ca12b23e"
+                guard="Yes"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="b3fb62f8-2b05-48c2-b2aa-77540bf8e1db"
+                  LastKnownName="Find entityId in RoutingTable"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </decisionNode>
+          <opaqueAction
+            Id="0ff399d5-72cb-4ec6-b54c-f4cbbd154725"
+            name="Connect to master if not"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="42b3e6ef-e55d-4549-9a10-dd8492654a2a"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="178353d5-be1b-4b40-bc9f-6db9ba3c9a4a"
+                  LastKnownName="Do we need separate channel for this entity?"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </opaqueAction>
+          <opaqueAction
+            Id="b3fb62f8-2b05-48c2-b2aa-77540bf8e1db"
+            name="Find entityId in RoutingTable"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="cc2e0533-1a2d-433f-b6b4-215044d58cba"
+                isLeaf="false">
+                <decisionNodeMoniker
+                  Id="70635ce9-f7be-49c6-9498-d3ca402f4467"
+                  LastKnownName="Decision3"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </opaqueAction>
+          <decisionNode
+            Id="70635ce9-f7be-49c6-9498-d3ca402f4467"
+            name="Decision3"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="8ce8c4a8-65d8-40dc-8993-b1e58c309997"
+                guard="Found"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="9cbfc30d-8cf1-4fe3-8ef8-5a706dd7f160"
+                  LastKnownName="Execute operation in found node"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+              <controlFlow
+                Id="75b58171-ba7f-476d-9f22-774130ff25c3"
+                guard="Not"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="279875cd-1ca6-4cb2-9bce-69a59d043f11"
+                  LastKnownName="Get statically mapped  type controller node for this entityId and execute operation there"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </decisionNode>
+          <opaqueAction
+            Id="9cbfc30d-8cf1-4fe3-8ef8-5a706dd7f160"
+            name="Execute operation in found node"
+            isLeaf="false" />
+          <opaqueAction
+            Id="178353d5-be1b-4b40-bc9f-6db9ba3c9a4a"
+            name="Do we need separate channel for this entity?"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="141826ca-923b-44ef-8018-1b4f42196ded"
+                isLeaf="false">
+                <decisionNodeMoniker
+                  Id="6e2ea602-0b51-4e36-988c-0046090cd903"
+                  LastKnownName="Decision5"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </opaqueAction>
+          <opaqueAction
+            Id="9ff0c8a0-0178-497a-82e6-f63dd21129b2"
+            name="If we have no cached entry for this entityId  get from master  that node that contains our entity"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="0e8fe365-cb6d-4795-8d33-1f67941d6566"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="c0b99a90-f154-4b72-acc8-9b5a31b61c3e"
+                  LastKnownName="Connect to that node if not and execute operation in that node"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </opaqueAction>
+          <opaqueAction
+            Id="989a4786-9c8e-47b2-a230-0dd512053c72"
+            name="Execute operation on  master"
+            isLeaf="false" />
+          <opaqueAction
+            Id="c0b99a90-f154-4b72-acc8-9b5a31b61c3e"
+            name="Connect to that node if not and execute operation in that node"
+            isLeaf="false" />
+          <decisionNode
+            Id="6e2ea602-0b51-4e36-988c-0046090cd903"
+            name="Decision5"
+            isLeaf="false">
+            <flowNodeTargets>
+              <controlFlow
+                Id="326b1b02-c010-4064-9095-c14f029410fa"
+                guard="Yes"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="9ff0c8a0-0178-497a-82e6-f63dd21129b2"
+                  LastKnownName="If we have no cached entry for this entityId  get from master  that node that contains our entity"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+              <controlFlow
+                Id="a2c26927-8c8f-47a8-a6c6-c21e78100e25"
+                guard="No"
+                isLeaf="false">
+                <opaqueActionMoniker
+                  Id="989a4786-9c8e-47b2-a230-0dd512053c72"
+                  LastKnownName="Execute operation on  master"
+                  LastKnownLocation="Model.uml" />
+              </controlFlow>
+            </flowNodeTargets>
+          </decisionNode>
+        </nodes>
+      </activity>
     </packageHasNamedElement>
   </packagedElements>
   <primitiveType
