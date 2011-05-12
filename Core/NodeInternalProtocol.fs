@@ -15,6 +15,8 @@ type NodeOperationIds =
     |NodeIntroductionRequestId = 1
     |NodeIntroductionReplyId = 2
 
+type NodeIntroductionRequest
+
 type NodeOperation = 
     |NodeIntroductionRequest of NodeDescription
     |NodeIntroductionReply of NodeDescription * list<NodeDescription> //master*connectionPropagation

@@ -23,18 +23,36 @@ type Node(nodeType : NodeType, domainProtocol : IProtocolDescription, processor 
     
     let Log = LogManager.GetCurrentClassLogger()
     
+    
     let netPeer = new RakPeerInterface()
     let startUpResult = netPeer.Startup(selfIp, selfPort, maxConnections, 30000)
     let channels = new Dictionary<uint64, INode>()
+    let description = { Id = netPeer.Id().Id
+                        Type = nodeType
+                        Ip = selfIp
+                        Port = selfPort }
+
+    let send(netId, operation: IOperation) = 
+        use packet = new OutPacket();
+        packet.WriteUByte(byte(RakNetMessages.ID_USER_PACKET_ENUM))
+        operation.Serialize(packet)
+        netPeer.Send(netId, packet,
+            enum<MessagePriority>(int32(operation.Description.Priority)),
+            enum<MessageReliability>(int32(operation.Description.Reliability)), sbyte(0), false) |> ignore
+
 
     let onNodeIntroductionRequest(netId:NetId, nodeDescription:NodeDescription) =
-        ()
+        let connectedNode = new NodeProxy( netId, this, nodeDescription.Type)
+        processor.Process(NodeConnected(new OperationContext(this, connectedNode)))
+        channels.Add( nodeDescription.Id, connectedNode)
+        send(netId, new NodeIntroductionReply(description, list.Empty))
+
     let onNodeIntroductionReply(netId:NetId, masterDescription:NodeDescription, nodes:list<NodeDescription>) =
         ()
         
     let processOperation(msg:InPacket) = 
         let header = OperationHeader.Read(msg)
-        match read header.OperationId, msg with
+        match read header.OperationId msg with
         |NodeIntroductionRequest(desc) -> onNodeIntroductionRequest(msg.SenderNetId, desc)
         |NodeIntroductionReply(master, nodes) -> onNodeIntroductionReply(msg.SenderNetId,  master, nodes)
         |None ->
@@ -54,16 +72,15 @@ type Node(nodeType : NodeType, domainProtocol : IProtocolDescription, processor 
         | RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED ->
             use packet = new OutPacket()
             write packet (NodeIntroductionRequest(description))
-            let connectedNode = new NodeProxy( senderId, this)
-            processor.Process(NodeConnected(new OperationContext(this, connectedNode)))
-            channels.Add( msg.SenderNetId.Id, connectedNode)
+            
 
         | RakNetMessages.ID_DISCONNECTION_NOTIFICATION
         | RakNetMessages.ID_DETECT_LOST_CONNECTIONS
         | RakNetMessages.ID_CONNECTION_LOST
         | RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED ->
             match DictionaryExtensions.tryFind channels senderId with
-            |None -> Log.Warn("Received disconnection event:{0} from unregistered Node<Id:{1}>", netMsgId, senderId)
+            |None -> 
+                Log.Warn("Received disconnection event:{0} from unregistered Node<Id:{1}>", netMsgId, senderId)
             |Some(disconnectedNode) ->
                 processor.Process(NodeDisconnected(new OperationContext(this, disconnectedNode)))
                 channels.Remove(msg.SenderNetId.Id) |> ignore
@@ -93,15 +110,7 @@ type Node(nodeType : NodeType, domainProtocol : IProtocolDescription, processor 
                     |Connect(ip, port, replyChannel) -> replyChannel.Reply(netPeer.Connect(ip, port))
                     |Disconnect(netId) -> netPeer.CloseConnection(netId, true, byte(0))
                     |Send(netId, operation) -> 
-                        if protocol.Contains(operation.Header.OperationId) then
-                            use packet = new OutPacket();
-                            packet.WriteUByte(byte(RakNetMessages.ID_USER_PACKET_ENUM))
-                            OperationHeader.Write(operation.Header, packet);
-                            protocol.Serialize(operation, packet)
-                            netPeer.Send(netId, packet,
-                                enum<MessagePriority>(int32(operation.Description.Priority)),
-                                enum<MessageReliability>(int32(operation.Description.Reliability)), sbyte(0), false) |> ignore
-                        else failwith("Cant serialize operationId:" + operation.Header.OperationId.ToString())
+                        send(netId, operation)
                     |LoopbackSend(operation)-> processor.Process(NodeOperation(operation))
                     |ReceiveMessages ->
                         receiveMessages(maxMessagesPerTick)
