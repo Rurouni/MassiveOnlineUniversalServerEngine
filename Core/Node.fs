@@ -6,6 +6,7 @@ open System
 open System.Collections.Generic
 open NLog
 open DictionaryExtensions
+open NodeInternalProtocol
 
 
 
@@ -17,7 +18,7 @@ type NodeCommand =
     |LoopbackSend of IOperation
 
 
-type Node(nodeType : NodeType, protocol : IProtocolDescription, processor : INodeEventProcessor,
+type Node(nodeType : NodeType, domainProtocol : IProtocolDescription, processor : INodeEventProcessor,
           selfIp, selfPort, maxConnections, maxMessagesPerTick, sleepTimeMs) as this = class
     
     let Log = LogManager.GetCurrentClassLogger()
@@ -26,13 +27,33 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, processor : INod
     let startUpResult = netPeer.Startup(selfIp, selfPort, maxConnections, 30000)
     let channels = new Dictionary<uint64, INode>()
 
-    let processInternalMessage()
+    let onNodeIntroductionRequest(netId:NetId, nodeDescription:NodeDescription) =
+        ()
+    let onNodeIntroductionReply(netId:NetId, masterDescription:NodeDescription, nodes:list<NodeDescription>) =
+        ()
+        
+    let processOperation(msg:InPacket) = 
+        let header = OperationHeader.Read(msg)
+        match read header.OperationId, msg with
+        |NodeIntroductionRequest(desc) -> onNodeIntroductionRequest(msg.SenderNetId, desc)
+        |NodeIntroductionReply(master, nodes) -> onNodeIntroductionReply(msg.SenderNetId,  master, nodes)
+        |None ->
+            match DictionaryExtensions.tryFind channels senderId with
+            |None -> Log.Error("Received operationId:{0} from unregistered Node<Id:{1}>", header.OperationId, senderId)
+            |Some(sourceNode) -> 
+                if domainProtocol.Contains header.OperationId then
+                    let operation = protocol.Deserialize(header.OperationId, msg)
+                    operation.Header <- header
+                    operation.Context <- new OperationContext(this, sourceNode)
+                    processor.Process(NodeOperation(operation))
+                else Log.Error("Received unknown operationId:{0} from Node<Id:{1}>", header.OperationId, sourceNode) 
 
     let processNetMessage(netMsgId:RakNetMessages, msg:InPacket, senderId:uint64) =
         match netMsgId with
-        | RakNetMessages.ID_NEW_INCOMING_CONNECTION -> ()//remove unintriduced nodes later
+        | RakNetMessages.ID_NEW_INCOMING_CONNECTION -> ()//remove unintroduced nodes later
         | RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED ->
-            Send(new NodeIntroductionRequest(nodeType))
+            use packet = new OutPacket()
+            write packet (NodeIntroductionRequest(description))
             let connectedNode = new NodeProxy( senderId, this)
             processor.Process(NodeConnected(new OperationContext(this, connectedNode)))
             channels.Add( msg.SenderNetId.Id, connectedNode)
@@ -47,18 +68,8 @@ type Node(nodeType : NodeType, protocol : IProtocolDescription, processor : INod
                 processor.Process(NodeDisconnected(new OperationContext(this, disconnectedNode)))
                 channels.Remove(msg.SenderNetId.Id) |> ignore
 
-        | RakNetMessages.ID_USER_PACKET_ENUM -> 
-            let header = OperationHeader.Read(msg)
-            processInternalMessage(header, msg)
-            match DictionaryExtensions.tryFind channels senderId with
-            |None -> Log.Error("Received operationId:{0} from unregistered Node<Id:{1}>", header.OperationId, senderId)
-            |Some(sourceNode) ->
-                if protocol.Contains(header.OperationId) then 
-                    let operation = protocol.Deserialize(header.OperationId, msg)
-                    operation.Header <- header
-                    operation.Context <- new OperationContext(this, sourceNode)
-                    processor.Process(NodeOperation(operation))
-                else Log.Error("Received unknown operationId:{0} from Node<Id:{1}>", header.OperationId, sourceNode)
+        | RakNetMessages.ID_USER_PACKET_ENUM -> processOperation(msg)
+                
         | _ -> Log.Warn("Unhandled MessageType:{0} from Node<Id:{1}>", netMsgId, msg.SenderNetId.Id)
 
     let rec loop(inbox:MailboxProcessor<NodeCommand>) = 
