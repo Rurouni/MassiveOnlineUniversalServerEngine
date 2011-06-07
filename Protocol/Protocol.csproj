@@ -47,12 +47,6 @@
     <Compile Include="PingPong.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Core\Core.fsproj">
-      <Project>{5E6EC24B-886B-453B-8274-C1552ABA52E0}</Project>
-      <Name>Core</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>

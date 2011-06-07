@@ -93,13 +93,6 @@
     <Compile Include="Interfaces.fs" />
     <Compile Include="Pinger.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Core\Core.fsproj">
-      <Name>Core</Name>
-      <Project>{5e6ec24b-886b-453b-8274-c1552aba52e0}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

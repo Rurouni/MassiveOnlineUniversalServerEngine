@@ -65,10 +65,6 @@
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Core\Core.fsproj">
-      <Project>{5E6EC24B-886B-453B-8274-C1552ABA52E0}</Project>
-      <Name>Core</Name>
-    </ProjectReference>
     <ProjectReference Include="..\RakNetWrap\RakNetWrap.vcxproj">
       <Project>{5ADEBAC7-5010-4ED4-9CA7-3192F2D86FA8}</Project>
       <Name>RakNetWrap</Name>
