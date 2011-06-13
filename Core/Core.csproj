@@ -117,8 +117,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="IssueHeader.cs" />
     <Compile Include="Node.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TransportHeader.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RakNetWrap\RakNetWrap.vcxproj">
