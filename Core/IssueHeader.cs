@@ -1,42 +1,25 @@
 ﻿using System;
+using System.Runtime.Serialization;
 using RakNetWrapper;
 
-namespace Core
+namespace MOUSE.Core
 {
+    [DataContract]
     public enum IssueHeaderType : byte
     {
         Message,
         NodeMessage
     }
 
+    [DataContract]
     public class IssueHeader
     {
+        [DataMember]
         public IssueHeaderType Id;
 
         public IssueHeader(IssueHeaderType id)
         {
             Id = id;
-        }
-
-        public virtual void Serialize(OutPacket packet)
-        {
-            packet.WriteUByte((byte)Id);
-        }
-
-        public static IssueHeader Deserialize(InPacket packet)
-        {
-            var type = (IssueHeaderType)packet.ReadUByte();
-            switch (type)
-            {
-                case IssueHeaderType.Message:
-                    return new IssueHeader(IssueHeaderType.Message);
-                    break;
-                case IssueHeaderType.NodeMessage:
-                    return new IssueHeader(IssueHeaderType.NodeMessage);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
         }
     }
 }

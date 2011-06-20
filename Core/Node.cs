@@ -6,7 +6,7 @@ using System.Threading;
 using NLog;
 using RakNetWrapper;
 
-namespace Core
+namespace MOUSE.Core
 {
     public enum NodeType
     {
@@ -14,16 +14,13 @@ namespace Core
         Client
     }
 
-    public interface IProtocol
-    {
-        
-    }
-
-    public class Issue
+    public class Message
     {
         public TransportHeader TransportHeader;
         public IssueHeader IssueHeader;
         public object Body;
+        public MessagePriority Priority;
+        public MessageReliability Reliability;
     }
 
     public class NodeIntroductionRequest
@@ -55,37 +52,36 @@ namespace Core
         public Logger Log = LogManager.GetCurrentClassLogger();
 
         private readonly NodeDescription _selfDescription;
-        private readonly Domain _domain;
-        private readonly IProtocol _protocol = new InternalProtocol();
+        private readonly NativeReader _reader = new NativeReader();
+        private readonly NativeWriter _writer = new NativeWriter();
         private readonly RakPeerInterface _netPeer;
+        private readonly FastSerializer _serializer = new FastSerializer();
         private readonly Dictionary<NetId, NodeDescription> _connectedNodes;
         private long _updateLoopRunning = 0;
         private AutoResetEvent _updateLoopFinishedEvent;
-        private readonly Issue _nodeMessageIssue;
         
 
-        public Node(NodeDescription selfDescription, Domain domain)
+        public Node(NodeDescription selfDescription)
         {
             _selfDescription = selfDescription;
-            _domain = domain;
-            _nodeMessageIssue = new Issue
-            {
-                TransportHeader = new TransportHeader(TransportHeaderType.Direct),
-                IssueHeader = new IssueHeader(IssueHeaderType.NodeMessage)
-            };
+            
             _netPeer = new RakPeerInterface();
+            _reader.SetBuffer(new byte[1024*1024*10], 0);
         }
         
         
         public void Update()
         {
+            var netId = new NetId();
             for (int i = 0; i < MaxMessagesPerTick; i++)
             {
-                InPacket packet = _netPeer.Receive();
-                if(packet == null)
-                    return;
-
-                Process(packet);
+                int length = 0;
+                if (_netPeer.Receive(ref netId, _reader.GetBuffer(), ref length))
+                {
+                    _reader.SetPosition(0);
+                    _reader.SetLength(length);
+                    Process(netId, _reader);    
+                }
             }
         }
 
@@ -102,64 +98,66 @@ namespace Core
 
         }
 
-        private void Process(InPacket packet)
+        private void Process(NetId netId, NativeReader reader)
         {
-            var netMsgId = (RakNetMessages)packet.ReadUByte();
+            var netMsgId = (RakNetMessages)reader.ReadByte();
             switch (netMsgId)
             {
                 case RakNetMessages.ID_USER_PACKET_ENUM:
-                    OnNetMessage(packet);
+                    OnNetMessage(netId, reader);
                     break;
                 case RakNetMessages.ID_DETECT_LOST_CONNECTIONS:
                 case RakNetMessages.ID_CONNECTION_LOST:
                 case RakNetMessages.ID_DISCONNECTION_NOTIFICATION:
-                    OnNetDisconnect(packet.SenderNetId);
+                    OnNetDisconnect(netId);
                     break;
                 case RakNetMessages.ID_NEW_INCOMING_CONNECTION:
                     Log.Debug("New incoming connection from Node<Id:{1}>", packet.SenderNetId.Id);
                     break;
                 case RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED:
-                    SendIntroduction(packet.SenderNetId);
+                    SendIntroduction(netId);
                     break;
                 default:
-                    Log.Warn("Unhandled MessageType:{0} from Node<Id:{1}>", netMsgId, packet.SenderNetId.Id);
+                    Log.Warn("Unhandled MessageType:{0} from Node<Id:{1}>", netMsgId, netId.Id);
                     break;
             }
         }
 
         private void SendIntroduction(NetId netId)
         {
-            _nodeMessageIssue.Body = new NodeIntroductionRequest{NewNode = _selfDescription};
-            Send(netId, _nodeMessageIssue);
+            var msg = new Message
+            {
+                TransportHeader = new TransportHeader(TransportHeaderType.Direct),
+                IssueHeader = new IssueHeader(IssueHeaderType.NodeMessage),
+                Body = new NodeIntroductionRequest{NewNode = _selfDescription}
+            };
+            Send(netId, msg);
         }
 
-        private void Send(NetId netId, Issue issue)
+        private void Send(NetId netId, Message msg)
         {
-            var packet = new OutPacket();
-            packet.WriteUByte((byte)RakNetMessages.ID_USER_PACKET_ENUM);
-            issue.TransportHeader.Serialize(packet);
-            issue.IssueHeader.Serialize(packet);
-            if (issue.IssueHeader.Id == IssueHeaderType.NodeMessage)
-                _nodeDomain.Serialize(issue.Body);
-            else
-                _domain.Serialize(issue.Body);
+            _writer.Position = 0;
+            _writer.Write((byte)RakNetMessages.ID_USER_PACKET_ENUM);
+            _serializer.Serialize(msg.TransportHeader, _writer);
+            _serializer.Serialize(msg.IssueHeader, _writer);
+            _serializer.Serialize(msg.Body, _writer);
 
-            _netPeer.Send(netId, packet);
+            _netPeer.Send(netId, _writer.Buff, (int)_writer.Position, msg.Priority, msg.Reliability, 0, false);
         }
 
         private void OnNetConnect(NetId senderId)
         {
-            throw new NotImplementedException();
+            Log.Info("NetId<{0}> has connected", senderId.Id);
         }
 
         private void OnNetDisconnect(NetId senderId)
         {
-            throw new NotImplementedException();
+            Log.Info("NetId<{0}> has disconnected", senderId.Id);
         }
 
-        private void OnNetMessage(InPacket msg)
+        private void OnNetMessage(NetId netId, NativeReader reader)
         {
-            
+            Log.Info("Message from NetId<{0}>", senderId.Id);
         }
 
         public void Start(bool manualUpdate)

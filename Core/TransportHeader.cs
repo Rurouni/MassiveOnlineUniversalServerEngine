@@ -1,16 +1,20 @@
 ﻿using System;
+using System.Runtime.Serialization;
 using RakNetWrapper;
 
-namespace Core
+namespace MOUSE.Core
 {
+    [DataContract]
     public enum TransportHeaderType : byte
     {
         Direct,
         Routed
     }
 
+    [DataContract]
     public class TransportHeader
     {
+        [DataMember]
         public TransportHeaderType Id;
 
         public TransportHeader(TransportHeaderType id)
@@ -18,48 +22,17 @@ namespace Core
             Id = id;
         }
 
-        public virtual void Serialize(OutPacket packet)
-        {
-            packet.WriteUByte((byte)Id);
-        }
-
-        public static TransportHeader Deserialize(InPacket packet)
-        {
-            var type = (TransportHeaderType)packet.ReadUByte();
-            switch (type)
-            {
-                case TransportHeaderType.Direct:
-                    return new TransportHeader(TransportHeaderType.Direct);
-                    break;
-                case TransportHeaderType.Routed:
-                    return new RoutedTransportHeader(packet);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
     }
-
+    [DataContract]
     public class RoutedTransportHeader : TransportHeader
     {
+        [DataMember]
         public ulong SourceNodeId;
 
         public RoutedTransportHeader(ulong sourceNodeId)
             : base(TransportHeaderType.Routed)
         {
             SourceNodeId = sourceNodeId;
-        }
-
-        public RoutedTransportHeader(InPacket packet)
-            : base(TransportHeaderType.Routed)
-        {
-            SourceNodeId = packet.ReadUInt64();
-        }
-
-        public override void Serialize(OutPacket packet)
-        {
-            base.Serialize(packet);
-            packet.WriteUInt64(SourceNodeId);
         }
     }
 }

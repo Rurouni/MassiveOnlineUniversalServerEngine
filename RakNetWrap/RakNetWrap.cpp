@@ -11,6 +11,7 @@
 #include "RakNetWrap.h"
 
 using namespace System;
+using namespace System::IO;
 using namespace System::Runtime::InteropServices;
 using namespace RakNetWrapper;
 
@@ -23,8 +24,8 @@ RakPeerInterface::RakPeerInterface()
 
 RakPeerInterface::~RakPeerInterface()
 {
-	if (_rakPeer != NULL)
-		RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
+    if (_rakPeer != NULL)
+        RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
 }
 
 StartupResult RakPeerInterface::Startup(String ^ip, unsigned short port, unsigned short maxConnections, int timeoutTimeMs)
@@ -35,21 +36,34 @@ StartupResult RakPeerInterface::Startup(String ^ip, unsigned short port, unsigne
     sd.hostAddress[sizeof(sd.hostAddress) - 1] = 0;
     sd.port = port;
     StartupResult res = (StartupResult)_rakPeer->Startup(maxConnections, &sd, 1);
-	_rakPeer->SetMaximumIncomingConnections(maxConnections);
-	_rakPeer->SetOccasionalPing(true);
-	_rakPeer->SetUnreliableTimeout(1000);
-	_rakPeer->SetTimeoutTime(timeoutTimeMs, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
-	return res;
+    _rakPeer->SetMaximumIncomingConnections(maxConnections);
+    _rakPeer->SetOccasionalPing(true);
+    _rakPeer->SetUnreliableTimeout(1000);
+    _rakPeer->SetTimeoutTime(timeoutTimeMs, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
+    return res;
 }
 
 int RakPeerInterface::Send(NetId netId, OutPacket^ packet, MessagePriority priority, MessageReliability reliability,
-	char orderingChannel, bool broadcast)
+    char orderingChannel, bool broadcast)
 
 {
-	PacketPriority pp = (PacketPriority)(int)priority;
-	PacketReliability pr = (PacketReliability)(int)reliability;
+    PacketPriority pp = (PacketPriority)(int)priority;
+    PacketReliability pr = (PacketReliability)(int)reliability;
 
     return _rakPeer->Send(packet->GetInternalStream(), pp, pr, orderingChannel, netId.GetRakGuid(), broadcast);
+}
+
+int RakPeerInterface::Send(NetId netId, array<Byte>^ data, int length, MessagePriority priority, MessageReliability reliability,
+    char orderingChannel, bool broadcast)
+
+{
+    PacketPriority pp = (PacketPriority)(int)priority;
+    PacketReliability pr = (PacketReliability)(int)reliability;
+
+	pin_ptr<unsigned char> npbuff = &data[0];
+    unsigned char *pbuff = npbuff;
+
+    return _rakPeer->Send((char*)pbuff, length, pp, pr, orderingChannel, netId.GetRakGuid(), broadcast);
 }
 
 
@@ -57,14 +71,39 @@ InPacket^ RakPeerInterface::Receive()
 {
     RakNet::Packet *np;
 
-	if (_rakPeer == NULL)
-		return nullptr;
+    if (_rakPeer == NULL)
+        return nullptr;
 
     np = _rakPeer->Receive();
     if (!np)
         return nullptr;
 
     return gcnew InPacket(_rakPeer, np);
+}
+
+bool RakPeerInterface::Receive(NetId% sourceId, array<Byte>^ buff, int% length)
+{
+    RakNet::Packet *np;
+    
+    if (_rakPeer == NULL)
+        return false;
+
+    np = _rakPeer->Receive();
+    if (!np)
+        return false;
+	if(np->length > buff->Length)
+	{
+		_rakPeer->DeallocatePacket(np);
+		return false;
+	}
+	pin_ptr<unsigned char> npbuff = &buff[0];
+    unsigned char *pbuff = npbuff;
+    
+	memcpy(pbuff, np->data, np->length);
+	length = np->length;
+	sourceId = NetId(np->guid);
+    _rakPeer->DeallocatePacket(np);
+    return true;
 }
 
 
@@ -86,8 +125,8 @@ void RakPeerInterface::CloseConnection(NetId netId, bool sendDisconnectionNotifi
 void RakPeerInterface::Shutdown()
 {
     _rakPeer->Shutdown(500, 0);
-	RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
-	_rakPeer = NULL;
+    RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
+    _rakPeer = NULL;
 
 }
 

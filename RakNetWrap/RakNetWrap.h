@@ -18,6 +18,7 @@
 #include "BitStream.h"
 
 using namespace System;
+using namespace System::IO;
 
 namespace RakNetWrapper
 {
@@ -730,7 +731,9 @@ namespace RakNetWrapper
 		void CloseConnection(NetId netId, bool sendDisconnectionNotification, unsigned char orderingChannel);
 
         int Send(NetId netId, OutPacket^ packet, MessagePriority priority, MessageReliability reliability, char orderingChannel, bool broadcast);
+		int Send(NetId netId, array<Byte>^ data, int length, MessagePriority priority, MessageReliability reliability, char orderingChannel, bool broadcast);
 		InPacket^ Receive();
+		bool Receive(NetId% sourceId, array<Byte>^ buff, int% length);
         
         void Shutdown();
         void SetDisconnectTimeoutFor(int timeMs, NetId netId);
