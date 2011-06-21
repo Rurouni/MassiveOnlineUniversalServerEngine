@@ -19,8 +19,6 @@ namespace MOUSE.Core
         public TransportHeader TransportHeader;
         public IssueHeader IssueHeader;
         public object Body;
-        public MessagePriority Priority;
-        public MessageReliability Reliability;
     }
 
     public class NodeIntroductionRequest
@@ -39,6 +37,11 @@ namespace MOUSE.Core
         public NodeType Type;
         public string Ip;
         public ushort Port;
+
+        public override string ToString()
+        {
+            return string.Format("Node<Id:{0}, Type:{1}, Ip:{2}, Port:{3}>", NodeId, Type, Ip, Port);
+        }
     }
 
     
@@ -134,7 +137,7 @@ namespace MOUSE.Core
             Send(netId, msg);
         }
 
-        private void Send(NetId netId, Message msg)
+        public void Send(NetId netId, Message msg, MessagePriority priority, MessageReliability reliability)
         {
             _writer.Position = 0;
             _writer.Write((byte)RakNetMessages.ID_USER_PACKET_ENUM);
@@ -153,16 +156,50 @@ namespace MOUSE.Core
         private void OnNetDisconnect(NetId senderId)
         {
             Log.Info("NetId<{0}> has disconnected", senderId.Id);
+            NodeDescription desc;
+            if (_connectedNodes.TryGetValue(senderId, out desc))
+            {
+                Log.Info("{0} has disconnected", desc);
+                _connectedNodes.Remove(senderId);
+            }
         }
 
-        private void OnNetMessage(NetId netId, NativeReader reader)
+        private void OnNetMessage(NetId senderId, NativeReader reader)
         {
             Log.Info("Message from NetId<{0}>", senderId.Id);
+            var transportHeader = (TransportHeader)_serializer.Deserialize(reader);
+            var issueHeader = (IssueHeader)_serializer.Deserialize(reader);
+            object body = _serializer.Deserialize(reader);
+
+            if (issueHeader.Id == IssueHeaderType.NodeMessage)
+                ProcessNodeMessage(body);
+            else
+                ProcessIssue(issueHeader, body)
+            
+        }
+
+        private void ProcessNodeMessage(object body)
+        {
+            if (body is NodeIntroductionReply)
+                OnNodeIntroductionReply((NodeIntroductionReply)body);
+            else if (body is NodeIntroductionRequest)
+                OnNodeIntroductionRequest((NodeIntroductionRequest)body);
+                
+        }
+
+        private void OnNodeIntroductionRequest(NodeIntroductionRequest msg)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void OnNodeIntroductionReply(NodeIntroductionReply msg)
+        {
+            throw new NotImplementedException();
         }
 
         public void Start(bool manualUpdate)
         {
-            var res = _netPeer.Startup(selfIp, selfPort, 1000, 10000);
+            var res = _netPeer.Startup(_selfDescription.Ip, _selfDescription.Port, 1000, 10000);
             if (res != StartupResult.RAKNET_STARTED)
                 throw new Exception("NetLayer failed to start:" + res);
 
