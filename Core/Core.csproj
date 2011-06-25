@@ -101,6 +101,9 @@
     <CodeAnalysisIgnoreBuiltInRules>true</CodeAnalysisIgnoreBuiltInRules>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AsyncCtpLibrary">
+      <HintPath>..\External\AsyncCTP\AsyncCtpLibrary.dll</HintPath>
+    </Reference>
     <Reference Include="NLog, Version=2.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <HintPath>..\External\NLog\.NET Framework 4.0\NLog.dll</HintPath>
     </Reference>
@@ -118,14 +121,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes.cs" />
     <Compile Include="FastSerializer.cs" />
     <Compile Include="IO.cs" />
-    <Compile Include="IssueHeader.cs" />
     <Compile Include="KeyValueCollection.cs" />
     <Compile Include="Misc.cs" />
     <Compile Include="Node.cs" />
+    <Compile Include="NodeEntity.cs" />
+    <Compile Include="NodeEntityRepository.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TransportHeader.cs" />
+    <Compile Include="Headers.cs" />
+    <Compile Include="InternalProtocol.cs" />
+    <Compile Include="ProxyFactory.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RakNetWrap\RakNetWrap.vcxproj">

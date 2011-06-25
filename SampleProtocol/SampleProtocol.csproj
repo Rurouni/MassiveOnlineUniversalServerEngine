@@ -5,11 +5,11 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{D834EADA-527D-491D-80F5-0715D29BAF5B}</ProjectGuid>
+    <ProjectGuid>{5300823F-C8CB-48AB-990B-C764A9879D93}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>CompiledProtocol</RootNamespace>
-    <AssemblyName>CompiledProtocol</AssemblyName>
+    <RootNamespace>SampleProtocol</RootNamespace>
+    <AssemblyName>SampleProtocol</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\Bin\</OutputPath>
+    <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -25,66 +25,32 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\Bin\</OutputPath>
+    <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="AsyncCtpLibrary">
-      <HintPath>..\External\AsyncCTP\AsyncCtpLibrary.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SampleEntity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ProtocolGenerator.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>ProtocolGenerator.tt</DependentUpon>
-    </Compile>
-    <Compile Include="Generated.cs" />
-    <Compile Include="TTHelper.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="MessagesSerialization.ttinclude" />
-    <None Include="POCOSerialization.ttinclude">
-      <LastGenOutput>POCOSerialization.cs</LastGenOutput>
-    </None>
-    <None Include="ProtocolGenerator.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>ProtocolGenerator.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Core\Core.csproj">
       <Project>{CC2D2C8B-6B03-4585-A421-58B796A69780}</Project>
       <Name>Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\RakNetWrap\RakNetWrap.vcxproj">
-      <Project>{5ADEBAC7-5010-4ED4-9CA7-3192F2D86FA8}</Project>
-      <Name>RakNetWrap</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SampleProtocol\SampleProtocol.csproj">
-      <Project>{5300823F-C8CB-48AB-990B-C764A9879D93}</Project>
-      <Name>SampleProtocol</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <ProjectExtensions>
-    <VisualStudio>
-      <UserProperties ZerocIce_HomeExpanded="D:\Ice-3.4.1" />
-    </VisualStudio>
-  </ProjectExtensions>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

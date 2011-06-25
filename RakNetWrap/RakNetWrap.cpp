@@ -13,6 +13,7 @@
 using namespace System;
 using namespace System::IO;
 using namespace System::Runtime::InteropServices;
+using namespace System::Net;
 using namespace RakNetWrapper;
 
 
@@ -28,13 +29,19 @@ RakPeerInterface::~RakPeerInterface()
         RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
 }
 
-StartupResult RakPeerInterface::Startup(String ^ip, unsigned short port, unsigned short maxConnections, int timeoutTimeMs)
+StartupResult RakPeerInterface::Startup(IPEndPoint^ endpoint, unsigned short maxConnections, int timeoutTimeMs)
 {
-    RakNet::SocketDescriptor sd ;
-    char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(ip);
-    strncpy(sd.hostAddress, str2, sizeof(sd.hostAddress) - 1);
-    sd.hostAddress[sizeof(sd.hostAddress) - 1] = 0;
-    sd.port = port;
+    RakNet::SocketDescriptor sd;
+    if(endpoint != nullptr)
+    {
+        char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(endpoint->Address->ToString());
+        strncpy(sd.hostAddress, str2, sizeof(sd.hostAddress) - 1);
+        sd.hostAddress[sizeof(sd.hostAddress) - 1] = '\0';
+    }
+    else
+        sd.hostAddress[0] = '\0';
+    sd.port = (unsigned short)endpoint->Port;
+    sd.socketFamily = AF_UNSPEC;
     StartupResult res = (StartupResult)_rakPeer->Startup(maxConnections, &sd, 1);
     _rakPeer->SetMaximumIncomingConnections(maxConnections);
     _rakPeer->SetOccasionalPing(true);
@@ -60,10 +67,19 @@ int RakPeerInterface::Send(NetId netId, array<Byte>^ data, int length, MessagePr
     PacketPriority pp = (PacketPriority)(int)priority;
     PacketReliability pr = (PacketReliability)(int)reliability;
 
-	pin_ptr<unsigned char> npbuff = &data[0];
+    pin_ptr<unsigned char> npbuff = &data[0];
     unsigned char *pbuff = npbuff;
 
     return _rakPeer->Send((char*)pbuff, length, pp, pr, orderingChannel, netId.GetRakGuid(), broadcast);
+}
+
+void RakPeerInterface::SendLoopback(NetId netId, array<Byte>^ data, int length)
+
+{
+    pin_ptr<unsigned char> npbuff = &data[0];
+    unsigned char *pbuff = npbuff;
+
+    return _rakPeer->SendLoopback((char*)pbuff, length);
 }
 
 
@@ -91,27 +107,27 @@ bool RakPeerInterface::Receive(NetId% sourceId, array<Byte>^ buff, int% length)
     np = _rakPeer->Receive();
     if (!np)
         return false;
-	if(np->length > buff->Length)
-	{
-		_rakPeer->DeallocatePacket(np);
-		return false;
-	}
-	pin_ptr<unsigned char> npbuff = &buff[0];
+    if(np->length > buff->Length)
+    {
+        _rakPeer->DeallocatePacket(np);
+        return false;
+    }
+    pin_ptr<unsigned char> npbuff = &buff[0];
     unsigned char *pbuff = npbuff;
     
-	memcpy(pbuff, np->data, np->length);
-	length = np->length;
-	sourceId = NetId(np->guid);
+    memcpy(pbuff, np->data, np->length);
+    length = np->length;
+    sourceId = NetId(np->guid);
     _rakPeer->DeallocatePacket(np);
     return true;
 }
 
 
-ConnectionAttemptResult RakPeerInterface::Connect(String ^host, unsigned short remotePort)
+ConnectionAttemptResult RakPeerInterface::Connect(IPEndPoint^ endpoint)
 {
     int res;
-    char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(host);
-    res = _rakPeer->Connect(str2, remotePort, 0, 0);
+    char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(endpoint->Address->ToString());
+    res = _rakPeer->Connect(str2, (unsigned short)endpoint->Port, 0, 0);
     Marshal::FreeHGlobal((System::IntPtr)str2);
     return (RakNetWrapper::ConnectionAttemptResult)res;
 }
