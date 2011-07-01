@@ -506,6 +506,11 @@ namespace RakNetWrapper
             guid.systemIndex = RakSystemIndex;
             return guid;
         }
+
+        static operator UInt64 ( NetId val )
+        {
+            return val.Id;
+        }
     };
 
     public ref class InPacket : IDisposable
@@ -733,7 +738,7 @@ namespace RakNetWrapper
 
         int Send(NetId netId, OutPacket^ packet, MessagePriority priority, MessageReliability reliability, char orderingChannel, bool broadcast);
         int Send(NetId netId, array<Byte>^ data, int length, MessagePriority priority, MessageReliability reliability, char orderingChannel, bool broadcast);
-        void SendLoopback(NetId netId, array<Byte>^ data, int length);
+        void SendLoopback(array<Byte>^ data, int length);
 
         InPacket^ Receive();
         bool Receive(NetId% sourceId, array<Byte>^ buff, int% length);
@@ -753,7 +758,7 @@ namespace RakNetWrapper
             return gcnew IPEndPoint(IPAddress::Parse(gcnew String(addr.ToString(false))), addr.GetPort());
         }
 
-        IPEndPoint^ GetEndPoint(NetId% netId)
+        IPEndPoint^ GetEndPoint(NetId netId)
         {
             RakNet::SystemAddress addr = _rakPeer->GetSystemAddressFromGuid(netId.GetRakGuid());
             return gcnew IPEndPoint(IPAddress::Parse(gcnew String(addr.ToString(false))), addr.GetPort());

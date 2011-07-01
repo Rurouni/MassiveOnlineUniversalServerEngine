@@ -73,7 +73,7 @@ int RakPeerInterface::Send(NetId netId, array<Byte>^ data, int length, MessagePr
     return _rakPeer->Send((char*)pbuff, length, pp, pr, orderingChannel, netId.GetRakGuid(), broadcast);
 }
 
-void RakPeerInterface::SendLoopback(NetId netId, array<Byte>^ data, int length)
+void RakPeerInterface::SendLoopback(array<Byte>^ data, int length)
 
 {
     pin_ptr<unsigned char> npbuff = &data[0];

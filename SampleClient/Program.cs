@@ -50,7 +50,7 @@ namespace SimpleClient
             //nodeEvents.OnOperation.OfType<PingReply>().Subscribe(pong => messages.Enqueue(string.Format("Received Pong<RequestId:{0}> from Node<Id:{1}>",
             //                                                                                            pong.RetVal, pong.Context.Source.Id)));
             var masterEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            node = new Node(NodeType.Client, null, masterEndpoint);
+            node = new Node(NodeType.Client, new GeneratedDomain(), null, masterEndpoint);
             node.Start(manualUpdate:true);
 
             Console.WriteLine("enter help");
@@ -94,11 +94,11 @@ namespace SimpleClient
 
         private static async void Ping()
         {
-            IPinger pinger = node.GetEntity<IPinger>();
+            ISampleEntity entity = node.GetEntity<ISampleEntity>();
             var timer = new Stopwatch();
             timer.Start();
-            int responseId = await pinger.Ping(RequestId++);
-            Console.WriteLine("succesfully pinged responseId:{0}, timeMs:{1}", responseId, timer.ElapsedTicks / Stopwatch.Frequency * 1000);
+            PingReply reply = await entity.Ping(new PingRequest(RequestId++));
+            Console.WriteLine("succesfully pinged responseId:{0}, timeMs:{1}", reply.RequestId, timer.ElapsedTicks / Stopwatch.Frequency * 1000);
         }
     }
 }

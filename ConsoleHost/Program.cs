@@ -23,8 +23,8 @@ namespace MOUSE.ConsoleHost
             {
                 var domain = new PingPongServer();
                 domain.Init();
-
-                var node = new Node(NodeType.Master, new PingPongProtocol(), domain, "127.0.0.1", 4567, 1000, 100000, 1);
+                var masterEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
+                var node = new Node(NodeType.Master, new GeneratedDomain(), masterEndpoint, null);
                 node.Start();
 
                 while (true)

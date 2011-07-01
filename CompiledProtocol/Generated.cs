@@ -29,4 +29,9 @@ namespace SampleDomain.Generated
         }
         
     }
+
+    public class GeneratedDomain : GenerationBaseDomain
+    {
+        
+    }
 }
