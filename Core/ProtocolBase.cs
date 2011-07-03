@@ -81,6 +81,9 @@ namespace MOUSE.Core
                 case 1: return new TransportHeader(reader);
                 case 2: return new EntityOperationRequest(reader);
                 case 3: return new EntityOperationReply(reader);
+                case 4: return new EntityManagementHeader(reader);
+                case 5: return new PropagateConnectionHeader(reader);
+                case 6: return new UpdateEntityRoutingHeader(reader);
                 default: throw new Exception("Not supported header id:" + headerId);
             }
         }
@@ -90,6 +93,11 @@ namespace MOUSE.Core
             if(header is TransportHeader) writer.Write((byte) 1);
             else if(header is EntityOperationRequest) writer.Write((byte) 2);
             else if(header is EntityOperationReply) writer.Write((byte) 3);
+            else if(header is EntityManagementHeader) writer.Write((byte) 4);
+            else if (header is PropagateConnectionHeader) writer.Write((byte)5);
+            else if (header is UpdateEntityRoutingHeader) writer.Write((byte)6);
+            else
+                throw new Exception("Not supported header id:" + header);
 
             header.Serialize(writer);
         }
@@ -127,6 +135,7 @@ namespace MOUSE.Core
                 writer.Write(RoutedNodeId.Value);
         }
     }
+
     [DataContract]
     public class EntityOperationRequest : MessageHeader
     {
@@ -134,60 +143,128 @@ namespace MOUSE.Core
         public readonly uint RequestId;
         [DataMember]
         public readonly ulong TargetEntityId;
-        [DataMember]
-        private bool _activateIfNotFound;
-
-        public EntityOperationRequest(uint requestId, ulong targetEntityId, bool activateIfNotFound)
+        
+        public EntityOperationRequest(uint requestId, ulong targetEntityId)
         {
             RequestId = requestId;
             TargetEntityId = targetEntityId;
-            _activateIfNotFound = activateIfNotFound;
         }
 
         public EntityOperationRequest(NativeReader reader)
         {
             RequestId = reader.ReadUInt32();
             TargetEntityId = reader.ReadUInt64();
-            _activateIfNotFound = reader.ReadBoolean();
         }
 
         public override void  Serialize(NativeWriter writer)
         {
             writer.Write(RequestId);
             writer.Write(TargetEntityId);
-            writer.Write(_activateIfNotFound);
-        }
-
-        public bool ActivateIfNotFound
-        {
-            get { return _activateIfNotFound; }
-            set { _activateIfNotFound = value; }
         }
     }
+
     [DataContract]
     public class EntityOperationReply : MessageHeader
     {
         [DataMember]
-        public uint RequestId;
-        [DataMember]
-        public ulong SourceNodeId;
-
-        public EntityOperationReply(ulong sourceNodeId, uint requestId)
+        public readonly uint RequestId;
+       
+        public EntityOperationReply(uint requestId)
         {
-            SourceNodeId = sourceNodeId;
             RequestId = requestId;
         }
 
         public EntityOperationReply(NativeReader reader)
         {
             RequestId = reader.ReadUInt32();
-            SourceNodeId = reader.ReadUInt64();
         }
 
         public override void  Serialize(NativeWriter writer)
         {
             writer.Write(RequestId);
-            writer.Write(SourceNodeId);
+        }
+    }
+
+    public enum EntityCommand : byte
+    {
+        Activate,
+        Deactivate,
+        Delete
+    }
+
+    [DataContract]
+    public class EntityManagementHeader : MessageHeader
+    {
+        [DataMember]
+        public readonly EntityCommand Command;
+        [DataMember]
+        public readonly ulong EntityId;
+
+        public EntityManagementHeader(EntityCommand command, ulong entityId)
+        {
+            Command = command;
+            EntityId = entityId;
+        }
+
+        public EntityManagementHeader(NativeReader reader)
+        {
+            Command = (EntityCommand)reader.ReadByte();
+            EntityId = reader.ReadUInt64();
+        }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            writer.Write((byte)Command);
+            writer.Write(EntityId);
+        }
+    }
+
+    [DataContract]
+    public class PropagateConnectionHeader : MessageHeader
+    {
+        [DataMember]
+        public readonly NodeDescription Description;
+
+        public PropagateConnectionHeader(NodeDescription description)
+        {
+            Description = description;
+        }
+
+        public PropagateConnectionHeader(NativeReader reader)
+        {
+            Description = new NodeDescription(reader);
+        }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            Description.Serialize(writer);
+        }
+    }
+
+    [DataContract]
+    public class UpdateEntityRoutingHeader : MessageHeader
+    {
+        [DataMember]
+        public readonly ulong EntityId;
+        [DataMember]
+        public readonly ulong OwnerNodeId;
+
+        public UpdateEntityRoutingHeader(ulong entityId, ulong ownerNodeId)
+        {
+            EntityId = entityId;
+            OwnerNodeId = ownerNodeId;
+        }
+
+        public UpdateEntityRoutingHeader(NativeReader reader)
+        {
+            EntityId = reader.ReadUInt64();
+            OwnerNodeId = reader.ReadUInt64();
+        }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            writer.Write(EntityId);
+            writer.Write(OwnerNodeId);
         }
     }
 }

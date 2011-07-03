@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using MOUSE.Core;
 using System.Runtime.Serialization;
+using RakNetWrapper;
 
 namespace SampleProtocol
 {
@@ -12,30 +13,6 @@ namespace SampleProtocol
     public interface ISampleEntity
     {
         [NodeEntityOperation]
-        Task<PingReply> Ping(PingRequest input);
-    }
-
-    [DataContract]
-    public class PingRequest : Message
-    {
-        [DataMember]
-        public int RequestId;
-
-        public PingRequest(int requestId)
-        {
-            RequestId = requestId;
-        }
-    }
-
-    [DataContract]
-    public class PingReply : Message
-    {
-        [DataMember]
-        public int RequestId;
-
-        public PingReply(int requestId)
-        {
-            RequestId = requestId;
-        }
+        Task<int> Ping(int requestId);
     }
 }

@@ -3,10 +3,10 @@
   <layers>
     <layer Id="c368daf0-7a51-4407-b818-1944cf6eb670" name="NodeEntitiesHostLayer">
       <childLayers>
-        <layer Id="3043c405-16cd-4516-afe3-222a481cba9b" name="TransportLayer&#xD;&#xA;(Node)">
+        <layer Id="3043c405-16cd-4516-afe3-222a481cba9b" name="TransportLayer&#xD;&#xA;(RakNet)">
           <description>Serialize/Deserialize issues and send/receive them over Udp\tcp sockets</description>
         </layer>
-        <layer Id="e37d5a16-fc24-4bd9-8f9f-c419ef072e44" name="OperationNavigationLayer&#xD;&#xA;(Dispatcher,  Protocol)">
+        <layer Id="e37d5a16-fc24-4bd9-8f9f-c419ef072e44" name="OperationNavigationLayer&#xD;&#xA;(Node)">
           <dependencyToLayers>
             <dependencyFromLayerToLayer Id="72d61382-5709-42ca-8743-0bf15b5c1217" direction="Bidirectional">
               <layerMoniker Id="3043c405-16cd-4516-afe3-222a481cba9b" />

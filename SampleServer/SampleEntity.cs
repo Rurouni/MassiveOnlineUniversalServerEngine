@@ -11,9 +11,9 @@ namespace SampleServer
     [NodeEntity]
     public class SampleEntity : ISampleEntity
     {
-        public async Task<PingReply> Ping(PingRequest input)
+        public async Task<int> Ping(int requestId)
         {
-            return new PingReply(input.RequestId);
+            return requestId;
         }
     }
 }

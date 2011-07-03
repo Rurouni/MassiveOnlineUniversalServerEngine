@@ -17,6 +17,27 @@
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v10.0\ArchitectureTools\Microsoft.VisualStudio.TeamArchitect.ModelingProject.targets" />
   <ItemGroup>
+    <Content Include="RoutedConnectionfullOperationFlow.sequencediagram">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="RoutedConnectionfullOperationFlow.sequencediagram.layout">
+      <SubType>Content</SubType>
+      <DependentUpon>RoutedConnectionfullOperationFlow.sequencediagram</DependentUpon>
+    </Content>
+    <Content Include="RoutedConnectionlessOperationFlow.sequencediagram">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="RoutedConnectionlessOperationFlow.sequencediagram.layout">
+      <SubType>Content</SubType>
+      <DependentUpon>RoutedConnectionlessOperationFlow.sequencediagram</DependentUpon>
+    </Content>
+    <Content Include="DirectConnectionless(full)EntityOperationFlow.sequencediagram">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="DirectConnectionless(full)EntityOperationFlow.sequencediagram.layout">
+      <SubType>Content</SubType>
+      <DependentUpon>DirectConnectionless(full)EntityOperationFlow.sequencediagram</DependentUpon>
+    </Content>
     <Folder Include="ModelDefinition\" />
     <Content Include="Core.classdiagram">
       <SubType>Content</SubType>

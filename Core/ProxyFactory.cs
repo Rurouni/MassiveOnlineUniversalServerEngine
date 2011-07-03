@@ -10,7 +10,6 @@ namespace MOUSE.Core
     {
         public readonly ulong EntityId;
         public readonly Node Node;
-        public ulong? CachedNodeId;
 
         public NodeEntityProxy(ulong entityId, Node node)
         {

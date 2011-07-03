@@ -89,6 +89,10 @@
     <None Include="NLog.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CompiledProtocol\CompiledDomain.csproj">
+      <Project>{D834EADA-527D-491D-80F5-0715D29BAF5B}</Project>
+      <Name>CompiledDomain</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Core\Core.csproj">
       <Project>{CC2D2C8B-6B03-4585-A421-58B796A69780}</Project>
       <Name>Core</Name>

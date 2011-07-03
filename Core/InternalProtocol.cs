@@ -10,22 +10,34 @@ namespace MOUSE.Core
 {
     public enum NodeMessageId: uint
     {
-        NodeIntroductionRequest = 1,
-        NodeIntroductionReply = 2,
+        Empty = 1,
+        ConnectionRequest = 2,
+        ConnectionReply = 3,
+        UpdateClusterinfo = 4,
         Last //used for protocol generation
     }
 
-    public class NodeIntroductionRequest : Message
+    public class EmptyMessage : Message
+    {
+        public EmptyMessage() : base(NodeMessageId.Empty){}
+
+        public EmptyMessage(NativeReader reader)
+            : base(NodeMessageId.Empty, reader)
+        {
+        }
+    }
+
+    public class ConnectRequest : Message
     {
         [DataMember]
         public NodeDescription Description;
 
-        public NodeIntroductionRequest(NodeDescription senderDescription) : base((uint)NodeMessageId.NodeIntroductionRequest)
+        public ConnectRequest(NodeDescription senderDescription) : base((uint)NodeMessageId.ConnectionRequest)
         {
             Description = senderDescription;
         }
 
-        public NodeIntroductionRequest(NativeReader reader) : base((uint)NodeMessageId.NodeIntroductionRequest, reader)
+        public ConnectRequest(NativeReader reader) : base((uint)NodeMessageId.ConnectionRequest, reader)
         {
             Description = new NodeDescription(reader);
         }
@@ -37,17 +49,17 @@ namespace MOUSE.Core
         }
     }
 
-    public class NodeIntroductionReply : Message
+    public class ConnectReply : Message
     {
         [DataMember]
         public NodeDescription Description;
 
-        public NodeIntroductionReply(NodeDescription receiverDescription) : base((uint)NodeMessageId.NodeIntroductionReply)
+        public ConnectReply(NodeDescription receiverDescription) : base((uint)NodeMessageId.ConnectionReply)
         {
             Description = receiverDescription;
         }
 
-        public NodeIntroductionReply(NativeReader reader) : base((uint)NodeMessageId.NodeIntroductionReply, reader)
+        public ConnectReply(NativeReader reader) : base((uint)NodeMessageId.ConnectionReply, reader)
         {
             Description = new NodeDescription(reader);
         }
@@ -56,6 +68,33 @@ namespace MOUSE.Core
         {
             base.Serialize(writer);
             Description.Serialize(writer);
+        }
+    }
+
+    public class UpdateClusterInfo : Message
+    {
+        [DataMember]
+        public List<NodeDescription> Descriptions;
+
+        public UpdateClusterInfo(List<NodeDescription> descriptions): base((uint)NodeMessageId.UpdateClusterinfo)
+        {
+            Descriptions = descriptions;
+        }
+
+        public UpdateClusterInfo(NativeReader reader) : base((uint)NodeMessageId.UpdateClusterinfo, reader)
+        {
+            int count = reader.ReadInt32();
+            Descriptions = new List<NodeDescription>(count);
+            for (int i = 0; i < count; i++)
+                Descriptions.Add(new NodeDescription(reader));
+        }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            base.Serialize(writer);
+            writer.Write(Descriptions.Count);
+            foreach (var description in Descriptions)
+                description.Serialize(writer);
         }
     }
 

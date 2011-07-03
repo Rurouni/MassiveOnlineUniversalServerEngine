@@ -16,5 +16,10 @@ namespace MOUSE.Core
         {
             throw new NotImplementedException();
         }
+
+        internal void Remove(NodeEntity entity)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

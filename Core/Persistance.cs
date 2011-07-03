@@ -8,6 +8,8 @@ namespace MOUSE.Core
     public interface IPersistanceProvider
     {
         Task<NodeEntity> LoadAsync(ulong entityId);
+
+        object Delete(NodeEntity entity);
     }
 
     public class MembasePersistance : IPersistanceProvider
