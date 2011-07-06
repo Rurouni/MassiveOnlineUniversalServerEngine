@@ -50,6 +50,14 @@ namespace MOUSE.Core
             return (THeader)_headers.FirstOrDefault(x => x is THeader);
         }
 
+        public void RemoveHeader<THeader>() where THeader : MessageHeader
+        {
+            if (_headers == null)
+                return;
+
+            _headers.RemoveAll(x => x is THeader);
+        }
+
         public virtual void Serialize(NativeWriter writer)
         {
             writer.Write(Id);
@@ -68,6 +76,8 @@ namespace MOUSE.Core
         {
             get { return MessageReliability.RELIABLE_ORDERED; }
         }
+
+        
     }
 
     [DataContract]
@@ -81,9 +91,8 @@ namespace MOUSE.Core
                 case 1: return new TransportHeader(reader);
                 case 2: return new EntityOperationRequest(reader);
                 case 3: return new EntityOperationReply(reader);
-                case 4: return new EntityManagementHeader(reader);
-                case 5: return new PropagateConnectionHeader(reader);
-                case 6: return new UpdateEntityRoutingHeader(reader);
+                case 4: return new PropagateConnectionHeader(reader);
+                case 5: return new UpdateEntityRoutingHeader(reader);
                 default: throw new Exception("Not supported header id:" + headerId);
             }
         }
@@ -93,9 +102,8 @@ namespace MOUSE.Core
             if(header is TransportHeader) writer.Write((byte) 1);
             else if(header is EntityOperationRequest) writer.Write((byte) 2);
             else if(header is EntityOperationReply) writer.Write((byte) 3);
-            else if(header is EntityManagementHeader) writer.Write((byte) 4);
-            else if (header is PropagateConnectionHeader) writer.Write((byte)5);
-            else if (header is UpdateEntityRoutingHeader) writer.Write((byte)6);
+            else if (header is PropagateConnectionHeader) writer.Write((byte)4);
+            else if (header is UpdateEntityRoutingHeader) writer.Write((byte)5);
             else
                 throw new Exception("Not supported header id:" + header);
 
@@ -182,40 +190,6 @@ namespace MOUSE.Core
         public override void  Serialize(NativeWriter writer)
         {
             writer.Write(RequestId);
-        }
-    }
-
-    public enum EntityCommand : byte
-    {
-        Activate,
-        Deactivate,
-        Delete
-    }
-
-    [DataContract]
-    public class EntityManagementHeader : MessageHeader
-    {
-        [DataMember]
-        public readonly EntityCommand Command;
-        [DataMember]
-        public readonly ulong EntityId;
-
-        public EntityManagementHeader(EntityCommand command, ulong entityId)
-        {
-            Command = command;
-            EntityId = entityId;
-        }
-
-        public EntityManagementHeader(NativeReader reader)
-        {
-            Command = (EntityCommand)reader.ReadByte();
-            EntityId = reader.ReadUInt64();
-        }
-
-        public override void Serialize(NativeWriter writer)
-        {
-            writer.Write((byte)Command);
-            writer.Write(EntityId);
         }
     }
 

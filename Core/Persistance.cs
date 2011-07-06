@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace MOUSE.Core
 {
@@ -9,7 +10,7 @@ namespace MOUSE.Core
     {
         Task<NodeEntity> LoadAsync(ulong entityId);
 
-        object Delete(NodeEntity entity);
+        Task Delete(NodeEntity entity);
     }
 
     public class MembasePersistance : IPersistanceProvider
@@ -19,6 +20,11 @@ namespace MOUSE.Core
             TaskCompletionSource<NodeEntity> tcs = new TaskCompletionSource<NodeEntity>();
             tcs.SetResult(null);
             return tcs.Task;
+        }
+
+        public Task Delete(NodeEntity entity)
+        {
+            throw new NotImplementedException();
         }
     }
 }
