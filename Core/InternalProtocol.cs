@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Runtime.Serialization;
-using RakNetWrapper;
 
 namespace MOUSE.Core
 {
@@ -22,80 +21,60 @@ namespace MOUSE.Core
 
 
     [DataContract]
-    public class EmptyMessage : Message
+    public sealed class EmptyMessage : Message
     {
-        public EmptyMessage() : base(NodeMessageId.Empty){}
-
-        public EmptyMessage(NativeReader reader)
-            : base(NodeMessageId.Empty, reader)
-        {
-        }
+        public override uint Id { get { return (uint)NodeMessageId.Empty; } }
     }
 
     [DataContract]
-    public class ConnectRequest : Message
+    public sealed class ConnectRequest : Message
     {
         [DataMember]
         public NodeDescription Description;
 
-        public ConnectRequest(NodeDescription senderDescription) : base((uint)NodeMessageId.ConnectionRequest)
-        {
-            Description = senderDescription;
-        }
-
-        public ConnectRequest(NativeReader reader) : base((uint)NodeMessageId.ConnectionRequest, reader)
-        {
-            Description = new NodeDescription(reader);
-        }
+        public override uint Id { get { return (uint)NodeMessageId.ConnectionRequest; } }
 
         public override void Serialize(NativeWriter writer)
         {
             base.Serialize(writer);
             Description.Serialize(writer);
         }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+            Description = new NodeDescription(reader);
+        }
     }
 
     [DataContract]
-    public class ConnectReply : Message
+    public sealed class ConnectReply : Message
     {
         [DataMember]
         public NodeDescription Description;
 
-        public ConnectReply(NodeDescription receiverDescription) : base((uint)NodeMessageId.ConnectionReply)
-        {
-            Description = receiverDescription;
-        }
-
-        public ConnectReply(NativeReader reader) : base((uint)NodeMessageId.ConnectionReply, reader)
-        {
-            Description = new NodeDescription(reader);
-        }
+        public override uint Id { get { return (uint)NodeMessageId.ConnectionReply; } }
 
         public override void Serialize(NativeWriter writer)
         {
             base.Serialize(writer);
             Description.Serialize(writer);
         }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+            Description = new NodeDescription(reader);
+        }
     }
 
     [DataContract]
-    public class UpdateClusterInfo : Message
+    public sealed class UpdateClusterInfo : Message
     {
         [DataMember]
         public List<NodeDescription> Descriptions;
 
-        public UpdateClusterInfo(List<NodeDescription> descriptions): base((uint)NodeMessageId.UpdateClusterInfo)
-        {
-            Descriptions = descriptions;
-        }
-
-        public UpdateClusterInfo(NativeReader reader) : base((uint)NodeMessageId.UpdateClusterInfo, reader)
-        {
-            int count = reader.ReadInt32();
-            Descriptions = new List<NodeDescription>(count);
-            for (int i = 0; i < count; i++)
-                Descriptions.Add(new NodeDescription(reader));
-        }
+        public override uint Id { get { return (uint)NodeMessageId.UpdateClusterInfo; } }
 
         public override void Serialize(NativeWriter writer)
         {
@@ -104,59 +83,49 @@ namespace MOUSE.Core
             foreach (var description in Descriptions)
                 description.Serialize(writer);
         }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+
+            int count = reader.ReadInt32();
+            Descriptions = new List<NodeDescription>(count);
+            for (int i = 0; i < count; i++)
+                Descriptions.Add(new NodeDescription(reader));
+        }
     }
 
     [DataContract]
-    public class EntityDiscoveryRequest : Message
+    public sealed class EntityDiscoveryRequest : Message
     {
-        public EntityDiscoveryRequest()
-            : base((uint)NodeMessageId.EntityDiscoveryRequest)
-        {
-        }
-
-        public EntityDiscoveryRequest(NativeReader reader)
-            : base((uint)NodeMessageId.EntityDiscoveryRequest, reader)
-        {
-        }
+        public override uint Id { get { return (uint)NodeMessageId.EntityDiscoveryRequest; } }
     }
 
     [DataContract]
-    public class EntityDiscoveryReply : Message
+    public sealed class EntityDiscoveryReply : Message
     {
         [DataMember]
         public NodeDescription Description;
 
-        public EntityDiscoveryReply(NodeDescription senderDescription)
-            : base((uint)NodeMessageId.ConnectionRequest)
-        {
-            Description = senderDescription;
-        }
-
-        public EntityDiscoveryReply(NativeReader reader)
-            : base((uint)NodeMessageId.ConnectionRequest, reader)
-        {
-            Description = new NodeDescription(reader);
-        }
+        public override uint Id { get { return (uint)NodeMessageId.EntityDiscoveryReply; } }
 
         public override void Serialize(NativeWriter writer)
         {
             base.Serialize(writer);
             Description.Serialize(writer);
         }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+            Description = new NodeDescription(reader);
+        }
     }
 
     [DataContract]
-    public class InvalidEntityOperation : Message
+    public sealed class InvalidEntityOperation : Message
     {
-        public InvalidEntityOperation()
-            : base((uint)NodeMessageId.InvalidEntityOperation)
-        {
-        }
-
-        public InvalidEntityOperation(NativeReader reader)
-            : base((uint)NodeMessageId.InvalidEntityOperation, reader)
-        {
-        }
+        public override uint Id { get { return (uint)NodeMessageId.InvalidEntityOperation; } }
     }
 
     [DataContract]

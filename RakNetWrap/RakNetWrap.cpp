@@ -9,6 +9,7 @@
 #include "RakNetStatistics.h"
 
 #include "RakNetWrap.h"
+#include <RakNetTypes.h>
 
 using namespace System;
 using namespace System::IO;
@@ -21,6 +22,9 @@ using namespace RakNetWrapper;
 RakPeerInterface::RakPeerInterface()
 {
     _rakPeer = RakNet::RakPeerInterface::GetInstance();
+    _reader = gcnew NativeReader();
+    _buff = gcnew array<unsigned char>(1024*1024*10);
+    _buff[0] = (unsigned char)ID_USER_PACKET_ENUM;
 }
 
 RakPeerInterface::~RakPeerInterface()
@@ -29,7 +33,7 @@ RakPeerInterface::~RakPeerInterface()
         RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
 }
 
-StartupResult RakPeerInterface::Startup(IPEndPoint^ endpoint, unsigned short maxConnections, int timeoutTimeMs)
+bool RakPeerInterface::Startup(IPEndPoint^ endpoint, int maxConnections)
 {
     RakNet::SocketDescriptor sd;
     if(endpoint != nullptr)
@@ -42,35 +46,68 @@ StartupResult RakPeerInterface::Startup(IPEndPoint^ endpoint, unsigned short max
         sd.hostAddress[0] = '\0';
     sd.port = (unsigned short)endpoint->Port;
     sd.socketFamily = AF_UNSPEC;
-    StartupResult res = (StartupResult)_rakPeer->Startup(maxConnections, &sd, 1);
+    RakNet::StartupResult res = _rakPeer->Startup(maxConnections, &sd, 1);
     _rakPeer->SetMaximumIncomingConnections(maxConnections);
     _rakPeer->SetOccasionalPing(true);
     _rakPeer->SetUnreliableTimeout(1000);
-    _rakPeer->SetTimeoutTime(timeoutTimeMs, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
-    return res;
+    _rakPeer->SetTimeoutTime(10000, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
+    return res == RakNet::RAKNET_STARTED;
 }
 
-int RakPeerInterface::Send(NetId netId, OutPacket^ packet, MessagePriority priority, MessageReliability reliability,
-    char orderingChannel, bool broadcast)
-
+void RakPeerInterface::Connect(IPEndPoint^ endpoint)
 {
-    PacketPriority pp = (PacketPriority)(int)priority;
-    PacketReliability pr = (PacketReliability)(int)reliability;
-
-    return _rakPeer->Send(packet->GetInternalStream(), pp, pr, orderingChannel, netId.GetRakGuid(), broadcast);
+    int res;
+    char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(endpoint->Address->ToString());
+    res = _rakPeer->Connect(str2, (unsigned short)endpoint->Port, 0, 0);
+    Marshal::FreeHGlobal((System::IntPtr)str2);
 }
 
-int RakPeerInterface::Send(NetId netId, array<Byte>^ data, int length, MessagePriority priority, MessageReliability reliability,
-    char orderingChannel, bool broadcast)
-
+void RakPeerInterface::CloseConnection(int netId)
 {
-    PacketPriority pp = (PacketPriority)(int)priority;
-    PacketReliability pr = (PacketReliability)(int)reliability;
+    _rakPeer->CloseConnection(_rakPeer->GetSystemAddressFromIndex(netId), true, 0);
+}
 
-    pin_ptr<unsigned char> npbuff = &data[0];
+void RakPeerInterface::Shutdown()
+{
+    _rakPeer->Shutdown(500, 0);
+    RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
+    _rakPeer = NULL;
+
+}
+
+void RakPeerInterface::Send(int netId, array<Byte>^ data, int length, MessagePriority priority, MessageReliability reliability)
+{
+    if(_buff->Length < length+1)
+        throw gcnew Exception(" Data array is too big");
+
+    PacketPriority pp = MEDIUM_PRIORITY;
+    switch(priority)
+    {
+        case MessagePriority::High : pp = HIGH_PRIORITY; break;
+        case MessagePriority::Medium : pp = MEDIUM_PRIORITY; break;
+        case MessagePriority::Low : pp = MEDIUM_PRIORITY; break;
+    }
+
+    PacketReliability pr = RELIABLE_ORDERED;
+    switch(reliability)
+    {
+        case MessageReliability::Reliable : pr = RELIABLE; break;
+        case MessageReliability::ReliableOrdered : pr = RELIABLE_ORDERED; break;
+        case MessageReliability::Unreliable : pr = UNRELIABLE; break;
+        case MessageReliability::UnreliableOrdered : pr = UNRELIABLE_SEQUENCED; break;
+    }
+    
+    pin_ptr<unsigned char> npdata = &data[0];
+    unsigned char *pdata = npdata;
+
+    
+    pin_ptr<unsigned char> npbuff = &_buff[1];
     unsigned char *pbuff = npbuff;
+    
+    memcpy(pbuff, pdata, length);
+    pbuff--;//go to _buff[0]
 
-    return _rakPeer->Send((char*)pbuff, length, pp, pr, orderingChannel, netId.GetRakGuid(), broadcast);
+    _rakPeer->Send((char*)pbuff, length+1, pp, pr, 0, _rakPeer->GetSystemAddressFromIndex(netId), false);
 }
 
 void RakPeerInterface::SendLoopback(array<Byte>^ data, int length)
@@ -83,21 +120,7 @@ void RakPeerInterface::SendLoopback(array<Byte>^ data, int length)
 }
 
 
-InPacket^ RakPeerInterface::Receive()
-{
-    RakNet::Packet *np;
-
-    if (_rakPeer == NULL)
-        return nullptr;
-
-    np = _rakPeer->Receive();
-    if (!np)
-        return nullptr;
-
-    return gcnew InPacket(_rakPeer, np);
-}
-
-bool RakPeerInterface::Receive(NetId% sourceId, array<Byte>^ buff, int% length)
+bool RakPeerInterface::ProcessNetEvent(INetEventProcessor^ processor)
 {
     RakNet::Packet *np;
     
@@ -107,48 +130,47 @@ bool RakPeerInterface::Receive(NetId% sourceId, array<Byte>^ buff, int% length)
     np = _rakPeer->Receive();
     if (!np)
         return false;
-    if(np->length > buff->Length)
+    if(np->length > _reader->Length)
     {
         _rakPeer->DeallocatePacket(np);
-        return false;
+        throw gcnew Exception("Received packet is too big");
     }
-    pin_ptr<unsigned char> npbuff = &buff[0];
-    unsigned char *pbuff = npbuff;
-    
-    memcpy(pbuff, np->data, np->length);
-    length = np->length;
-    sourceId = NetId(np->guid);
+
+    switch(np->data[0])
+    {
+        case ID_NEW_INCOMING_CONNECTION :
+            _rakPeer->SetTimeoutTime(10000, np->systemAddress);//TODO : move to config
+            processor->OnNetConnect(np->systemAddress.systemIndex);
+            break;
+        case ID_CONNECTION_REQUEST_ACCEPTED:
+            processor->OnNetConnectionAccepted(np->systemAddress.systemIndex);
+            break;
+        case ID_CONNECTION_LOST:
+        case ID_DISCONNECTION_NOTIFICATION:
+            processor->OnNetDisconnect(np->systemAddress.systemIndex);
+            break;	
+
+        case ID_USER_PACKET_ENUM :
+            if (np->length < 1 + sizeof(unsigned short))
+            {
+                _rakPeer->DeallocatePacket(np);
+                throw gcnew Exception("Received packet is too small");
+            }
+
+            pin_ptr<unsigned char> npbuff = &_buff[0];
+            unsigned char *pbuff = npbuff;
+
+            memcpy(pbuff, np->data, np->length);
+            
+            _reader->SetBuffer(_buff, 1);//skip rakNet control byte
+            processor->OnNetData(np->systemAddress.systemIndex, _reader);
+            break;
+    }
+        
     _rakPeer->DeallocatePacket(np);
     return true;
 }
 
 
-ConnectionAttemptResult RakPeerInterface::Connect(IPEndPoint^ endpoint)
-{
-    int res;
-    char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(endpoint->Address->ToString());
-    res = _rakPeer->Connect(str2, (unsigned short)endpoint->Port, 0, 0);
-    Marshal::FreeHGlobal((System::IntPtr)str2);
-    return (RakNetWrapper::ConnectionAttemptResult)res;
-}
-
-void RakPeerInterface::CloseConnection(NetId netId, bool sendDisconnectionNotification,
-                                        unsigned char orderingChannel)
-{
-    _rakPeer->CloseConnection(netId.GetRakGuid(), sendDisconnectionNotification, orderingChannel);
-}
-
-void RakPeerInterface::Shutdown()
-{
-    _rakPeer->Shutdown(500, 0);
-    RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
-    _rakPeer = NULL;
-
-}
-
-void RakPeerInterface::SetDisconnectTimeoutFor(int time, NetId netId)
-{
-    _rakPeer->SetTimeoutTime(time, _rakPeer->GetSystemAddressFromGuid(netId.GetRakGuid()));
-}
 
 

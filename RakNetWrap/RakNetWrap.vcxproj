@@ -209,6 +209,11 @@
   <ItemGroup>
     <Reference Include="System" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj">
+      <Project>{cc2d2c8b-6b03-4585-a421-58b796a69780}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

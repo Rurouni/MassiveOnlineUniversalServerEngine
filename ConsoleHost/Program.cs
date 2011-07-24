@@ -7,6 +7,7 @@ using MOUSE.Core;
 using NLog;
 using Protocol.Generated;
 using RakNetWrapper;
+using SampleDomain.Generated;
 using SampleServer;
 
 
@@ -21,7 +22,7 @@ namespace MOUSE.ConsoleHost
             Log.Info("Started");
             try
             {
-                var domain = new PingPongServer();
+                var domain = new GeneratedDomain();
                 domain.Init();
                 var masterEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
                 var node = new Node(NodeType.Master, new GeneratedDomain(), masterEndpoint, null);

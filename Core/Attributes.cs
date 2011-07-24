@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using RakNetWrapper;
 
 namespace MOUSE.Core
 {
@@ -11,13 +10,13 @@ namespace MOUSE.Core
     {
         public bool Persistant { get; set; }
         public bool AutoCreate { get; set; }
-        public bool Connectionless { get; set; }
+        public bool Connectionfull { get; set; }
 
         public NodeEntityContractAttribute()
         {
             Persistant = false;
             AutoCreate = true;
-            Connectionless = true;
+            Connectionfull = false;
         }
     }
 
@@ -29,19 +28,33 @@ namespace MOUSE.Core
 
         public NodeEntityOperationAttribute()
         {
-            Priority = MessagePriority.MEDIUM_PRIORITY;
-            Reliability = MessageReliability.RELIABLE_ORDERED;
+            Priority = MessagePriority.Medium;
+            Reliability = MessageReliability.ReliableOrdered;
         }
     }
 
     [AttributeUsage(AttributeTargets.Class)]
     public class NodeEntityAttribute : Attribute
     {
+        public ulong ContractType { get; set; }
+
+        public NodeEntityAttribute(ulong contractType)
+        {
+            ContractType = contractType;
+        }
     }
 
     [AttributeUsage(AttributeTargets.Class)]
     public class NodeEntityProxyAttribute : Attribute
     {
-        public Type TargetType { get; set; }
+        public uint EntityTypeId { get; set; }
+        public Type ContractType { get; set; }
+    }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class NodeEntityOperationDispatcher : Attribute
+    {
+        public Type RequestMessage { get; set; }
+        public Type ReplyMessage { get; set; }
     }
 }

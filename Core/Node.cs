@@ -6,7 +6,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using NLog;
-using RakNetWrapper;
 using System.Threading.Tasks;
 
 namespace MOUSE.Core
@@ -50,15 +49,20 @@ namespace MOUSE.Core
 
     public class NodeProxy
     {
-        public readonly NetId NetId;
+        public readonly int NetId;
         public readonly NodeDescription Description;
         public readonly Node Owner;
 
-        public NodeProxy(NetId netId, NodeDescription description, Node owner)
+        public NodeProxy(int netId, NodeDescription description, Node owner)
         {
             NetId = netId;
             Description = description;
             Owner = owner;
+        }
+
+        public ulong Id
+        {
+            get { return Description.NodeId; }
         }
 
         public void Send(Message msg)
@@ -75,7 +79,7 @@ namespace MOUSE.Core
     /// <summary>
     /// is not thread safe
     /// </summary>
-    public class Node
+    public class Node : INetEventProcessor
     {
         private const int MaxMessagesPerTick = 100000;
 
@@ -88,35 +92,36 @@ namespace MOUSE.Core
         private readonly IPEndPoint _selfEndpoint;
         private readonly NativeReader _reader = new NativeReader();
         private readonly NativeWriter _writer = new NativeWriter();
-        private readonly RakPeerInterface _netPeer;
-        private readonly Dictionary<ulong, NodeProxy> _connectedNodes;
+        private readonly INetPeer _netPeer;
+        private readonly Dictionary<int, NodeProxy> _connectedNodesByNetId = new Dictionary<int,NodeProxy>();
+        private readonly Dictionary<ulong, NodeProxy> _connectedNodesByNodeId = new Dictionary<ulong, NodeProxy>();
         private long _updateLoopRunning = 0;
         private AutoResetEvent _updateLoopFinishedEvent;
-        private ProxyFactory _proxyFactory;
-        private NodeEntityRepository _entityRepository = new NodeEntityRepository();
+        private IEntityRepository _entityRepository;
+        private IMessageFactory _messageFactory;
         private Dictionary<IPEndPoint, PendingConnection> _pendingConnections = new Dictionary<IPEndPoint, PendingConnection>();
         private Dictionary<uint, PendingOperation> _pendingOperationsByRequestId = new Dictionary<uint, PendingOperation>();
         private Dictionary<ulong, NodeProxy> _entityRoutingTable = new Dictionary<ulong, NodeProxy>();
         private uint _requestId = 0;
         private Random _random = new Random();
-        private IPersistanceProvider _entityStorage = new MembasePersistance();
 
         public IEntityDomain Domain
         {
             get { return _domain; }
         }
 
-        public IPersistanceProvider EntityStorage
-        {
-            get { return _entityStorage; }
-        }
-
-        public NodeEntityRepository Repository
+        
+        public IEntityRepository Repository
         {
             get { return _entityRepository; }
         }
 
-        public Node(NodeType type, IEntityDomain domain, IPEndPoint selfEndpoint, IPEndPoint masterNodeEndPoint = null)
+        public IMessageFactory MessageFactory
+        {
+            get { return _messageFactory; }
+        }
+
+        public Node(NodeType type, INetPeer netPeer, IEntityDomain domain, IEntityRepository repository, IMessageFactory factory, IPEndPoint selfEndpoint, IPEndPoint masterNodeEndPoint = null)
         {
             _masterNodeEndPoint = masterNodeEndPoint;
             _selfEndpoint = selfEndpoint;
@@ -125,21 +130,21 @@ namespace MOUSE.Core
             NType = type;
             _domain = domain;
 
-            _netPeer = new RakPeerInterface();
+            _entityRepository = repository;
+            _messageFactory = factory;
+
+            _netPeer = netPeer;
             _reader.SetBuffer(new byte[1024*1024*10], 0);
-            _proxyFactory = new ProxyFactory(this);
         }
 
         public void Start(bool manualUpdate)
         {
-            var res = _netPeer.Startup(_selfEndpoint, 1000, 10000);
-            if (res != StartupResult.RAKNET_STARTED)
-                throw new Exception("NetLayer failed to start:" + res);
+            if (_netPeer.Startup(_selfEndpoint, 1000))
+                throw new Exception("NetLayer failed to start");
 
-            var endpoint = _netPeer.GetActiveEndPoint();
-            _selfDescription = new NodeDescription(_netPeer.Id(), NType, endpoint);
+            var endpoint = _netPeer.EndPoint; //this ensures we have valid external endpoint even if _selfEndpoint is set to null to autodetect all
+            _selfDescription = new NodeDescription(GenerateUniqueId(), NType, endpoint);
             
-
             if (!manualUpdate)
             {
                 _updateLoopFinishedEvent = new AutoResetEvent(false);
@@ -147,6 +152,12 @@ namespace MOUSE.Core
                 var thread = new Thread(UpdateLoop);
                 thread.Start();
             }
+        }
+
+        private ulong GenerateUniqueId()
+        {
+            var rand = new Random();
+            return ((ulong)rand.Next() << 32) ^ (ulong)rand.Next();
         }
 
         public void Stop()
@@ -165,16 +176,10 @@ namespace MOUSE.Core
 
         public void Update()
         {
-            var netId = new NetId();
             for (int i = 0; i < MaxMessagesPerTick; i++)
             {
-                int length = 0;
-                if (_netPeer.Receive(ref netId, _reader.GetBuffer(), ref length))
-                {
-                    _reader.SetPosition(0);
-                    _reader.SetLength(length);
-                    ProcessNetEvent(netId, _reader);    
-                }
+                if (!_netPeer.ProcessNetEvent(this))
+                    break;
             }
             
             #region clear expired continuations
@@ -218,86 +223,61 @@ namespace MOUSE.Core
 
         }
 
-        private void ProcessNetEvent(NetId netId, NativeReader reader)
+        public void OnNetConnect(int netId)
         {
-            var netMsgId = (RakNetMessages)reader.ReadByte();
-            switch (netMsgId)
-            {
-                case RakNetMessages.ID_USER_PACKET_ENUM:
-                    Log.Info("Message from NetId<{0}>", netId.Id);
-                    uint msgId = reader.ReadUInt32();
-                    
-                    Message msg = _domain.Deserialize(msgId, reader);
-                    if (msg == null)
-                    {
-                        Log.Warn("Cant deserialize message with Id:" + msgId);
-                        return;
-                    }
-                    if (msgId == (uint)NodeMessageId.ConnectionReply)
-                        OnConnectionReply(netId, (ConnectReply)msg);
-                    else if (msgId == (uint)NodeMessageId.ConnectionRequest)
-                        OnConnectionRequest(netId, (ConnectRequest)msg);
-                    else if (msgId == (uint)NodeMessageId.UpdateClusterInfo)
-                        OnUpdateClusterInfo((UpdateClusterInfo)msg);
-                    else
-                    {
-                        NodeProxy node;
-                        if (_connectedNodes.TryGetValue(netId, out node))
-                            OnNodeMessage(node, msg);
-                        else
-                            Log.Warn("unconnected message");
-                    }
-                    break;
-                case RakNetMessages.ID_DETECT_LOST_CONNECTIONS:
-                case RakNetMessages.ID_CONNECTION_LOST:
-                case RakNetMessages.ID_DISCONNECTION_NOTIFICATION:
-                    OnNetDisconnect(netId);
-                    break;
-                case RakNetMessages.ID_NEW_INCOMING_CONNECTION:
-                    OnNetConnected(netId);
-                    Log.Debug("New incoming connection from Node<Id:{1}>", netId.Id);
-                    break;
-                case RakNetMessages.ID_CONNECTION_REQUEST_ACCEPTED:
-                    OnNetConnectionAccepted(netId);
-                    break;
-                default:
-                    Log.Warn("Unhandled MessageType:{0} from Node<Id:{1}>", netMsgId, netId.Id);
-                    break;
-            }
+            Log.Info("NetId<{0}> has connected", netId);
         }
 
-        private void OnNetConnected(NetId senderId)
+        public void OnNetConnectionAccepted(int netId)
         {
-            Log.Info("NetId<{0}> has connected", senderId.Id);
+            Log.Info("Connection to NetId<{0}>  has been accepted", netId);
+            var msg =_messageFactory.New<ConnectRequest>();
+            msg.Description = _selfDescription;
+            Send(netId, msg);
+            _messageFactory.Free(msg);
         }
 
-        private void OnNetConnectionAccepted(NetId senderId)
+        public void OnNetDisconnect(int netId)
         {
-            Log.Info("Connection to NetId<{0}>  has been accepted", senderId.Id);
-
-            Send(senderId, new ConnectRequest(_selfDescription));
-        }
-
-        private void OnNetDisconnect(NetId senderId)
-        {
-            Log.Info("NetId<{0}> has disconnected", senderId.Id);
+            Log.Info("NetId<{0}> has disconnected", netId);
             NodeProxy node;
-            if (_connectedNodes.TryGetValue(senderId, out node))
+            if (_connectedNodesByNetId.TryGetValue(netId, out node))
             {
                 Log.Info("{0} has disconnected", node);
-                _connectedNodes.Remove(senderId);
-                _entityRoutingTable.Remove(node);
+                _connectedNodesByNetId.Remove(netId);
+                _connectedNodesByNodeId.Remove(node.Id);
+                //TODO: remove all cached entities that were located in this node
                 OnNodeDisconnected(node);
-                foreach (var entity in _entityRepository.Where(entity => entity.IsConnectionfull))
-                    entity.OnNodeDisconnected(node);
+                
             }
         }
 
-        private void OnConnectionRequest(NetId senderId, ConnectRequest msg)
+        public void OnNetData(int netId, NativeReader reader)
         {
-            Log.Info("OnConnectionRequest<NetId:{0}, {1}>", senderId.Id, msg.Description);
+            Log.Info("Message from NetId<{0}>", netId);
+            Message msg = _messageFactory.Deserialize(reader);
+            if (msg.Id == (uint)NodeMessageId.ConnectionReply)
+                OnConnectionReply(netId, (ConnectReply)msg);
+            else if (msg.Id == (uint)NodeMessageId.ConnectionRequest)
+                OnConnectionRequest(netId, (ConnectRequest)msg);
+            else if (msg.Id == (uint)NodeMessageId.UpdateClusterInfo)
+                OnUpdateClusterInfo((UpdateClusterInfo)msg);
+            else
+            {
+                NodeProxy node;
+                if (_connectedNodesByNetId.TryGetValue(netId, out node))
+                    OnNodeMessage(node, msg);
+                else
+                    Log.Warn("unconnected message");
+            }
+        }
+
+        private void OnConnectionRequest(int senderId, ConnectRequest msg)
+        {
+            Log.Info("OnConnectionRequest<NetId:{0}, {1}>", senderId, msg.Description);
             var node = new NodeProxy(senderId, msg.Description, this);
-            _connectedNodes.Add(senderId, node);
+            _connectedNodesByNetId.Add(node.NetId, node);
+            _connectedNodesByNodeId.Add(node.Id, node);
             OnNodeConnected(node);
 
             PendingConnection continuation;
@@ -306,14 +286,29 @@ namespace MOUSE.Core
                 continuation.TCS.SetResult(node);
                 _pendingConnections.Remove(node.Description.EndPoint);
             }
-            Send(senderId, new ConnectReply(_selfDescription));
+
+            var connectReply = _messageFactory.New<ConnectReply>();
+            connectReply.Description = _selfDescription;
+            Send(senderId, connectReply);
+            _messageFactory.Free(connectReply);
+
+            if(msg.Description.Type != NodeType.Client)
+            {
+                var clusterInfo = _messageFactory.New<UpdateClusterInfo>();
+                clusterInfo.Descriptions = _connectedNodesByNetId.Values
+                    .Where(x => x.Description.Type != NodeType.Client)
+                    .Select(x => x.Description).ToList();
+                Send(senderId, clusterInfo);
+                _messageFactory.Free(clusterInfo);
+            }
         }
 
-        private void OnConnectionReply(NetId senderId, ConnectReply msg)
+        private void OnConnectionReply(int senderId, ConnectReply msg)
         {
-            Log.Info("OnConnectionReply<NetId:{0}, {1}>", senderId.Id, msg.Description);
+            Log.Info("OnConnectionReply<NetId:{0}, {1}>", senderId, msg.Description);
             var node = new NodeProxy(senderId, msg.Description, this);
-            _connectedNodes.Add(senderId, node);
+            _connectedNodesByNetId.Add(node.NetId, node);
+            _connectedNodesByNodeId.Add(node.Id, node);
             OnNodeConnected(node);
 
             PendingConnection continuation;
@@ -331,14 +326,18 @@ namespace MOUSE.Core
             Log.Info("OnConnectionRequest<Nodes in cluster:{0}>", msg.Descriptions.Count);
 
             foreach (var nodeDescription in msg.Descriptions)
-                await ConnectAsync(nodeDescription.EndPoint);
+                await Connect(nodeDescription.EndPoint);
         }
 
         public virtual void OnNodeConnected(NodeProxy source)
-        {}
+        {
+        }
 
         public virtual void OnNodeDisconnected(NodeProxy source)
-        {}
+        {
+            foreach (var entity in _entityRepository.Where(entity => entity.Description.Connectionfull))
+                entity.OnNodeDisconnected(source);
+        }
 
         public async void OnNodeMessage(NodeProxy source, Message msg)
         {
@@ -351,7 +350,7 @@ namespace MOUSE.Core
             if(entityRoutingHeader != null)
             {
                 NodeProxy entityOwner;
-                if(_connectedNodes.TryGetValue(entityRoutingHeader.OwnerNodeId, out entityOwner))
+                if(_connectedNodesByNodeId.TryGetValue(entityRoutingHeader.OwnerNodeId, out entityOwner))
                     _entityRoutingTable.Add(entityRoutingHeader.EntityId, entityOwner);
                 else
                     Log.Warn("Cant update entity routing table for entityId:{0} because nodeId:{1} is not connected",
@@ -403,7 +402,7 @@ namespace MOUSE.Core
                 if (transportHeader != null)
                 {
                     NodeProxy target;
-                    if (_connectedNodes.TryGetValue(transportHeader.RoutedNodeId.Value, out target))
+                    if (_connectedNodesByNodeId.TryGetValue(transportHeader.RoutedNodeId.Value, out target))
                     {
                         msg.RemoveHeader<TransportHeader>(); //its not needed anymore
                         target.Send(msg);
@@ -440,7 +439,7 @@ namespace MOUSE.Core
             if(_pendingOperationsByRequestId.TryGetValue(replyHeader.RequestId, out continuation))
             {
                 _pendingOperationsByRequestId.Remove(replyHeader.RequestId);
-                if (msg.Id == NodeMessageId.InvalidEntityOperation)
+                if (msg.Id == (uint)NodeMessageId.InvalidEntityOperation)
                     continuation.TCS.SetException(new InvalidEntityOperationException());
                 else
                     continuation.TCS.SetResult(msg);
@@ -454,21 +453,20 @@ namespace MOUSE.Core
             TransportHeader transportHeader, NodeEntity entity, Message msg)
         {
             Message reply;
-            if (msg.Id == NodeMessageId.EntityDiscoveryRequest)
+            if (msg.Id == (uint)NodeMessageId.EntityDiscoveryRequest)
             {
-                reply = new EntityDiscoveryReply(_selfDescription);
+                var discoveryReply = _messageFactory.New<EntityDiscoveryReply>();
+                discoveryReply.Description = _selfDescription;
+                reply = discoveryReply;
             }
             else
                 reply = await _domain.Dispatch(entity, msg);
 
-            if (reply == null)
-                reply = new InvalidEntityOperation();
-            
             reply.AttachHeader(new EntityOperationReply(requestHeader.RequestId));
             if (transportHeader != null)
             {
                 NodeProxy target;
-                if (_connectedNodes.TryGetValue(transportHeader.SourceNodeId, out target))
+                if (_connectedNodesByNodeId.TryGetValue(transportHeader.SourceNodeId, out target))
                 {
                     if (transportHeader.RoutedNodeId.HasValue)
                         reply.AttachHeader(transportHeader);
@@ -481,6 +479,8 @@ namespace MOUSE.Core
             }
             else
                 source.Send(reply);
+
+            _messageFactory.Free(reply);
         }
 
         public async Task<NodeEntity> ActivateEntity(ulong entityId)
@@ -489,14 +489,7 @@ namespace MOUSE.Core
             if (Repository.TryGet(entityId, out entity))
                 Log.Warn("{0} is already activated", entity);
             else
-            {
-                entity = await EntityStorage.LoadAsync(entityId);
-                if (entity == null && _domain.GetEntityDescription(entityId).AutoCreate)
-                {
-                    entity = _domain.Create(entityId);
-                    Repository.Add(entity);
-                }
-            }
+                entity = await Repository.Activate(entityId);
 
             return entity;
         }
@@ -505,10 +498,7 @@ namespace MOUSE.Core
         {
             NodeEntity entity;
             if (Repository.TryGet(entityId, out entity))
-            {
-                Repository.Remove(entity);
-                await EntityStorage.Delete(entity);
-            }
+                await Repository.Delete(entity);
             else
                 Log.Warn("Cant delete Entity<Id:{0}> - not found", entityId);
         }
@@ -518,7 +508,7 @@ namespace MOUSE.Core
             PendingConnection continuation;
 
             //check if we are already connected to this endpoint
-            foreach (var node in _connectedNodes.Values)
+            foreach (var node in _connectedNodesByNodeId.Values)
             {
                 if (endPoint == node.Description.EndPoint)
                 {
@@ -539,45 +529,40 @@ namespace MOUSE.Core
 
         public async Task<NodeProxy> ConnectToEntityOwner(NodeEntityProxy proxy)
         {
-            Message reply = await EntityOperationCallAsync(new EntityDiscoveryRequest(), proxy);
+            Message reply = await ExecuteEntityOperationAsync(new EntityDiscoveryRequest(), proxy);
             NodeProxy target = await Connect(((EntityDiscoveryReply) reply).Description.EndPoint);
             return target;
         }
 
-        public void Send(NetId netId, Message msg)
+        public void Send(int netId, Message msg)
         {
-            Log.Trace("Sending to Node<Id:{0}>  msg:{1}", netId.Id, msg);
+            Log.Trace("Sending to Node<Id:{0}>  msg:{1}", netId, msg);
             _writer.Position = 0;
-            _writer.Write((byte)RakNetMessages.ID_USER_PACKET_ENUM);
             msg.Serialize(_writer);
             
-            _netPeer.Send(netId, _writer.Buff, (int)_writer.Position, msg.Priority, msg.Reliability, 0, false);
+            _netPeer.Send(netId, _writer.Buff, (int)_writer.Position, msg.Priority, msg.Reliability);
         }
 
         public void SendLoopback(Message msg)
         {
             Log.Trace("Sending loopback msg:"+msg);
             _writer.Position = 0;
-            _writer.Write((byte)RakNetMessages.ID_USER_PACKET_ENUM);
-            Domain.Serialize(msg, _writer);
-
+            msg.Serialize(_writer);
+            
             _netPeer.SendLoopback(_writer.Buff, (int)_writer.Position);
         }
 
         public TEntityContract GetProxy<TEntityContract>(uint? entityId = null)
             where TEntityContract : class
         {
-            ulong fullId = Domain.GetEntityFullId<TEntityContract>(entityId);
-            return (TEntityContract)(object)_proxyFactory.GetProxy(fullId);
+            ulong fullId = Domain.GetFullId<TEntityContract>(entityId);
+            return (TEntityContract)(object)Domain.GetProxy(fullId);
         }
 
-        public async Task<Message> EntityOperationCallAsync(Message input, NodeEntityProxy proxy)
+        public async Task<Message> ExecuteEntityOperationAsync(Message input, NodeEntityProxy proxy)
         {
             uint requestId = _requestId++;
             
-            var continuation = new PendingOperation(requestId, proxy);
-            _pendingOperationsByRequestId.Add(requestId, new PendingOperation(requestId, proxy));
-
             input.AttachHeader(new EntityOperationRequest(requestId, proxy.EntityId));
 
             if (Repository.Contains(proxy.EntityId))
@@ -585,7 +570,7 @@ namespace MOUSE.Core
             else
             {
                 NodeProxy targetNode;
-                //first check if we already know where this entity is located
+                //first check if we already know where thsi entity is located
                 if (_entityRoutingTable.TryGetValue(proxy.EntityId, out targetNode))
                 {
                     Log.Trace("Sending  to cached: " + targetNode);
@@ -605,7 +590,7 @@ namespace MOUSE.Core
                 }
                 else
                 {
-                    if (proxy.EntityDescription.IsConnectionfull)
+                    if (proxy.EntityDescription.Connectionfull)
                     {
                         targetNode = await ConnectToEntityOwner(proxy);
                         targetNode.Send(input);
@@ -614,12 +599,21 @@ namespace MOUSE.Core
                         Master.Send(input);
                 }
             }
+            Message reply = await AwaitEntityOperationReply(requestId, proxy);
+
+            return reply;
+        }
+
+        public Task<Message> AwaitEntityOperationReply(uint requestId, NodeEntityProxy requestOwner)
+        {
+            var continuation = new PendingOperation(requestId, requestOwner);
+            _pendingOperationsByRequestId.Add(requestId, continuation);
             return continuation.TCS.Task;
         }
 
         private NodeProxy GetBalancedCreationTarget()
         {
-            var nodes = _connectedNodes.Values.Where(x => x.Description.Type == NodeType.Server).ToList();
+            var nodes = _connectedNodesByNodeId.Values.Where(x => x.Description.Type == NodeType.Server).ToList();
             if (nodes.Count == 0)//we are solo so create entity on us
                 return null;
             else
@@ -629,7 +623,7 @@ namespace MOUSE.Core
                 return nodes[pos];
             }
         }
-        
+
         //public abstract async Task EntityCallAsync<TRequestMessage>(TRequestMessage input, NodeEntityProxy caller)
         //    where TRequestMessage : Message;
 
@@ -642,13 +636,13 @@ namespace MOUSE.Core
             {
                 if (_masterNodeEndPoint == null) //we are master
                     return true;
-                return _connectedNodes.Values.Where(x => x.Description.Type == NodeType.Master).Count() > 0;
+                return _connectedNodesByNodeId.Values.Where(x => x.Description.Type == NodeType.Master).Count() > 0;
             }
         }
 
         public NodeProxy Master
         {
-            get { return _connectedNodes.Values.Where(x => x.Description.Type == NodeType.Master).First(); }
+            get { return _connectedNodesByNodeId.Values.Where(x => x.Description.Type == NodeType.Master).First(); }
         }
 
         public ulong Id

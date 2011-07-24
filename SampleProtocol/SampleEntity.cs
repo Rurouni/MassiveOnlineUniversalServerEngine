@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using MOUSE.Core;
 using System.Runtime.Serialization;
-using RakNetWrapper;
 
 namespace SampleProtocol
 {
@@ -14,5 +13,21 @@ namespace SampleProtocol
     {
         [NodeEntityOperation]
         Task<int> Ping(int requestId);
+
+        [NodeEntityOperation(Priority = MessagePriority.High, Reliability = MessageReliability.ReliableOrdered)]
+        Task<ComplexData> HeavyFunc(int requestId, ComplexData data, string name, List<ComplexData> datas);
+
+        [NodeEntityOperation(Reliability = MessageReliability.Unreliable)]
+        void SimpleOneWay();
     }
+
+    public class ComplexData
+    {
+        public int SomeInt;
+        public ulong SomeULong;
+        public string SomeString;
+        public List<string> SomeArrString;
+        public List<ComplexData> SomeArrRec;
+    }
+
 }

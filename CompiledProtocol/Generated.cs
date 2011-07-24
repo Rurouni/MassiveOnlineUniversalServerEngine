@@ -5,33 +5,34 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using MOUSE.Core;
-using RakNetWrapper;
-using System.Runtime.Serialization;
 using SampleProtocol;
+using Protocol.Generated;
 
 namespace SampleDomain.Generated
 {
-    [NodeEntityProxy(TargetType = typeof(ISampleEntity))]
-    public class ISampleEntityProxy : NodeEntityProxy, ISampleEntity
+    public static class GeneratedDomainDescription
     {
-        public ISampleEntityProxy(ulong entityId, Node node)
-            : base(entityId, node)
-        {}
-
-        public override NodeEntityProxy New(ulong entityId, Node node)
+        public static List<NodeEntityDescription> GetEntities()
         {
-            return new ISampleEntityProxy(entityId, node);
+            return new List<NodeEntityDescription>
+            {
+                new NodeEntityDescription
+                {
+                    TypeId = 12345,
+                    ProxyType = typeof(ISampleEntityProxy),
+                    ContractType = typeof(ISampleEntity),
+                    Operations = new List<NodeEntityOperationDescription>
+                    {
+                        new NodeEntityOperationDescription
+                        {
+                            Name = "Ping",
+                            RequestMessageId = 1234567,
+                            ReplyMessageId = 1234568,
+                            Dispatch = ISampleEntityProxy.DispatchPing
+                        }
+                    }
+                }
+            };
         }
-
-        Task<PingReply> ISampleEntity.Ping(PingRequest input)
-        {
-            return Node.AsyncEntityCall<PingRequest, PingReply>(input, this);
-        }
-        
-    }
-
-    public class GeneratedDomain : GenerationBaseDomain
-    {
-        
     }
 }

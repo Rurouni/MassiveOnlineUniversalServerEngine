@@ -104,9 +104,6 @@
     <Reference Include="AsyncCtpLibrary">
       <HintPath>..\External\AsyncCTP\AsyncCtpLibrary.dll</HintPath>
     </Reference>
-    <Reference Include="Castle.Core">
-      <HintPath>..\packages\Castle.Core.2.5.2\lib\NET35\Castle.Core.dll</HintPath>
-    </Reference>
     <Reference Include="NLog, Version=2.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <HintPath>..\External\NLog\.NET Framework 4.0\NLog.dll</HintPath>
     </Reference>
@@ -129,6 +126,8 @@
     <Compile Include="FastSerializer.cs" />
     <Compile Include="IO.cs" />
     <Compile Include="KeyValueCollection.cs" />
+    <Compile Include="MessageFactory.cs" />
+    <Compile Include="MessageHeaders.cs" />
     <Compile Include="Misc.cs" />
     <Compile Include="Node.cs" />
     <Compile Include="NodeEntity.cs" />
@@ -136,17 +135,8 @@
     <Compile Include="Persistance.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="InternalProtocol.cs" />
-    <Compile Include="ProtocolBase.cs" />
-    <Compile Include="ProxyFactory.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\RakNetWrap\RakNetWrap.vcxproj">
-      <Project>{5ADEBAC7-5010-4ED4-9CA7-3192F2D86FA8}</Project>
-      <Name>RakNetWrap</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
+    <Compile Include="Message.cs" />
+    <Compile Include="Transport.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

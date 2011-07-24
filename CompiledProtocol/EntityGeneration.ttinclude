@@ -1,0 +1,116 @@
+﻿<#@ import namespace="System.Text" #>
+<#+  
+void GenerateAsyncProxy(Type contractType)
+{ #>	
+	[NodeEntityProxy(EntityTypeId = <#= Misc.GenerateHash(contractType.Name) #>, ContractType = typeof(<#= contractType.FullName #>))]
+    public sealed class <#= contractType.Name + "Proxy" #> : NodeEntityProxy, <#= contractType.FullName #>
+    {
+<#+	var attr = contractType.GetAttribute<NodeEntityContractAttribute>();
+	foreach (MethodInfo method in contractType.GetMethods())
+    {
+		
+		WriteMethodDef(method);	#>
+		{
+		<#+ WriteMethodBody(method, contractType); #>
+		}
+<#+ 	string replyMsgType;
+		if(method.ReturnType == typeof(void))
+			replyMsgType = "null";
+		else 
+			replyMsgType = "typeof("+contractType.Name + method.Name + "Reply)";	#>
+		[NodeEntityOperationDispatcher(RequestMessage = typeof(<#= contractType.Name + method.Name + "Request" #>), ReplyMessage = <#= replyMsgType #>)]
+        public static async Task<Message> Dispatch<#= method.Name #>(NodeEntity entity, Message input)
+        {
+		<#+ WriteDispatcherBody(method, contractType); #>
+        }
+<#+		
+	}	#>
+	}
+<#+
+}
+
+void WriteMethodDef(MethodInfo method)
+{
+	var paramsText = new StringBuilder();
+	var paramArr = method.GetParameters();
+    for (int i = 0; i < paramArr.Length; i++)
+    {
+        if(i!=0)
+            paramsText.Append(", ");
+        paramsText.Append(TypeToString(paramArr[i].ParameterType)+" "+ paramArr[i].Name);
+    }
+	if(method.ReturnType == typeof(void))
+	{ #>
+		public async void <#= method.Name #> ( <#= paramsText #> )
+<#+ }
+	else if(!method.ReturnType.IsGenericType)
+	{ #>
+		public async Task <#= method.Name #> ( <#= paramsText #> )
+<#+ }
+	else
+	{
+		#>
+		public async Task< <#= method.ReturnType.GetGenericArguments()[0].FullName #> > <#= method.Name #> ( <#= paramsText #> )
+<#+ }
+}
+
+void WriteMethodBody(MethodInfo method, Type contractType)
+{	#>
+	var request = Node.MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
+<#+ foreach(var par in method.GetParameters())
+	{	#>
+			request.<#= par.Name +"="+ par.Name #>;
+<#+
+	}
+	if(method.ReturnType == typeof(void))
+	{	#>
+			Node.ExecuteEntityOperationAsync(request, this);
+			Node.MessageFactory.Free(request);
+<#+ }
+	else if(!method.ReturnType.IsGenericType)
+	{	#>
+			await Node.ExecuteEntityOperationAsync(request, this);
+			Node.MessageFactory.Free(request);
+<#+ }
+	else
+	{	#>
+			Message reply = await Node.ExecuteEntityOperationAsync(request, this);
+			var ret = ((<#= contractType.Name + method.Name + "Reply" #>)reply).RetVal;
+			Node.MessageFactory.Free(reply);
+			Node.MessageFactory.Free(request);
+			return ret;
+<#+ }
+}
+
+void WriteDispatcherBody(MethodInfo method, Type contractType)
+{
+	var paramsText = new StringBuilder();
+	var paramArr = method.GetParameters();
+    for (int i = 0; i < paramArr.Length; i++)
+    {
+        if(i!=0)
+            paramsText.Append(", ");
+        paramsText.Append("msg."+paramArr[i].Name);
+    }
+	#>
+	var msg = (<#= contractType.Name + method.Name+ "Request" #>)input;
+<#+ 
+	if(method.ReturnType == typeof(void))
+	{	#>
+			((<#= contractType.FullName #>)entity).<#= method.Name #>(<#= paramsText #>);
+			return null;
+<#+ }
+	else if(!method.ReturnType.IsGenericType)
+	{	#>
+			await ((<#= contractType.FullName #>)entity).<#= method.Name #>(<#= paramsText #>);
+			return entity.Node.MessageFactory.New<<#= contractType.Name + method.Name+ "Reply" #>>();
+<#+ }
+	else
+	{	#>
+			var retVal = await ((<#= contractType.FullName #>)entity).<#= method.Name #>(<#= paramsText #>);
+            var retMsg = entity.Node.MessageFactory.New<<#= contractType.Name + method.Name+ "Reply" #>>();
+            retMsg.RetVal = retVal;
+            return retMsg;
+<#+ }
+}
+#>

@@ -8,23 +8,33 @@ namespace MOUSE.Core
 {
     public interface IPersistanceProvider
     {
-        Task<NodeEntity> LoadAsync(ulong entityId);
-
+        Task<NodeEntity> Get(ulong entityId);
+        Task Put(NodeEntity entity);
         Task Delete(NodeEntity entity);
+        
     }
 
     public class MembasePersistance : IPersistanceProvider
     {
-        public Task<NodeEntity> LoadAsync(ulong entityId)
+        public Task Delete(NodeEntity entity)
         {
-            TaskCompletionSource<NodeEntity> tcs = new TaskCompletionSource<NodeEntity>();
+            var tcs = new TaskCompletionSource<NodeEntity>();
             tcs.SetResult(null);
             return tcs.Task;
         }
 
-        public Task Delete(NodeEntity entity)
+        public Task<NodeEntity> Get(ulong entityId)
         {
-            throw new NotImplementedException();
+            var tcs = new TaskCompletionSource<NodeEntity>();
+            tcs.SetResult(null);
+            return tcs.Task;
+        }
+
+        public Task Put(NodeEntity entity)
+        {
+            var tcs = new TaskCompletionSource<object>();
+            tcs.SetResult(null);
+            return tcs.Task;
         }
     }
 }
