@@ -1,0 +1,12 @@
+﻿<#@ template debug="true" hostSpecific="true" #>
+<#@ output extension=".cs" #>
+<#@ Assembly Name="$(SolutionDir)Bin\TestDomain.dll" #>
+<#
+    Assembly asm = AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name.Contains("TestDomain")).FirstOrDefault();
+    GenerateProtocol(asm);
+    
+#>
+<#@ include file="..\Core\DomainGeneration\EntityGeneration.ttinclude" #>
+
+
+

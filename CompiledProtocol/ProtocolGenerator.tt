@@ -1,46 +1,12 @@
 ﻿<#@ template debug="true" hostSpecific="true" #>
 <#@ output extension=".cs" #>
-<#@ Assembly Name="System.Core.dll" #>
-<#@ Assembly Name="System.Xml.dll" #>
-<#@ Assembly Name="System.Xml.Linq.dll" #>
-<#@ Assembly Name="System.Runtime.Serialization.dll" #>
-<#@ Assembly Name="$(SolutionDir)Bin\Core.dll" #>
 <#@ Assembly Name="$(SolutionDir)Bin\SampleProtocol.dll" #>
-<#@ import namespace="System" #>
-<#@ import namespace="System.Reflection" #>
-<#@ import namespace="System.IO" #>
-<#@ import namespace="System.Diagnostics" #>
-<#@ import namespace="System.Linq" #>
-<#@ import namespace="System.Xml.Linq" #>
-<#@ import namespace="System.Collections" #>
-<#@ import namespace="System.Collections.Generic" #>
-<#@ import namespace="System.Runtime.Serialization" #>
-<#@ import namespace="System.Threading.Tasks" #>
-<#@ import namespace="System.CodeDom" #>
-<#@ import namespace="Microsoft.CSharp" #>
-<#@ import namespace="MOUSE.Core" #>
-using MOUSE.Core;
-using System.IO;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-
-namespace Protocol.Generated
-{
 <#
     Assembly asm = AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name.Contains("Protocol")).FirstOrDefault();
-    foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NodeEntityContractAttribute>()))
-        GenerateAsyncProxy(type);
-
-    foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NodeEntityContractAttribute>()))
-        GenerateMessages(type);
+    GenerateProtocol(asm);
     
-    foreach (var type in asm.GetTypes().Where(x => x.IsClass))
-        GenerateSerialization(type);
 #>
-}
-<#@ include file="EntityGeneration.ttinclude" #>
-<#@ include file="MessagesGeneration.ttinclude" #>
-<#@ include file="POCOSerialization.ttinclude" #>
+<#@ include file="..\Core\DomainGeneration\EntityGeneration.ttinclude" #>
 
 
 

@@ -41,16 +41,20 @@ bool RakPeerInterface::Startup(IPEndPoint^ endpoint, int maxConnections)
         char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(endpoint->Address->ToString());
         strncpy(sd.hostAddress, str2, sizeof(sd.hostAddress) - 1);
         sd.hostAddress[sizeof(sd.hostAddress) - 1] = '\0';
+		sd.port = (unsigned short)endpoint->Port;
+		Marshal::FreeHGlobal((System::IntPtr)str2);
     }
     else
         sd.hostAddress[0] = '\0';
-    sd.port = (unsigned short)endpoint->Port;
-    sd.socketFamily = AF_UNSPEC;
-    RakNet::StartupResult res = _rakPeer->Startup(maxConnections, &sd, 1);
+    
+    //sd.socketFamily = AF_UNSPEC;
+    RakNet::StartupResult res = _rakPeer->Startup(maxConnections, &sd, 1, THREAD_PRIORITY_NORMAL);
     _rakPeer->SetMaximumIncomingConnections(maxConnections);
     _rakPeer->SetOccasionalPing(true);
     _rakPeer->SetUnreliableTimeout(1000);
     _rakPeer->SetTimeoutTime(10000, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
+	int retCode = res;
+	Console::WriteLine("NetInitialization code="+retCode);
     return res == RakNet::RAKNET_STARTED;
 }
 

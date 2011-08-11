@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -11,7 +12,6 @@ using NLog;
 
 namespace MOUSE.Core
 {
-
     public interface IEntityRepository : IEnumerable<NodeEntity>
     {
         Task<NodeEntity> Activate(ulong entityId);
@@ -22,48 +22,39 @@ namespace MOUSE.Core
         Task Delete(NodeEntity entity);
     }
 
-    public class NodeEntityRepository : IEntityRepository
+    public class EntityRepository : IEntityRepository
     {
         Logger Log = LogManager.GetCurrentClassLogger();
+        Dictionary<uint, NodeEntityDescription> _descriptionsByTypeId = new Dictionary<uint, NodeEntityDescription>();
         Dictionary<ulong, NodeEntity> _entitiesByFullId = new Dictionary<ulong, NodeEntity>();
-        Dictionary<uint, Type> _entityTypesByTypeId = new Dictionary<uint, Type>();
 
-        IPersistanceProvider _storage;
-        Node _node;
+        public readonly IPersistanceProvider Storage;
+        public readonly IEntityDomain Domain;
 
-        public NodeEntityRepository(IPersistanceProvider storage, Node node)
+        public EntityRepository(IPersistanceProvider storage, IEntityDomain domain, IEnumerable<NodeEntity> importedEntities)
         {
-            _storage = storage;
-            _node = node;
+            Storage = storage;
+            Domain = domain;
 
-            MapEntitiesToContracts();
-        }
-
-        public IPersistanceProvider Storage
-        {
-            get { return _storage; }
-        }
-
-        public Node Node
-        {
-            get { return _node; }
-        }
-
-        private void MapEntitiesToContracts()
-        {
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (var entity in importedEntities)
             {
-                foreach (var type in assembly.GetTypes())
-                {
-                    if(type.ContainsAttribute<NodeEntityAttribute>())
-                    {
-                        var attr = type.GetAttribute<NodeEntityAttribute>();
-                        uint typeId = Node.Domain.GetTypeId(attr.ContractType);
-                        _entityTypesByTypeId.Add(typeId, type);
-                        Log.Info("Registered entityType:{0} for contractType:{1} with typeId:{2}", type, attr.ContractType, typeId);
-                    }
-                }
+                Type type = entity.GetType();
+                var attr = type.GetAttribute<NodeEntityAttribute>();
+                uint typeId = Domain.GetTypeId(attr.ContractType);
+                var desc = new NodeEntityDescription(type, Domain.GetDescription(typeId), attr);
+                _descriptionsByTypeId.Add(typeId, desc);
+                Log.Info("Registered entityType:{0} for contractType:{1} with typeId:{2}", type, attr.ContractType, typeId);
             }
+        }
+
+        public NodeEntityDescription GetDescription(ulong entityId)
+        {
+            NodeEntityDescription desc;
+            uint typeId = Domain.GetTypeId(entityId);
+            if (!_descriptionsByTypeId.TryGetValue(typeId, out desc))
+                throw new Exception("Entity with TypeId:{0} is not implemented");
+
+            return desc;
         }
 
         public async Task<NodeEntity> Activate(ulong entityId)
@@ -72,7 +63,7 @@ namespace MOUSE.Core
             NodeEntity entity;
             if (!_entitiesByFullId.TryGetValue(entityId, out entity))
             {
-                NodeEntityDescription desc = Node.Domain.GetDescription(entityId);
+                NodeEntityDescription desc = GetDescription(entityId);
                 if (desc.Persistant)
                     entity = await Storage.Get(entityId);
                 if (entity == null && desc.AutoCreate)
@@ -96,14 +87,8 @@ namespace MOUSE.Core
         private NodeEntity Create(ulong entityId, NodeEntityDescription desc)
         {
             Log.Debug("Creating entity {0}", entityId);
-            Type entityType;
-            NodeEntity entity = null;
-            if (_entityTypesByTypeId.TryGetValue(desc.TypeId, out entityType))
-            {
-                entity = (NodeEntity)FormatterServices.GetUninitializedObject(entityType);
-                entity.Init(entityId, _node);
-            }
-
+            var entity = (NodeEntity)FormatterServices.GetUninitializedObject(desc.ImplementerType);
+            entity.Init(entityId, desc);
             return entity;
         }
         

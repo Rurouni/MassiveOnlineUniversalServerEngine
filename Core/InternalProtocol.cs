@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -20,12 +21,14 @@ namespace MOUSE.Core
     }
 
 
+    [Export(typeof(Message))]
     [DataContract]
     public sealed class EmptyMessage : Message
     {
         public override uint Id { get { return (uint)NodeMessageId.Empty; } }
     }
 
+    [Export(typeof(Message))]
     [DataContract]
     public sealed class ConnectRequest : Message
     {
@@ -47,6 +50,7 @@ namespace MOUSE.Core
         }
     }
 
+    [Export(typeof(Message))]
     [DataContract]
     public sealed class ConnectReply : Message
     {
@@ -68,6 +72,7 @@ namespace MOUSE.Core
         }
     }
 
+    [Export(typeof(Message))]
     [DataContract]
     public sealed class UpdateClusterInfo : Message
     {
@@ -95,12 +100,14 @@ namespace MOUSE.Core
         }
     }
 
+    [Export(typeof(Message))]
     [DataContract]
     public sealed class EntityDiscoveryRequest : Message
     {
         public override uint Id { get { return (uint)NodeMessageId.EntityDiscoveryRequest; } }
     }
 
+    [Export(typeof(Message))]
     [DataContract]
     public sealed class EntityDiscoveryReply : Message
     {
@@ -122,6 +129,7 @@ namespace MOUSE.Core
         }
     }
 
+    [Export(typeof(Message))]
     [DataContract]
     public sealed class InvalidEntityOperation : Message
     {

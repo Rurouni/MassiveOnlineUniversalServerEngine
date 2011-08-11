@@ -8,14 +8,10 @@ namespace MOUSE.Core
     [AttributeUsage(AttributeTargets.Interface)]
     public class NodeEntityContractAttribute : Attribute
     {
-        public bool Persistant { get; set; }
-        public bool AutoCreate { get; set; }
         public bool Connectionfull { get; set; }
 
         public NodeEntityContractAttribute()
         {
-            Persistant = false;
-            AutoCreate = true;
             Connectionfull = false;
         }
     }
@@ -36,11 +32,15 @@ namespace MOUSE.Core
     [AttributeUsage(AttributeTargets.Class)]
     public class NodeEntityAttribute : Attribute
     {
-        public ulong ContractType { get; set; }
+        public Type ContractType { get; set; }
+        public bool Persistant { get; set; }
+        public bool AutoCreate { get; set; }
 
-        public NodeEntityAttribute(ulong contractType)
+        public NodeEntityAttribute(Type contractType)
         {
             ContractType = contractType;
+            Persistant = false;
+            AutoCreate = true;
         }
     }
 
@@ -52,7 +52,7 @@ namespace MOUSE.Core
     }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class NodeEntityOperationDispatcher : Attribute
+    public class NodeEntityOperationDispatcherAttribute : Attribute
     {
         public Type RequestMessage { get; set; }
         public Type ReplyMessage { get; set; }

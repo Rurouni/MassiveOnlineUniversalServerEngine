@@ -11,10 +11,9 @@ namespace MOUSE.Core
         Task<NodeEntity> Get(ulong entityId);
         Task Put(NodeEntity entity);
         Task Delete(NodeEntity entity);
-        
     }
 
-    public class MembasePersistance : IPersistanceProvider
+    public class NullPersistanceProvider : IPersistanceProvider
     {
         public Task Delete(NodeEntity entity)
         {

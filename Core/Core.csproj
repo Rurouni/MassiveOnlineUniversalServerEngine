@@ -105,9 +105,10 @@
       <HintPath>..\External\AsyncCTP\AsyncCtpLibrary.dll</HintPath>
     </Reference>
     <Reference Include="NLog, Version=2.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
-      <HintPath>..\External\NLog\.NET Framework 4.0\NLog.dll</HintPath>
+      <HintPath>..\packages\NLog.2.0.0.2000\lib\net40\NLog.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
     <Reference Include="System.CoreEx, Version=1.0.2856.104, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="System.Linq.Async, Version=1.0.2856.104, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
@@ -122,7 +123,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attributes.cs" />
-    <Compile Include="Domain.cs" />
+    <Compile Include="EntityDomain.cs" />
     <Compile Include="FastSerializer.cs" />
     <Compile Include="IO.cs" />
     <Compile Include="KeyValueCollection.cs" />
@@ -138,6 +139,15 @@
     <Compile Include="Message.cs" />
     <Compile Include="Transport.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="DomainGeneration\EntityGeneration.ttinclude" />
+    <None Include="DomainGeneration\MessagesGeneration.ttinclude" />
+    <None Include="DomainGeneration\POCOSerialization.ttinclude">
+      <LastGenOutput>POCOSerialization.cs</LastGenOutput>
+    </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

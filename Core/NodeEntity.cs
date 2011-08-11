@@ -8,10 +8,17 @@ using System.Threading.Tasks;
 
 namespace MOUSE.Core
 {
-    public class NodeEntity
+    public interface INodeEntity
+    {
+        OperationContext Context { get; set; }
+        NodeEntityDescription Description { get; }
+    }
+
+    public class NodeEntity : INodeEntity
     {
         private ulong _id;
-        private Node _node;
+        private INode _node;
+        private uint _issuerNodeId;
         NodeEntityDescription _description;
 
         public ulong Id
@@ -19,65 +26,88 @@ namespace MOUSE.Core
             get { return _id; }
         }
 
-        public Node Node
-        {
-            get { return _node; }
-        }
+        public OperationContext Context {get;set;}
 
         public void OnNodeDisconnected(NodeProxy node)
         {}
 
-        public void Init(ulong entityId, Node node)
+        public void Init(ulong entityId, NodeEntityDescription desc)
         {
             _id = entityId;
-            _description = node.Domain.GetDescription(entityId);
+            _description = desc;
         }
 
         public NodeEntityDescription Description { get { return _description; } }
     }
-
+    
     public class NodeEntityDescription
     {
-        public uint TypeId;
-        public Type ContractType;
-        public Type ProxyType;
-        public List<NodeEntityOperationDescription> Operations;
+        public readonly NodeEntityAttribute Attribute;
+        public readonly NodeEntityContractDescription Contract;
+        public readonly Type ImplementerType;
 
-        private NodeEntityContractAttribute _contractAttribute;
-        public NodeEntityContractAttribute ContractAttribute
+        public NodeEntityDescription(Type implementerType, NodeEntityContractDescription contract, NodeEntityAttribute attribute)
         {
-            get
-            {
-                if(_contractAttribute == null)
-                    _contractAttribute = ContractType.GetAttribute<NodeEntityContractAttribute>();
-                return _contractAttribute;
-            }
+            ImplementerType = implementerType;
+            Contract = contract;
+            Attribute = attribute;
         }
-        
 
-        public bool AutoCreate { get { return ContractAttribute.AutoCreate; } }
-        public bool Connectionfull { get { return ContractAttribute.Connectionfull; } }
-        public bool Persistant { get { return ContractAttribute.Persistant; } }
+        public bool Persistant 
+        {
+            get { return Attribute.Persistant; }
+        }
+        public bool AutoCreate 
+        { 
+            get { return Attribute.AutoCreate; }
+        }
+    }
+
+    public class NodeEntityContractDescription
+    {
+        public readonly uint TypeId;
+        public readonly Type ContractType;
+        public readonly Type ProxyType;
+        public readonly List<NodeEntityOperationDescription> Operations;
+        public readonly NodeEntityContractAttribute Attribute;
+
+        public NodeEntityContractDescription(uint typeId, Type contractType, Type proxyType,
+            NodeEntityContractAttribute contractAttribute, List<NodeEntityOperationDescription> operations)
+        {
+            TypeId = typeId;
+            ContractType = contractType;
+            ProxyType = proxyType;
+            Attribute = contractAttribute;
+            Operations = operations;
+        }
+
+        public bool Connectionfull { get { return Attribute.Connectionfull; } }
     }
 
     public class NodeEntityOperationDescription
     {
-        public string Name;
-        public uint RequestMessageId;
-        public uint ReplyMessageId;
-        public Func<NodeEntity, Message, Task<Message>> Dispatch;
+        public readonly string Name;
+        public readonly uint RequestMessageId;
+        public readonly uint? ReplyMessageId;
+        public readonly Func<INodeEntity, Message, Task<Message>> Dispatch;
+
+        public NodeEntityOperationDescription(string name, uint requestMessageId, uint? replyMessageId, Func<INodeEntity, Message, Task<Message>> dispatch)
+        {
+            Name = name;
+            RequestMessageId = requestMessageId;
+            ReplyMessageId = replyMessageId;
+            Dispatch = dispatch;
+        }
     }
 
     public abstract class NodeEntityProxy
     {
         private ulong _entityId;
-        private Node _node;
-        private NodeEntityDescription _entityDescription;
+        private NodeEntityContractDescription _entityDescription;
 
-        internal void Init(ulong entityId, Node node, NodeEntityDescription description)
+        internal void Init(ulong entityId, NodeEntityContractDescription description)
         {
             _entityId = entityId;
-            _node = node;
             _entityDescription = description;
         }
 
@@ -86,12 +116,10 @@ namespace MOUSE.Core
             get { return _entityId; }
         }
 
-        public Node Node
-        {
-            get { return _node; }
-        }
+        public INode Node { get; set; }
+        public NodeProxy Target { get; set; }
 
-        public NodeEntityDescription EntityDescription
+        public NodeEntityContractDescription EntityDescription
         {
             get { return _entityDescription; }
         }

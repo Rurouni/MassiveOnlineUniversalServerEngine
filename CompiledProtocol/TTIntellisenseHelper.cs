@@ -7,11 +7,10 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.CSharp;
 using System.CodeDom;
-using Protocol.Generated;
 
-namespace CompiledProtocol
+namespace Protocol.Generated
 {
-    static class TTIntellisenseHelper
+    public static class TTIntellisenseHelper
     {
         static void Main()
         {
@@ -19,7 +18,7 @@ namespace CompiledProtocol
 
             //gen protocol
 
-            foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NodeEntityContractAttribute>()))
+            foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<SerializableAttribute>()))
                 GenerateAsyncProxy(type);
 
             GenerateDomainDesc();
@@ -29,7 +28,6 @@ namespace CompiledProtocol
         
         public static void GenerateDomainDesc()
         {
-            throw new NotImplementedException();
         }
 
         static void GenerateAsyncProxy(Type contractType)

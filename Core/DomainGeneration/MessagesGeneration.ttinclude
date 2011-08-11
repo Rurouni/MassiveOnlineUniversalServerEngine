@@ -1,0 +1,60 @@
+﻿<#+ 
+void GenerateMessages(Type contractType)
+{
+    var attr = contractType.GetAttribute<NodeEntityContractAttribute>();
+    foreach (MethodInfo method in contractType.GetMethods())
+    {
+        var opAttr = method.GetAttribute<NodeEntityOperationAttribute>();
+        string requestMsgName = contractType.Name+method.Name+"Request";
+        string replyMsgName = contractType.Name+method.Name+"Reply";
+        GenerateMessage(Misc.GenerateHash(requestMsgName), requestMsgName, method.GetParameters().Select(x=>Tuple.Create(x.ParameterType, x.Name)).ToList(), opAttr.Priority, opAttr.Reliability);
+        if(method.ReturnType != typeof(void))
+        {
+            if(method.ReturnType == typeof(Task))
+                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>(), opAttr.Priority, opAttr.Reliability);
+            else
+                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>{Tuple.Create(method.ReturnType.GetGenericArguments()[0], "RetVal")}, opAttr.Priority, opAttr.Reliability);
+        }
+    }
+}
+void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> parameters, MessagePriority messagePriority, MessageReliability messageReliability)
+{#>
+    [Export(typeof(Message))]
+    [DataContract]
+    public sealed class <#= name #> : Message
+    {
+<#+ foreach (var parameter in parameters)
+    {	#>
+        [DataMember]
+        public <#= TypeToString(parameter.Item1) #> <#= parameter.Item2 #>;
+<#+ } 	#>
+
+        public override uint Id
+        {
+            get { return <#= msgId #>; }
+        }
+
+        public override void Serialize(NativeWriter w)
+        {
+            base.Serialize(w);
+<#+ foreach (var parameter in parameters)
+    {
+        WriteComplex(parameter.Item1, parameter.Item2);
+    }	#>
+        }
+
+        public override void Deserialize(NativeReader r)
+        {
+            base.Deserialize(r);
+<#+ foreach (var parameter in parameters)
+    {
+        ReadComplex(parameter.Item1, parameter.Item2);
+    }	#>
+        }
+
+        public override MessagePriority Priority { get { return MessagePriority.<#= messagePriority.ToString() #>; } }
+        public override MessageReliability Reliability { get { return MessageReliability.<#= messageReliability.ToString() #>; } }
+    }
+<#+
+}
+#>

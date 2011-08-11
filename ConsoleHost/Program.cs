@@ -1,15 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition.Hosting;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using MOUSE.Core;
 using NLog;
-using Protocol.Generated;
 using RakNetWrapper;
-using SampleDomain.Generated;
-using SampleServer;
-
+using Autofac;
+using System.Net;
+using Autofac.Integration.Mef;
 
 namespace MOUSE.ConsoleHost
 {
@@ -22,11 +23,33 @@ namespace MOUSE.ConsoleHost
             Log.Info("Started");
             try
             {
-                var domain = new GeneratedDomain();
-                domain.Init();
-                var masterEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-                var node = new Node(NodeType.Master, new GeneratedDomain(), masterEndpoint, null);
-                node.Start();
+                var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
+                var builder = new ContainerBuilder();
+
+                builder.Register(c => new Node(NodeType.Master,
+                                            c.Resolve<INetPeer>(),
+                                            c.Resolve<IEntityRepository>(),
+                                            c.Resolve<IEntityDomain>(),
+                                            c.Resolve<IMessageFactory>(),
+                                            endpoint))
+                    .As<INode>().SingleInstance();
+
+                builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>();
+                builder.RegisterType<RakPeerInterface>().As<INetPeer>();
+                
+                //register entities, proxies and messages based on MEF export
+                foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+                    builder.RegisterComposablePartCatalog(new AssemblyCatalog(assembly));
+                builder.RegisterComposablePartCatalog(new DirectoryCatalog(AppDomain.CurrentDomain.BaseDirectory + "\\Domain\\"));
+
+                builder.RegisterType<EntityRepository>().As<IEntityRepository>().SingleInstance();
+                builder.RegisterType<EntityDomain>().As<IEntityDomain>().SingleInstance();
+                builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
+
+                IContainer container = builder.Build();
+                
+                var node = container.Resolve<INode>();
+                node.Start(manualUpdate:false);
 
                 while (true)
                 {

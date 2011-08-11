@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition;
 using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
@@ -47,13 +48,55 @@ namespace MOUSE.Core
         }
     }
 
+    public class OperationContext
+    {
+        public Message Message;
+        public INode Node;
+        public NodeProxy Source;
+
+        public void SetData(Message msg, NodeProxy source)
+        {
+            Message = msg;
+            Source = source;
+        }
+
+        public OperationContext(INode node, Message message, NodeProxy source)
+        {
+            Node = node;
+            Message = message;
+            Source = source;
+        }
+    }
+
+    public interface INode
+    {
+        IEntityDomain Domain { get; }
+        IEntityRepository Repository { get; }
+        IMessageFactory MessageFactory { get; }
+
+        void Start(bool manualUpdate);
+        void Stop();
+        void Update();
+
+        Task<NodeProxy> Connect(IPEndPoint endPoint);
+        void Send(int netId, Message msg);
+        void Send(ulong nodeId, Message msg);
+
+        IObservable<NodeProxy> OnNodeConnected { get; }
+        IObservable<NodeProxy> OnNodeDisconnected { get; }
+        IObservable<OperationContext> OnNodeMessage { get; }
+
+        TEntityContract GetProxy<TEntityContract>(uint? entityLocalId = null, NodeProxy target = null) where TEntityContract : class;
+        Task<Message> Execute(Message input, NodeEntityProxy proxy);
+    }
+
     public class NodeProxy
     {
         public readonly int NetId;
         public readonly NodeDescription Description;
-        public readonly Node Owner;
+        public readonly INode Owner;
 
-        public NodeProxy(int netId, NodeDescription description, Node owner)
+        public NodeProxy(int netId, NodeDescription description, INode owner)
         {
             NetId = netId;
             Description = description;
@@ -79,70 +122,58 @@ namespace MOUSE.Core
     /// <summary>
     /// is not thread safe
     /// </summary>
-    public class Node : INetEventProcessor
+    public class Node : INode, INetEventProcessor
     {
         private const int MaxMessagesPerTick = 100000;
 
         public Logger Log = LogManager.GetCurrentClassLogger();
 
         public readonly NodeType NType;
-        private readonly IEntityDomain _domain;
         private NodeDescription _selfDescription;
         private readonly IPEndPoint _masterNodeEndPoint;
         private readonly IPEndPoint _selfEndpoint;
         private readonly NativeReader _reader = new NativeReader();
         private readonly NativeWriter _writer = new NativeWriter();
-        private readonly INetPeer _netPeer;
         private readonly Dictionary<int, NodeProxy> _connectedNodesByNetId = new Dictionary<int,NodeProxy>();
         private readonly Dictionary<ulong, NodeProxy> _connectedNodesByNodeId = new Dictionary<ulong, NodeProxy>();
         private long _updateLoopRunning = 0;
         private AutoResetEvent _updateLoopFinishedEvent;
-        private IEntityRepository _entityRepository;
-        private IMessageFactory _messageFactory;
         private Dictionary<IPEndPoint, PendingConnection> _pendingConnections = new Dictionary<IPEndPoint, PendingConnection>();
         private Dictionary<uint, PendingOperation> _pendingOperationsByRequestId = new Dictionary<uint, PendingOperation>();
         private Dictionary<ulong, NodeProxy> _entityRoutingTable = new Dictionary<ulong, NodeProxy>();
         private uint _requestId = 0;
         private Random _random = new Random();
+        private OperationContext _operationContext;
 
-        public IEntityDomain Domain
-        {
-            get { return _domain; }
-        }
+        public IEntityDomain Domain { get; set; }
+        public IEntityRepository Repository { get; set; }
+        public IMessageFactory MessageFactory { get; set; }
+        public INetPeer Net { get; set; }
 
-        
-        public IEntityRepository Repository
+        public Node(NodeType type, INetPeer net, IEntityRepository repository, IEntityDomain domain, IMessageFactory factory,
+            IPEndPoint selfEndpoint, IPEndPoint masterNodeEndPoint = null)
         {
-            get { return _entityRepository; }
-        }
+            Net = net;
+            Repository = repository;
+            Domain = domain;
+            MessageFactory = factory;
 
-        public IMessageFactory MessageFactory
-        {
-            get { return _messageFactory; }
-        }
+            _operationContext = new OperationContext(this, null, null);
 
-        public Node(NodeType type, INetPeer netPeer, IEntityDomain domain, IEntityRepository repository, IMessageFactory factory, IPEndPoint selfEndpoint, IPEndPoint masterNodeEndPoint = null)
-        {
             _masterNodeEndPoint = masterNodeEndPoint;
             _selfEndpoint = selfEndpoint;
             if(type == NodeType.Client && _masterNodeEndPoint == null)
                 throw new Exception("Client node must have valid masterNodeEndpoint");
             NType = type;
-            _domain = domain;
-
-            _entityRepository = repository;
-            _messageFactory = factory;
-
-            _netPeer = netPeer;
             _reader.SetBuffer(new byte[1024*1024*10], 0);
         }
 
         public void Start(bool manualUpdate)
         {
-            if (_netPeer.Startup(_selfEndpoint, 1000))
+            if (!Net.Startup(_selfEndpoint, 1000))
                 throw new Exception("NetLayer failed to start");
 
-            var endpoint = _netPeer.EndPoint; //this ensures we have valid external endpoint even if _selfEndpoint is set to null to autodetect all
+            var endpoint = Net.EndPoint; //this ensures we have valid external endpoint even if _selfEndpoint is set to null to autodetect all
             _selfDescription = new NodeDescription(GenerateUniqueId(), NType, endpoint);
             
             if (!manualUpdate)
@@ -151,7 +182,9 @@ namespace MOUSE.Core
                 _updateLoopRunning = 1;
                 var thread = new Thread(UpdateLoop);
                 thread.Start();
+                Log.Info("UpdateThread started");
             }
+            Log.Info("{0} has started");
         }
 
         private ulong GenerateUniqueId()
@@ -167,7 +200,7 @@ namespace MOUSE.Core
                 Interlocked.Exchange(ref _updateLoopRunning, 0);
                 _updateLoopFinishedEvent.WaitOne();
             }
-            _netPeer.Shutdown();
+            Net.Shutdown();
 
         }
 
@@ -178,7 +211,7 @@ namespace MOUSE.Core
         {
             for (int i = 0; i < MaxMessagesPerTick; i++)
             {
-                if (!_netPeer.ProcessNetEvent(this))
+                if (!Net.ProcessNetEvent(this))
                     break;
             }
             
@@ -231,10 +264,10 @@ namespace MOUSE.Core
         public void OnNetConnectionAccepted(int netId)
         {
             Log.Info("Connection to NetId<{0}>  has been accepted", netId);
-            var msg =_messageFactory.New<ConnectRequest>();
+            var msg =MessageFactory.New<ConnectRequest>();
             msg.Description = _selfDescription;
             Send(netId, msg);
-            _messageFactory.Free(msg);
+            MessageFactory.Free(msg);
         }
 
         public void OnNetDisconnect(int netId)
@@ -255,7 +288,7 @@ namespace MOUSE.Core
         public void OnNetData(int netId, NativeReader reader)
         {
             Log.Info("Message from NetId<{0}>", netId);
-            Message msg = _messageFactory.Deserialize(reader);
+            Message msg = MessageFactory.Deserialize(reader);
             if (msg.Id == (uint)NodeMessageId.ConnectionReply)
                 OnConnectionReply(netId, (ConnectReply)msg);
             else if (msg.Id == (uint)NodeMessageId.ConnectionRequest)
@@ -287,19 +320,19 @@ namespace MOUSE.Core
                 _pendingConnections.Remove(node.Description.EndPoint);
             }
 
-            var connectReply = _messageFactory.New<ConnectReply>();
+            var connectReply = MessageFactory.New<ConnectReply>();
             connectReply.Description = _selfDescription;
             Send(senderId, connectReply);
-            _messageFactory.Free(connectReply);
+            MessageFactory.Free(connectReply);
 
             if(msg.Description.Type != NodeType.Client)
             {
-                var clusterInfo = _messageFactory.New<UpdateClusterInfo>();
+                var clusterInfo = MessageFactory.New<UpdateClusterInfo>();
                 clusterInfo.Descriptions = _connectedNodesByNetId.Values
                     .Where(x => x.Description.Type != NodeType.Client)
                     .Select(x => x.Description).ToList();
                 Send(senderId, clusterInfo);
-                _messageFactory.Free(clusterInfo);
+                MessageFactory.Free(clusterInfo);
             }
         }
 
@@ -329,18 +362,20 @@ namespace MOUSE.Core
                 await Connect(nodeDescription.EndPoint);
         }
 
-        public virtual void OnNodeConnected(NodeProxy source)
+        protected virtual void OnNodeConnected(NodeProxy source)
         {
+            _onNodeConnectedSubject.OnNext(source);
         }
 
-        public virtual void OnNodeDisconnected(NodeProxy source)
+        protected virtual void OnNodeDisconnected(NodeProxy source)
         {
-            foreach (var entity in _entityRepository.Where(entity => entity.Description.Connectionfull))
-                entity.OnNodeDisconnected(source);
+            _onNodeDisconnectedSubject.OnNext(source);
         }
 
-        public async void OnNodeMessage(NodeProxy source, Message msg)
+        protected async void OnNodeMessage(NodeProxy source, Message msg)
         {
+            _operationContext.SetData(msg, source);
+            _onNodeMessageSubject.OnNext(_operationContext);
             var transportHeader = msg.GetHeader<TransportHeader>();
 
             #region Process Request
@@ -418,7 +453,7 @@ namespace MOUSE.Core
             #endregion
         }
 
-        private void RouteEntityOperationRequest(NodeProxy source, Message msg, TransportHeader transportHeader,
+        protected void RouteEntityOperationRequest(NodeProxy source, Message msg, TransportHeader transportHeader,
             NodeProxy target)
         {
             if (transportHeader != null)
@@ -433,7 +468,7 @@ namespace MOUSE.Core
             }
         }
 
-        private void ProcessEntityOperationReply(EntityOperationReply replyHeader, Message msg)
+        protected void ProcessEntityOperationReply(EntityOperationReply replyHeader, Message msg)
         {
             PendingOperation continuation;
             if(_pendingOperationsByRequestId.TryGetValue(replyHeader.RequestId, out continuation))
@@ -449,18 +484,18 @@ namespace MOUSE.Core
                     replyHeader.RequestId);
         }
 
-        private async void ProcessEntityOperationRequest(NodeProxy source, EntityOperationRequest requestHeader, 
+        protected async void ProcessEntityOperationRequest(NodeProxy source, EntityOperationRequest requestHeader, 
             TransportHeader transportHeader, NodeEntity entity, Message msg)
         {
             Message reply;
             if (msg.Id == (uint)NodeMessageId.EntityDiscoveryRequest)
             {
-                var discoveryReply = _messageFactory.New<EntityDiscoveryReply>();
+                var discoveryReply = MessageFactory.New<EntityDiscoveryReply>();
                 discoveryReply.Description = _selfDescription;
                 reply = discoveryReply;
             }
             else
-                reply = await _domain.Dispatch(entity, msg);
+                reply = await Domain.Dispatch(entity, msg);
 
             reply.AttachHeader(new EntityOperationReply(requestHeader.RequestId));
             if (transportHeader != null)
@@ -480,10 +515,10 @@ namespace MOUSE.Core
             else
                 source.Send(reply);
 
-            _messageFactory.Free(reply);
+            MessageFactory.Free(reply);
         }
 
-        public async Task<NodeEntity> ActivateEntity(ulong entityId)
+        protected async Task<NodeEntity> ActivateEntity(ulong entityId)
         {
             NodeEntity entity;
             if (Repository.TryGet(entityId, out entity))
@@ -494,7 +529,7 @@ namespace MOUSE.Core
             return entity;
         }
 
-        public async Task DeleteEntity(ulong entityId)
+        protected async Task DeleteEntity(ulong entityId)
         {
             NodeEntity entity;
             if (Repository.TryGet(entityId, out entity))
@@ -522,14 +557,14 @@ namespace MOUSE.Core
             {
                 continuation = new PendingConnection(endPoint);
                 _pendingConnections.Add(endPoint, continuation);
-                _netPeer.Connect(endPoint);
+                Net.Connect(endPoint);
             }
             return continuation.TCS.Task;
         }
 
-        public async Task<NodeProxy> ConnectToEntityOwner(NodeEntityProxy proxy)
+        protected async Task<NodeProxy> ConnectToEntityOwner(NodeEntityProxy proxy)
         {
-            Message reply = await ExecuteEntityOperationAsync(new EntityDiscoveryRequest(), proxy);
+            Message reply = await Execute(new EntityDiscoveryRequest(), proxy);
             NodeProxy target = await Connect(((EntityDiscoveryReply) reply).Description.EndPoint);
             return target;
         }
@@ -539,27 +574,39 @@ namespace MOUSE.Core
             Log.Trace("Sending to Node<Id:{0}>  msg:{1}", netId, msg);
             _writer.Position = 0;
             msg.Serialize(_writer);
-            
-            _netPeer.Send(netId, _writer.Buff, (int)_writer.Position, msg.Priority, msg.Reliability);
+
+            Net.Send(netId, _writer.Buff, (int)_writer.Position, msg.Priority, msg.Reliability);
         }
 
-        public void SendLoopback(Message msg)
+        public void Send(ulong nodeId, Message msg)
+        {
+            NodeProxy proxy;
+            if(_connectedNodesByNodeId.TryGetValue(nodeId, out proxy))
+                Send(proxy.NetId, msg);
+            else
+                Log.Warn("Send->Unknown NodeId:" + nodeId);
+        }
+
+        protected void SendLoopback(Message msg)
         {
             Log.Trace("Sending loopback msg:"+msg);
             _writer.Position = 0;
             msg.Serialize(_writer);
-            
-            _netPeer.SendLoopback(_writer.Buff, (int)_writer.Position);
+
+            Net.SendLoopback(_writer.Buff, (int)_writer.Position);
         }
 
-        public TEntityContract GetProxy<TEntityContract>(uint? entityId = null)
+        public TEntityContract GetProxy<TEntityContract>(uint? entityId = null, NodeProxy target = null)
             where TEntityContract : class
         {
             ulong fullId = Domain.GetFullId<TEntityContract>(entityId);
-            return (TEntityContract)(object)Domain.GetProxy(fullId);
+            NodeEntityProxy proxy = Domain.GetProxy(fullId);
+            proxy.Node = this;
+            proxy.Target = target;
+            return (TEntityContract)(object)proxy;
         }
 
-        public async Task<Message> ExecuteEntityOperationAsync(Message input, NodeEntityProxy proxy)
+        public async Task<Message> Execute(Message input, NodeEntityProxy proxy)
         {
             uint requestId = _requestId++;
             
@@ -570,7 +617,7 @@ namespace MOUSE.Core
             else
             {
                 NodeProxy targetNode;
-                //first check if we already know where thsi entity is located
+                //first check if we already know where this entity is located
                 if (_entityRoutingTable.TryGetValue(proxy.EntityId, out targetNode))
                 {
                     Log.Trace("Sending  to cached: " + targetNode);
@@ -604,14 +651,14 @@ namespace MOUSE.Core
             return reply;
         }
 
-        public Task<Message> AwaitEntityOperationReply(uint requestId, NodeEntityProxy requestOwner)
+        protected Task<Message> AwaitEntityOperationReply(uint requestId, NodeEntityProxy requestOwner)
         {
             var continuation = new PendingOperation(requestId, requestOwner);
             _pendingOperationsByRequestId.Add(requestId, continuation);
             return continuation.TCS.Task;
         }
 
-        private NodeProxy GetBalancedCreationTarget()
+        protected NodeProxy GetBalancedCreationTarget()
         {
             var nodes = _connectedNodesByNodeId.Values.Where(x => x.Description.Type == NodeType.Server).ToList();
             if (nodes.Count == 0)//we are solo so create entity on us
@@ -630,7 +677,7 @@ namespace MOUSE.Core
         //public abstract async void EntityCallOnewayAsync<TRequestMessage>(TRequestMessage input, NodeEntityProxy caller)
         //    where TRequestMessage : Message;
 
-        public bool IsMasterConnected
+        protected bool IsMasterConnected
         {
             get
             {
@@ -640,15 +687,34 @@ namespace MOUSE.Core
             }
         }
 
-        public NodeProxy Master
+        protected NodeProxy Master
         {
             get { return _connectedNodesByNodeId.Values.Where(x => x.Description.Type == NodeType.Master).First(); }
         }
 
-        public ulong Id
+        protected ulong Id
         {
             get { return _selfDescription.NodeId; }
         }
+
+        Subject<NodeProxy> _onNodeConnectedSubject = new Subject<NodeProxy>();
+        IObservable<NodeProxy> INode.OnNodeConnected
+        {
+            get { return _onNodeConnectedSubject; }
+        }
+
+        Subject<NodeProxy> _onNodeDisconnectedSubject = new Subject<NodeProxy>();
+        IObservable<NodeProxy> INode.OnNodeDisconnected
+        {
+            get { return _onNodeDisconnectedSubject; }
+        }
+
+        Subject<OperationContext> _onNodeMessageSubject = new Subject<OperationContext>();
+        IObservable<OperationContext> INode.OnNodeMessage
+        {
+            get { return _onNodeMessageSubject; }
+        }
+        
     }
 
     public class InvalidEntityOperationException : Exception

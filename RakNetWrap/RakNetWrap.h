@@ -21,9 +21,11 @@ using namespace System;
 using namespace System::IO;
 using namespace System::Net;
 using namespace MOUSE::Core;
+using namespace System::ComponentModel::Composition;
 
 namespace RakNetWrapper
 {
+	[Export(INetPeer::typeid)]
     public ref class RakPeerInterface : INetPeer
     {
         RakNet::RakPeerInterface* _rakPeer;

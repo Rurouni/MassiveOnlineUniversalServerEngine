@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition;
 using System.Linq;
 using System.Text;
 using NLog;
@@ -14,28 +15,23 @@ namespace MOUSE.Core
         Message Deserialize(NativeReader reader);
     }
 
-    public class ReflectionBasedMessageFactory : IMessageFactory
+    public class MessageFactory : IMessageFactory
     {
         Logger Log = LogManager.GetCurrentClassLogger();
         private Dictionary<Type, uint> _msgIdByType = new Dictionary<Type,uint>();
         private Dictionary<uint, Type> _typeByMsgId = new Dictionary<uint,Type>();
         private Dictionary<uint, List<Message>> _messagePoolByMsgId = new Dictionary<uint,List<Message>>();
 
-        public ReflectionBasedMessageFactory()
+        
+        public MessageFactory(IEnumerable<Message> importedMessages)
         {
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (var msg in importedMessages)
             {
-                foreach (var type in assembly.GetTypes())
-                {
-                    if(type.IsSubclassOf(typeof(Message)))
-                    {
-                        Message msg = (Message)FormatterServices.GetUninitializedObject(type);
-                        _msgIdByType.Add(type, msg.Id);
-                        _typeByMsgId.Add(msg.Id, type);
-                        _messagePoolByMsgId.Add(msg.Id, new List<Message> { msg });
-                        Log.Info("Registered Message<Id:{0} Type:{1}>", msg.Id, type);
-                    }
-                }
+                Type type = msg.GetType();
+                _msgIdByType.Add(type, msg.Id);
+                _typeByMsgId.Add(msg.Id, type);
+                _messagePoolByMsgId.Add(msg.Id, new List<Message> { msg });
+                Log.Info("Registered Message<Id:{0} Type:{1}>", msg.Id, type);
             }
         }
 
