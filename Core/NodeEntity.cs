@@ -116,7 +116,7 @@ namespace MOUSE.Core
             get { return _entityId; }
         }
 
-        public INode Node { get; set; }
+        public IEntityClusterNode Node { get; set; }
         public NodeProxy Target { get; set; }
 
         public NodeEntityContractDescription EntityDescription

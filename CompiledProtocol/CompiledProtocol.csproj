@@ -67,10 +67,6 @@
       <Project>{CC2D2C8B-6B03-4585-A421-58B796A69780}</Project>
       <Name>Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SampleProtocol\SampleProtocol.csproj">
-      <Project>{5300823F-C8CB-48AB-990B-C764A9879D93}</Project>
-      <Name>SampleProtocol</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>

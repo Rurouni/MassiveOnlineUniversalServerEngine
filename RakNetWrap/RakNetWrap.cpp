@@ -134,7 +134,7 @@ bool RakPeerInterface::ProcessNetEvent(INetEventProcessor^ processor)
     np = _rakPeer->Receive();
     if (!np)
         return false;
-    if(np->length > _reader->Length)
+    if(np->length > _buff->Length)
     {
         _rakPeer->DeallocatePacket(np);
         throw gcnew Exception("Received packet is too big");

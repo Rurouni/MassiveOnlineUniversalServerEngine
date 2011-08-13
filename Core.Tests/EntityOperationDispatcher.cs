@@ -47,7 +47,7 @@ namespace Core.Tests
             inputMsg.datas = null;
 
             
-            var node = new Mock<INode>();
+            var node = new Mock<IEntityClusterNode>();
             node.Setup(x => x.Domain).Returns(domain);
             node.Setup(x => x.MessageFactory).Returns(messageFactory);
 
@@ -86,7 +86,7 @@ namespace Core.Tests
             var domain = container.Resolve<IEntityDomain>();
             var messageFactory = container.Resolve<IMessageFactory>();
 
-            var node = new Mock<INode>();
+            var node = new Mock<IEntityClusterNode>();
             node.Setup(x => x.Domain).Returns(domain);
             node.Setup(x => x.MessageFactory).Returns(messageFactory);
 
@@ -129,7 +129,7 @@ namespace Core.Tests
             var domain = container.Resolve<IEntityDomain>();
             var messageFactory = container.Resolve<IMessageFactory>();
 
-            var node = new Mock<INode>();
+            var node = new Mock<IEntityClusterNode>();
             node.Setup(x => x.Domain).Returns(domain);
             node.Setup(x => x.MessageFactory).Returns(messageFactory);
 

@@ -117,10 +117,6 @@
       <Project>{5ADEBAC7-5010-4ED4-9CA7-3192F2D86FA8}</Project>
       <Name>RakNetWrap</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SampleProtocol\SampleProtocol.csproj">
-      <Project>{5300823F-C8CB-48AB-990B-C764A9879D93}</Project>
-      <Name>SampleProtocol</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

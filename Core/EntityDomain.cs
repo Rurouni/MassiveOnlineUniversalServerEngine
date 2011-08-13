@@ -14,7 +14,7 @@ namespace MOUSE.Core
     public interface IEntityDomain
     {
         Task<Message> Dispatch(INodeEntity entity, Message msg);
-        NodeEntityProxy GetProxy(ulong entityId);
+        NodeEntityProxy CreateProxy(ulong entityId);
         [Pure]
         ulong GetFullId<TEntityContract>(uint? entityId) where TEntityContract : class;
         [Pure]
@@ -34,8 +34,6 @@ namespace MOUSE.Core
     public class EntityDomain : IEntityDomain
     {
         Logger Log = LogManager.GetCurrentClassLogger();
-
-        private Dictionary<ulong, NodeEntityProxy> _proxyCache = new Dictionary<ulong, NodeEntityProxy>();
 
         private Dictionary<uint, NodeEntityContractDescription> _descByTypeId = new Dictionary<uint, NodeEntityContractDescription>();
         private Dictionary<uint, Func<INodeEntity, Message, Task<Message>>> _dispatcherByMsgId = new Dictionary<uint, Func<INodeEntity, Message, Task<Message>>>();
@@ -107,22 +105,19 @@ namespace MOUSE.Core
             
         }
 
-        public NodeEntityProxy GetProxy(ulong entityId)
+        public NodeEntityProxy CreateProxy(ulong entityId)
         {
             NodeEntityProxy proxy;
-            if (!_proxyCache.TryGetValue(entityId, out proxy))
+            uint typeId = GetTypeId(entityId);
+            NodeEntityContractDescription desc;
+            if (_descByTypeId.TryGetValue(typeId, out desc))
             {
-                uint typeId = GetTypeId(entityId);
-                NodeEntityContractDescription desc;
-                if (_descByTypeId.TryGetValue(typeId, out desc))
-                {
-                    proxy = (NodeEntityProxy)FormatterServices.GetUninitializedObject(desc.ProxyType);
-                    proxy.Init(entityId, desc);
-                }
-                else
-                    throw new Exception("Unregistered entity typeId - " + typeId);
-                _proxyCache.Add(entityId, proxy);
+                proxy = (NodeEntityProxy)FormatterServices.GetUninitializedObject(desc.ProxyType);
+                proxy.Init(entityId, desc);
             }
+            else
+                throw new Exception("Unregistered entity typeId - " + typeId);
+            
             return proxy;
         }
 

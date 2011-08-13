@@ -142,8 +142,6 @@ namespace MOUSE.Core
         [DataMember]
         public readonly ulong NodeId;
         [DataMember]
-        public readonly NodeType Type;
-        [DataMember]
         public readonly string Ip;
         [DataMember]
         public readonly ushort Port;
@@ -159,10 +157,9 @@ namespace MOUSE.Core
             }
         }
 
-        public NodeDescription(ulong nodeId, NodeType type, IPEndPoint endpoint)
+        public NodeDescription(ulong nodeId, IPEndPoint endpoint)
         {
             NodeId = nodeId;
-            Type = type;
             _endPoint = endpoint;
             Ip = endpoint.Address.ToString();
             Port = (ushort)endpoint.Port;
@@ -171,7 +168,6 @@ namespace MOUSE.Core
         public NodeDescription(NativeReader reader)
         {
             NodeId = reader.ReadUInt64();
-            Type = (NodeType)reader.ReadByte();
             Ip = reader.ReadASCII();
             Port = reader.ReadUInt16();
         }
@@ -179,7 +175,6 @@ namespace MOUSE.Core
         public void Serialize(NativeWriter writer)
         {
             writer.Write(NodeId);
-            writer.Write((byte)Type);
             writer.WriteASCII(Ip);
             writer.Write(Port);
         }
@@ -187,7 +182,7 @@ namespace MOUSE.Core
 
         public override string ToString()
         {
-            return string.Format("Node<Id:{0}, Type:{1}, Ip:{2}, Port:{3}>", NodeId, Type, Ip, Port);
+            return string.Format("Node<Id:{0}, Ip:{1}, Port:{2}>", NodeId, Ip, Port);
         }
     }
 }

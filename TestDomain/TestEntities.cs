@@ -70,6 +70,7 @@ namespace TestDomain
             SomeArrRec = someArrRec;
         }
 
+        //deep equal for unit testing
         public bool Equals(ComplexData other)
         {
             if (ReferenceEquals(null, other)) return false;
