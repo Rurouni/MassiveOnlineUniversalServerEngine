@@ -23,7 +23,7 @@ using System.Reactive.Linq;
 namespace Core.Tests
 {
     [TestFixture]
-    public class NodeBasicNetworking
+    public class NodeBasicNetworkingTests
     {
         private IContainer container;
 
@@ -52,45 +52,27 @@ namespace Core.Tests
             NodeProxy node2ProxyInNode1 = null;
             int node1OnConnectCalls = 0;
             int node2OnConnectCalls = 0;
-            int observerExceptions = 0;
             
             node1.OnNodeConnected.Subscribe((proxy) =>
                                                 {
                                                     node2ProxyInNode1 = proxy;
                                                     node1OnConnectCalls++;
-                                                }, exception => observerExceptions++);
+                                                });
 
             node2.OnNodeConnected.Subscribe((proxy) =>
                                                 {
                                                     node1ProxyInNode2 = proxy;
                                                     node2OnConnectCalls++;
-                                                }, exception => observerExceptions++);
+                                                });
 
 
             Task<NodeProxy> connectTask = node2.Connect(endpoint);
 
             connectTask.IsCompleted.Should().BeFalse();
 
-            var updateNodes = Observable
-                .Interval(TimeSpan.FromMilliseconds(10))
-                .TakeUntil(Observable
-                               .Timer(TimeSpan.FromSeconds(3))
-                               .Amb(node1.OnNodeConnected
-                                    .Zip(node2.OnNodeConnected, (p1,p2)=>1L)));
-
-            Console.WriteLine(Thread.CurrentThread.ManagedThreadId);
-
-            foreach (var tick in updateNodes.ToEnumerable())
-            {
-                node1.Update();
-                node2.Update();
-            }
-
-
-
             Stopwatch timer = Stopwatch.StartNew();
             while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
-                  && timer.Elapsed < TimeSpan.FromSeconds(5))
+                  && timer.Elapsed < TimeSpan.FromSeconds(3))
             {
                 node1.Update();
                 node2.Update();
@@ -107,8 +89,6 @@ namespace Core.Tests
 
             connectTask.IsCompleted.Should().BeTrue();
             connectTask.Result.Should().Be(node1ProxyInNode2);
-
-            observerExceptions.Should().Be(0);
         }
 
 
@@ -153,7 +133,47 @@ namespace Core.Tests
         [Test]
         public void ShouldNotifyOnDisconnect()
         {
-            
+            var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
+            var node1 = container.Resolve<INode>();
+            var node2 = container.Resolve<INode>();
+
+            node1.Start(true, endpoint);
+            node2.Start(true);
+
+            NodeProxy node1ProxyInNode2 = null;
+            NodeProxy node2ProxyInNode1 = null;
+
+            NodeProxy disconectedProxy = null;
+            int disconnectCalls = 0;
+
+            node1.OnNodeConnected.Subscribe((proxy) => node2ProxyInNode1 = proxy);
+            node2.OnNodeConnected.Subscribe((proxy) => node1ProxyInNode2 = proxy);
+
+            node2.OnNodeDisconnected.Subscribe((proxy) =>
+                                               {
+                                                   disconectedProxy = proxy;
+                                                   disconnectCalls++;   
+                                               });
+
+            Task<NodeProxy> connectTask = node2.Connect(endpoint);
+
+            Stopwatch timer = Stopwatch.StartNew();
+            while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
+                  && timer.Elapsed < TimeSpan.FromSeconds(3))
+            {
+                node1.Update();
+                node2.Update();
+            }
+
+            node1.Stop();
+
+            timer = Stopwatch.StartNew();
+            while (disconnectCalls == 0 && timer.Elapsed < TimeSpan.FromSeconds(3))
+                node2.Update();
+
+            disconectedProxy.Should().Be(node1ProxyInNode2);
+            disconnectCalls.Should().Be(1);
+            node2.Stop();
         }
     }
 }

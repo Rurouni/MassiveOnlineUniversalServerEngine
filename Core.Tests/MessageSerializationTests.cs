@@ -15,7 +15,7 @@ using Autofac.Integration.Mef;
 namespace Core.Tests
 {
     [TestFixture]
-    public class MessageSerialization
+    public class MessageSerializationTests
     {
         private IContainer container;
 

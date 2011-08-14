@@ -15,7 +15,7 @@ using Autofac.Integration.Mef;
 namespace Core.Tests
 {
     [TestFixture]
-    public class EntityDomain
+    public class EntityDomainDescriptionTests
     {
         private IContainer container;
 

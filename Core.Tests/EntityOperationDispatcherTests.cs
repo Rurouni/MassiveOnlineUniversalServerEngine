@@ -17,7 +17,7 @@ using Autofac.Integration.Mef;
 namespace Core.Tests
 {
     [TestFixture]
-    public class EntityOperationDispatcher
+    public class EntityOperationDispatcherTests
     {
         private IContainer container;
 
@@ -73,7 +73,7 @@ namespace Core.Tests
             //Assert
             ret.Should().NotBeNull();
             ret.Status.Should().Be(TaskStatus.RanToCompletion);
-            ITestEntityComplexReply replyMsg = ret.Result as ITestEntityComplexReply;
+            var replyMsg = ret.Result as ITestEntityComplexReply;
             replyMsg.Should().NotBeNull();
             replyMsg.RetVal.Should().Be(output);
             calls.Should().Be(1);
@@ -116,7 +116,7 @@ namespace Core.Tests
             //Assert
             ret.Should().NotBeNull();
             ret.Status.Should().Be(TaskStatus.RanToCompletion);
-            ITestEntitySimpleReply replyMsg = ret.Result as ITestEntitySimpleReply;
+            var replyMsg = ret.Result as ITestEntitySimpleReply;
             replyMsg.Should().NotBeNull();
             replyMsg.RetVal.Should().Be(output);
             calls.Should().Be(1);
