@@ -1,15 +1,15 @@
 ##General Info
-Main goal of this project is to build a C# server framework for small to large mmo's,
+Main goal of the project is to build a C# server framework for small to large mmo's,
 with idea that server team could start with one piece of hardware and in case of need simply add new hardware,
 without rewriting of current game logic and restarting game server.
-In general this is some kind of OOP in the cloud.
+In general it is some kind of OOP in the cloud.
 
-To achieve this every object in game server's BL is divided into this 2 categories:
+To achieve this every object in game server's BL is divided into 2 categories:
 
 + NodeEntity - has Id that is used for distribution in cluster, could be moved anywhere/anytime in cluster so could be accessible only over proxy
 + Plain - can be used/stored only in context of some NodeEntity
 
-Because any NodeEntity is allocated in cluster only on one node in one instance in any time we have share nothing principle so we can forget about locks in game logic.
+Because any NodeEntity is allocated in cluster only on one node in one instance in any time, we have share nothing principle, so we can forget about locks in game logic.
 All communication between NodeEntities is async only, so in reality each Node has only one updating thread for all game logic or could be even updated manually in clients main loop,
 to achieve this every method of any NodeEntity contract should return only: 
 
