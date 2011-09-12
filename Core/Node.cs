@@ -92,7 +92,7 @@ namespace MOUSE.Core
         IEntityDomain Domain { get; }
         IEntityRepository Repository { get; }
 
-        TEntityContract GetProxy<TEntityContract>(uint? entityLocalId = null, NodeProxy target = null) where TEntityContract : class;
+        TEntityContract Get<TEntityContract>(uint entityLocalId = 0, NodeProxy target = null) where TEntityContract : class;
         Task<Message> Execute(Message input, NodeEntityProxy proxy);
     }
 
@@ -687,7 +687,7 @@ namespace MOUSE.Core
                 Log.Warn("Cant delete Entity<Id:{0}> - not found", entityId);
         }
 
-        public TEntityContract GetProxy<TEntityContract>(uint? entityId = null, NodeProxy target = null)
+        public TEntityContract Get<TEntityContract>(uint entityId = 0, NodeProxy target = null)
             where TEntityContract : class
         {
             ulong fullId = Domain.GetFullId<TEntityContract>(entityId);

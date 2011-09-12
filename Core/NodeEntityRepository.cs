@@ -19,6 +19,8 @@ namespace MOUSE.Core
         bool Contains(ulong entityId);
         void Remove(NodeEntity entity);
         void Add(NodeEntity entity);
+        Task<NodeEntity> Create(ulong entityId);
+        Task<TEntity> Create<TEntity>(uint localEntityId = 0) where TEntity : NodeEntity;
         Task Delete(NodeEntity entity);
     }
 
@@ -75,6 +77,35 @@ namespace MOUSE.Core
             return entity;
         }
 
+        public async Task<NodeEntity> Create(ulong entityId)
+        {
+            Log.Debug("Creating entity {0}", entityId);
+
+            NodeEntity entity;
+            if (_entitiesByFullId.TryGetValue(entityId, out entity))
+                throw new EntityAlreadyExistException(entity);
+
+            NodeEntityDescription desc = GetDescription(entityId);
+            if (desc.Persistant)
+            {
+                entity = await
+                Storage.Get(entityId);
+                if (entity != null)
+                    throw new EntityAlreadyExistException(entity);
+            }
+
+            entity = Create(entityId, desc);
+            Add(entity);
+
+            return entity;
+        }
+
+        public async Task<TEntity> Create<TEntity>(uint localEntityId = 0) where TEntity : NodeEntity
+        {
+            NodeEntity entity = await Create(Domain.GetFullId<TEntity>(localEntityId));
+            return (TEntity)entity;
+        }
+
         public async Task Delete(NodeEntity entity)
         {
             Log.Debug("Deleting {0}", entity);
@@ -122,6 +153,26 @@ namespace MOUSE.Core
         IEnumerator IEnumerable.GetEnumerator()
         {
             return this.GetEnumerator();
+        }
+    }
+
+    public class EntityAlreadyExistException : Exception
+    {
+        public NodeEntity Entity;
+
+        public EntityAlreadyExistException(NodeEntity entity)
+        {
+            Entity = entity;
+        }
+    }
+
+    public class EntityNotFoundException : Exception
+    {
+        public ulong EntityId;
+
+        public EntityNotFoundException(ulong entityId)
+        {
+            EntityId = entityId;
         }
     }
 }

@@ -146,7 +146,7 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="EntityUsageTests.cs" />
+    <Compile Include="RemoteEntityUsageTests.cs" />
     <Compile Include="EntityOperationDispatcherTests.cs" />
     <Compile Include="EntityProxyTests.cs" />
     <Compile Include="MessageSerializationTests.cs" />
