@@ -51,8 +51,8 @@ int result = await proxy.Ping(requestId++, 10);
 1. **Basic networking**
 2. **Messages/Serialization generation**
 3. **Proxy/Dispatcher generation**
-4. *Single node entity operation flow*
-5. Multi node entity operation flow
+4. *Single node server entity operation flow*
+5. Multi node server entity operation flow
 6. Client node(different transport, routing, security issues, etc) 
 7. Node removing/adding keyspace redistribution 
 8. Task system, for repeatable entity operations
