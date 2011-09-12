@@ -21,6 +21,7 @@ namespace MOUSE.Core
     {
         public MessagePriority Priority { get; set; }
         public MessageReliability Reliability { get; set; }
+        public LockType Lock { get; set; }
 
         public NodeEntityOperationAttribute()
         {

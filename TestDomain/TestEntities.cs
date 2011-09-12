@@ -9,6 +9,21 @@ using System.Runtime.Serialization;
 
 namespace TestDomain
 {
+    //ideally this should be in separate dll, but for sake of tests here we have all in one
+    [NodeEntityContract]
+    public interface ITestEntity
+    {
+        [NodeEntityOperation]
+        Task<int> Simple(int requestId);
+
+        [NodeEntityOperation(Lock = LockType.None, Reliability = MessageReliability.Unreliable)]
+        void SimpleOneWay();
+
+        [NodeEntityOperation(Lock = LockType.Entity, Priority = MessagePriority.High, Reliability = MessageReliability.ReliableOrdered)]
+        Task<ComplexData> Complex(int requestId, ComplexData data, string name, List<ComplexData> datas);
+
+    }
+
     [Export(typeof(NodeEntity))]
     [NodeEntity(typeof(ITestEntity))]
     public class TestEntity : NodeEntity, ITestEntity
@@ -28,20 +43,6 @@ namespace TestDomain
         {
             return new ComplexData(requestId, 0, name, new List<string> {"Test1","Test2"}, datas);
         }
-    }
-
-    [NodeEntityContract]
-    public interface ITestEntity
-    {
-        [NodeEntityOperation]
-        Task<int> Simple(int requestId);
-
-        [NodeEntityOperation(Reliability = MessageReliability.Unreliable)]
-        void SimpleOneWay();
-
-        [NodeEntityOperation(Priority = MessagePriority.High, Reliability = MessageReliability.ReliableOrdered)]
-        Task<ComplexData> Complex(int requestId, ComplexData data, string name, List<ComplexData> datas);
-        
     }
 
     [DataContract]
@@ -130,6 +131,45 @@ namespace TestDomain
                 result = (result*397) ^ (SomeArrRec != null ? SomeArrRec.GetHashCode() : 0);
                 return result;
             }
+        }
+    }
+
+
+    /// <summary>
+    /// Custom message, intended usage - internal
+    /// </summary>
+    [Export(typeof(Message))]
+    public class TestMessage : Message
+    {
+        public int Data;
+
+        public override uint Id
+        {
+            get { return 1234567; }
+        }
+
+        public override MessagePriority Priority
+        {
+            get { return MessagePriority.High; }
+        }
+
+        public override MessageReliability Reliability
+        {
+            get { return MessageReliability.Unreliable; }
+        }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            base.Serialize(writer);
+
+            writer.Write(Data);
+        }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+
+            Data = reader.ReadInt32();
         }
     }
 }

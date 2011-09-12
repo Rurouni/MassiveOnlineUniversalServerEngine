@@ -39,13 +39,6 @@
       <DependentUpon>DirectConnectionless(full)EntityOperationFlow.sequencediagram</DependentUpon>
     </Content>
     <Folder Include="ModelDefinition\" />
-    <Content Include="Core.classdiagram">
-      <SubType>Content</SubType>
-    </Content>
-    <Content Include="Core.classdiagram.layout">
-      <SubType>Content</SubType>
-      <DependentUpon>Core.classdiagram</DependentUpon>
-    </Content>
     <Content Include="EntityOperationNavigation.activitydiagram">
       <SubType>Content</SubType>
     </Content>

@@ -128,6 +128,7 @@
     <Compile Include="FastSerializer.cs" />
     <Compile Include="IO.cs" />
     <Compile Include="KeyValueCollection.cs" />
+    <Compile Include="Locks.cs" />
     <Compile Include="MessageFactory.cs" />
     <Compile Include="MessageHeaders.cs" />
     <Compile Include="Misc.cs" />
@@ -141,6 +142,7 @@
     <Compile Include="Transport.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ClassDiagram.cd" />
     <None Include="DomainGeneration\EntityGeneration.ttinclude" />
     <None Include="DomainGeneration\MessagesGeneration.ttinclude" />
     <None Include="DomainGeneration\POCOSerialization.ttinclude">

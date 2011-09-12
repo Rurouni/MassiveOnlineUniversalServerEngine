@@ -78,6 +78,7 @@ namespace MOUSE.Core
         void Update();
 
         Task<NodeProxy> Connect(IPEndPoint endPoint);
+        void CloseConnection(NodeProxy target);
         void Send(int netId, Message msg);
         void Send(ulong nodeId, Message msg);
 
@@ -384,6 +385,11 @@ namespace MOUSE.Core
                 Net.Connect(endPoint);
             }
             return continuation.TCS.Task;
+        }
+
+        public void CloseConnection(NodeProxy target)
+        {
+            Net.CloseConnection(target.NetId);
         }
 
         public void Send(int netId, Message msg)

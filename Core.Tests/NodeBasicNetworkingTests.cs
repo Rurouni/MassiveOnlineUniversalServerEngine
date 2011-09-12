@@ -32,6 +32,7 @@ namespace Core.Tests
         {
             var builder = new ContainerBuilder();
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(Node))));
+            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestMessage))));
             builder.RegisterType<MOUSE.Core.MessageFactory>().As<IMessageFactory>();
             builder.RegisterType<RakPeerInterface>().As<INetPeer>();
             builder.RegisterType<Node>().As<INode>();
@@ -91,6 +92,84 @@ namespace Core.Tests
             connectTask.Result.Should().Be(node1ProxyInNode2);
         }
 
+        [Test]
+        public void NodeShouldBeAbleToSendAndReceiveMessages()
+        {
+            var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
+            var node1 = container.Resolve<INode>();
+            var node2 = container.Resolve<INode>();
+
+            node1.Start(true, endpoint);
+            node2.Start(true);
+
+            NodeProxy node1ProxyInNode2 = null;
+            NodeProxy node2ProxyInNode1 = null;
+            Message msg = null;
+            NodeProxy senderNode = null;
+            INode receiverNode = null;
+
+            node1.OnNodeConnected.Subscribe((proxy) =>
+            {
+                node2ProxyInNode1 = proxy;
+            });
+
+            node2.OnNodeConnected.Subscribe((proxy) =>
+            {
+                node1ProxyInNode2 = proxy;
+            });
+
+            node1.OnNodeMessage.Subscribe((context) =>
+            {
+                msg = context.Message;
+                senderNode = context.Source;
+                receiverNode = context.Node;
+            });
+
+            try
+            {
+
+
+                Task<NodeProxy> connectTask = node2.Connect(endpoint);
+
+                Stopwatch timer = Stopwatch.StartNew();
+                while (!connectTask.IsCompleted
+                      && timer.Elapsed < TimeSpan.FromSeconds(3))
+                {
+                    node1.Update();
+                    node2.Update();
+                }
+
+                connectTask.IsCompleted.Should().BeTrue();
+
+                var sndMsg = node2.MessageFactory.New<TestMessage>();
+                sndMsg.Data = 42;
+                node1ProxyInNode2.Send(sndMsg);
+
+                timer = Stopwatch.StartNew();
+                while (msg == null && timer.Elapsed < TimeSpan.FromSeconds(3))
+                {
+                    node1.Update();
+                    node2.Update();
+                }
+
+                node1ProxyInNode2.Should().NotBeNull();
+                node2ProxyInNode1.Should().NotBeNull();
+
+                senderNode.Should().Be(node2ProxyInNode1);
+                receiverNode.Should().Be(node1);
+
+                msg.Should().NotBeNull();
+                msg.Should().BeOfType<TestMessage>();
+                (msg as TestMessage).Data.Should().Be(42);
+
+            }
+            finally
+            {
+                node1.Stop();
+                node2.Stop();
+            }
+            
+        }
 
         [Test]
         public void ShouldImmediatelyReturnSameProxyIfAlreadyConnected()
@@ -102,32 +181,35 @@ namespace Core.Tests
             node1.Start(true, endpoint);
             node2.Start(true);
 
-            NodeProxy node1ProxyInNode2 = null;
-            NodeProxy node2ProxyInNode1 = null;
-
-            node1.OnNodeConnected.Subscribe((proxy) => node2ProxyInNode1 = proxy);
-            node2.OnNodeConnected.Subscribe((proxy) => node1ProxyInNode2 = proxy);
-
-            Task<NodeProxy> connectTask = node2.Connect(endpoint);
-
-            Stopwatch timer = Stopwatch.StartNew();
-            while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
-                  && timer.Elapsed < TimeSpan.FromSeconds(5))
+            try
             {
-                node1.Update();
-                node2.Update();
+                NodeProxy node1ProxyInNode2 = null;
+                NodeProxy node2ProxyInNode1 = null;
+
+                node1.OnNodeConnected.Subscribe((proxy) => node2ProxyInNode1 = proxy);
+                node2.OnNodeConnected.Subscribe((proxy) => node1ProxyInNode2 = proxy);
+
+                Task<NodeProxy> connectTask = node2.Connect(endpoint);
+
+                Stopwatch timer = Stopwatch.StartNew();
+                while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
+                      && timer.Elapsed < TimeSpan.FromSeconds(5))
+                {
+                    node1.Update();
+                    node2.Update();
+                }
+
+                //Assert
+                Task<NodeProxy> connectTask2 = node2.Connect(endpoint);
+
+                connectTask2.IsCompleted.Should().BeTrue();
+                connectTask2.Result.Should().Be(node1ProxyInNode2);
             }
-
-            //Assert
-            Task<NodeProxy> connectTask2 = node2.Connect(endpoint);
-
-            connectTask2.IsCompleted.Should().BeTrue();
-            connectTask2.Result.Should().Be(node1ProxyInNode2);
-
-            node1.Stop();
-            node2.Stop();
-
-            
+            finally
+            {
+                node1.Stop();
+                node2.Stop();
+            }
         }
 
         [Test]
@@ -139,41 +221,48 @@ namespace Core.Tests
 
             node1.Start(true, endpoint);
             node2.Start(true);
-
-            NodeProxy node1ProxyInNode2 = null;
-            NodeProxy node2ProxyInNode1 = null;
-
-            NodeProxy disconectedProxy = null;
-            int disconnectCalls = 0;
-
-            node1.OnNodeConnected.Subscribe((proxy) => node2ProxyInNode1 = proxy);
-            node2.OnNodeConnected.Subscribe((proxy) => node1ProxyInNode2 = proxy);
-
-            node2.OnNodeDisconnected.Subscribe((proxy) =>
-                                               {
-                                                   disconectedProxy = proxy;
-                                                   disconnectCalls++;   
-                                               });
-
-            Task<NodeProxy> connectTask = node2.Connect(endpoint);
-
-            Stopwatch timer = Stopwatch.StartNew();
-            while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
-                  && timer.Elapsed < TimeSpan.FromSeconds(3))
+            try
             {
-                node1.Update();
-                node2.Update();
+
+                NodeProxy node1ProxyInNode2 = null;
+                NodeProxy node2ProxyInNode1 = null;
+
+                NodeProxy disconectedProxy = null;
+                int disconnectCalls = 0;
+
+                node1.OnNodeConnected.Subscribe((proxy) => node2ProxyInNode1 = proxy);
+                node2.OnNodeConnected.Subscribe((proxy) => node1ProxyInNode2 = proxy);
+
+                node2.OnNodeDisconnected.Subscribe((proxy) =>
+                                                   {
+                                                       disconectedProxy = proxy;
+                                                       disconnectCalls++;
+                                                   });
+
+                Task<NodeProxy> connectTask = node2.Connect(endpoint);
+
+                Stopwatch timer = Stopwatch.StartNew();
+                while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
+                      && timer.Elapsed < TimeSpan.FromSeconds(3))
+                {
+                    node1.Update();
+                    node2.Update();
+                }
+
+                node1.CloseConnection(node2ProxyInNode1);
+
+                timer = Stopwatch.StartNew();
+                while (disconnectCalls == 0 && timer.Elapsed < TimeSpan.FromSeconds(3))
+                    node2.Update();
+
+                disconectedProxy.Should().Be(node1ProxyInNode2);
+                disconnectCalls.Should().Be(1);
             }
-
-            node1.Stop();
-
-            timer = Stopwatch.StartNew();
-            while (disconnectCalls == 0 && timer.Elapsed < TimeSpan.FromSeconds(3))
-                node2.Update();
-
-            disconectedProxy.Should().Be(node1ProxyInNode2);
-            disconnectCalls.Should().Be(1);
-            node2.Stop();
+            finally
+            {
+                node1.Stop();
+                node2.Stop();
+            }
         }
     }
 }
