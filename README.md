@@ -1,23 +1,26 @@
 ##General Info
-Main goal of the project is to build a C# server framework for small to large mmo's,
-with idea that server team could start with one piece of hardware and in case of need simply add new hardware,
+The goal of the project is to build a C# server framework for small to large mmo's,
+with the idea that a server team could start with a single server configuration and in case of need simply add new hardware and scale,
 without rewriting of current game logic and restarting game server.
-In general it is some kind of OOP in the cloud.
+In general it is some kind of an OOP in the cloud.
 
-To achieve this every object in game server's BL is divided into 2 categories:
+##Main aspects
 
-+ NodeEntity - has Id that is used for distribution in cluster, could be moved anywhere/anytime in cluster so could be accessible only over proxy
-+ Plain - can be used/stored only in context of some NodeEntity
++ Primary building primitive is NodeEntity subclass
+	+ implements some messaging contract
+ 	+ Id is used for distribution in a cluster
+   	+ could be moved anywhere/anytime in a cluster, so it could be externally accessible only over proxy 
+ 	+ auto persistance in some NoSQL storage if needed  
++ All communications between NodeEntities are asynchronous RPC
+	+ async CTP keeps code simple but return semantics for all methods in entity contract is limited to:
+		+ `void` for one way methods,
+		+ `Task`  if we want to wait for completion
+		+ `Task<ReplyType>` if we want to get some data back
+	+ all NodeEntities operations and their continuations are invoked only on one thread, no threads - no locks
+	+ logical locks still needed in some cases, because state could change before continuation is hit
+ 		+ each entity method could be attributed with:  none, method or entity lock levels
+   	+ all messages, proxies and dispatchers are generated using t4 for maximum performance
 
-Because any NodeEntity is allocated in cluster only on one node in one instance in any time, we have share nothing principle, so we can forget about locks in game logic.
-All communication between NodeEntities is async only, so in reality each Node has only one updating thread for all game logic or could be even updated manually in clients main loop,
-to achieve this every method of any NodeEntity contract should return only: 
-
-+ `void` for one way methods,
-+ `Task`  if we want to wait for completion
-+ `Task<Reply>` if we want to get some data back
-
-With help of Async CTP all this allows us to write performant asynchronyous but still very straightforward code.
 
 ##Simple example
 ``` C#
@@ -30,6 +33,8 @@ public interface IDeepPinger
 }
 
 //Implement this contract
+[Export(typeof(NodeEntity))]
+[NodeEntity(typeof(IDeepPinger), AutoCreate = true, Persistant = false)]
 public class DeepPinger : NodeEntity, IDeepPinger
 {
 	async Task<int> Ping(int requestId, int deep)
@@ -48,7 +53,7 @@ public class DeepPinger : NodeEntity, IDeepPinger
 
 // use in any place where you have access to Node
 // in case of some logic we obviously would know some id, this could be id of character, npc or anything else
-// if we wont provide any id it will use 0 and you could think of it like singleton entity
+// if we wont provide any id it will use 0 and you could think of it as singleton entity
 IDeepPinger proxy = Node.GetProxy<IDeepPinger>(GetRandomId(100));
 int result = await proxy.Ping(requestId++, 10);
 ```
