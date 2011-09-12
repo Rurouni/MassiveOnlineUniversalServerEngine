@@ -11,7 +11,12 @@ To achieve this every object in game server's BL is divided into this 2 categori
 
 Because any NodeEntity is allocated in cluster only on one node in one instance in any time we have share nothing principle so we can forget about locks in game logic.
 All communication between NodeEntities is async only, so in reality each Node has only one updating thread for all game logic or could be even updated manually in clients main loop,
-to achieve this every method of any NodeEntity contract should return only: void, Task, Task<Reply>.
+to achieve this every method of any NodeEntity contract should return only: 
+
++ `void` for one way methods,
++ `Task`  if we want to wait for completion
++ `Task<Reply>` if we want to get some data back
+
 With help of Async CTP all this allows us to write performant asynchronyous but still very straightforward code.
 
 ##Simple example
