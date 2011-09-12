@@ -16,7 +16,7 @@ namespace MOUSE.Core
         Task<Message> Dispatch(INodeEntity entity, Message msg);
         NodeEntityProxy CreateProxy(ulong entityId);
         [Pure]
-        ulong GetFullId<TEntityContract>(uint? entityId) where TEntityContract : class;
+        ulong GetFullId<TEntityContract>(uint entityId = 0) where TEntityContract : class;
         [Pure]
         uint GetTypeId(ulong entityId);
         [Pure]
@@ -121,11 +121,11 @@ namespace MOUSE.Core
             return proxy;
         }
 
-        public ulong GetFullId<TEntityContract>(uint? entityId) where TEntityContract : class
+        public ulong GetFullId<TEntityContract>(uint entityId = 0) where TEntityContract : class
         {
             uint typeId;
             if (_entityTypeIdByContractType.TryGetValue(typeof(TEntityContract), out typeId))
-                return ((ulong)(entityId ?? 0)) ^ ((ulong)typeId << 32);
+                return ((ulong)entityId) ^ ((ulong)typeId << 32);
             else
                 throw new Exception("Unregistered entity cotract - " + typeof (TEntityContract).FullName);
         }

@@ -13,15 +13,19 @@ namespace TestDomain
     [NodeEntity(typeof(ITestEntity))]
     public class TestEntity : NodeEntity, ITestEntity
     {
-        private int _counter = 0;
+        public const int SimpleOperationReturned = 42;
+        public int SimpleOneWayOperationCalled = 0;
+        public int SimpleOperationCalled = 0;
+
         public async Task<int> Simple(int requestId)
         {
-            return 42;
+            SimpleOperationCalled++;
+            return SimpleOperationReturned;
         }
 
         public void SimpleOneWay()
         {
-            _counter++;
+            SimpleOneWayOperationCalled++;
         }
 
         public async Task<ComplexData> Complex(int requestId, ComplexData data, string name, List<ComplexData> datas)

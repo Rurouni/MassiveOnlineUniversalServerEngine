@@ -41,7 +41,7 @@ namespace Core.Tests
         public void NodeShouldReturnValidProxyForRegisteredTypes()
         {
             var node = container.Resolve<IEntityClusterNode>();
-            var entityProxy = node.GetProxy<ITestEntity>(42);
+            var entityProxy = node.Get<ITestEntity>(42);
 
             entityProxy.Should().NotBeNull();
             entityProxy.GetType().Should().Be(typeof(ITestEntityProxy));
@@ -52,9 +52,9 @@ namespace Core.Tests
         {
             var node = container.Resolve<IEntityClusterNode>();
 
-            var entityProxy1 = node.GetProxy<ITestEntity>(42);
-            var entityProxy2 = node.GetProxy<ITestEntity>(42);
-            var entityProxy3 = node.GetProxy<ITestEntity>(43);
+            var entityProxy1 = node.Get<ITestEntity>(42);
+            var entityProxy2 = node.Get<ITestEntity>(42);
+            var entityProxy3 = node.Get<ITestEntity>(43);
 
             entityProxy1.Should().Be(entityProxy2);
             entityProxy1.Should().NotBe(entityProxy3);
@@ -70,7 +70,7 @@ namespace Core.Tests
             int calls = 0;
             ITestEntitySimpleRequest requestMsg = null;
             
-            var entityProxy = node.GetProxy<ITestEntity>(42);
+            var entityProxy = node.Get<ITestEntity>(42);
 
             var mockedNode = new Mock<IEntityClusterNode>();
             mockedNode.Setup(x => x.MessageFactory).Returns(node.MessageFactory);
