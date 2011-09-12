@@ -13,7 +13,8 @@ to achieve this every method of any NodeEntity contract should return only: void
 Using Async CTP all this allows us to write very straightforward code.
 
 ##Simple example
-1. Define entity contract
+``` C#
+//Define entity contract
 [NodeEntityContract]
 public interface IDeepPinger
 {
@@ -21,7 +22,7 @@ public interface IDeepPinger
 	Task<int> Ping(int requestId, int deep);
 }
 
-2. Implement this contract
+//Implement this contract
 public class DeepPinger : NodeEntity, IDeepPinger
 {
 	async Task<int> Ping(int requestId, int deep)
@@ -29,25 +30,26 @@ public class DeepPinger : NodeEntity, IDeepPinger
 		deep--;
 		IDeepPinger proxy = Node.GetProxy<IDeepPinger>(GetRandomIdExcludingOurs(100, Id));
 		if(deep <= 0)
-			return requestId
+			return requestId;
 		
 		int replyId = await proxy.Ping(requestId, deep);
-		//in case of complex logic here could be many different awaits, but beauty of Async CTP  - even in that case, code would look straightforward
+		//in case of complex logic here could be many different awaits,
+		//but beauty of Async CTP  - even in that case, code would look straightforward
 		return replyId;
 	}
 }
 
-3. Use somewhere
+// use in any place where you have access to Node
 // in case of some logic we obviously would know some id, this could be id of character, npc or anything else
 // if we wont provide any id it will use 0 and you could think of it like singleton entity
 IDeepPinger proxy = Node.GetProxy<IDeepPinger>(GetRandomId(100));
 int result = await proxy.Ping(requestId++, 10);
-
+```
 ##Roadmap
-1. Basic networking(completed)
-2. Messages/Serialization generation(completed)
-3. Proxy/Dispatcher generation(completed)
-4. Single node entity operation flow (in progress)
+1. **Basic networking**
+2. **Messages/Serialization generation**
+3. **Proxy/Dispatcher generation**
+4. *Single node entity operation flow*
 5. Multi node entity operation flow
 6. Client node(different transport, routing, security issues, etc) 
 7. Node removing/adding keyspace redistribution 
