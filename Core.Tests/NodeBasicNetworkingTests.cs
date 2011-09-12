@@ -49,47 +49,52 @@ namespace Core.Tests
             node1.Start(true, endpoint);
             node2.Start(true);
 
-            NodeProxy node1ProxyInNode2 = null;
-            NodeProxy node2ProxyInNode1 = null;
-            int node1OnConnectCalls = 0;
-            int node2OnConnectCalls = 0;
-            
-            node1.OnNodeConnected.Subscribe((proxy) =>
-                                                {
-                                                    node2ProxyInNode1 = proxy;
-                                                    node1OnConnectCalls++;
-                                                });
-
-            node2.OnNodeConnected.Subscribe((proxy) =>
-                                                {
-                                                    node1ProxyInNode2 = proxy;
-                                                    node2OnConnectCalls++;
-                                                });
-
-
-            Task<NodeProxy> connectTask = node2.Connect(endpoint);
-
-            connectTask.IsCompleted.Should().BeFalse();
-
-            Stopwatch timer = Stopwatch.StartNew();
-            while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
-                  && timer.Elapsed < TimeSpan.FromSeconds(3))
+            try
             {
-                node1.Update();
-                node2.Update();
+                NodeProxy node1ProxyInNode2 = null;
+                NodeProxy node2ProxyInNode1 = null;
+                int node1OnConnectCalls = 0;
+                int node2OnConnectCalls = 0;
+
+                node1.OnNodeConnected.Subscribe((proxy) =>
+                                                    {
+                                                        node2ProxyInNode1 = proxy;
+                                                        node1OnConnectCalls++;
+                                                    });
+
+                node2.OnNodeConnected.Subscribe((proxy) =>
+                                                    {
+                                                        node1ProxyInNode2 = proxy;
+                                                        node2OnConnectCalls++;
+                                                    });
+
+
+                Task<NodeProxy> connectTask = node2.Connect(endpoint);
+
+                connectTask.IsCompleted.Should().BeFalse();
+
+                Stopwatch timer = Stopwatch.StartNew();
+                while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
+                       && timer.Elapsed < TimeSpan.FromSeconds(3))
+                {
+                    node1.Update();
+                    node2.Update();
+                }
+
+                node1OnConnectCalls.Should().Be(1);
+                node2OnConnectCalls.Should().Be(1);
+
+                node1ProxyInNode2.Should().NotBeNull();
+                node2ProxyInNode1.Should().NotBeNull();
+
+                connectTask.IsCompleted.Should().BeTrue();
+                connectTask.Result.Should().Be(node1ProxyInNode2);
             }
-
-            node1.Stop();
-            node2.Stop();
-
-            node1OnConnectCalls.Should().Be(1);
-            node2OnConnectCalls.Should().Be(1);
-
-            node1ProxyInNode2.Should().NotBeNull();
-            node2ProxyInNode1.Should().NotBeNull();
-
-            connectTask.IsCompleted.Should().BeTrue();
-            connectTask.Result.Should().Be(node1ProxyInNode2);
+            finally
+            {
+                node1.Stop();
+                node2.Stop();
+            }
         }
 
         [Test]
@@ -127,8 +132,6 @@ namespace Core.Tests
 
             try
             {
-
-
                 Task<NodeProxy> connectTask = node2.Connect(endpoint);
 
                 Stopwatch timer = Stopwatch.StartNew();
