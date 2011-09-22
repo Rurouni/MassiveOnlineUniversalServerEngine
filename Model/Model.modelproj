@@ -17,6 +17,13 @@
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v10.0\ArchitectureTools\Microsoft.VisualStudio.TeamArchitect.ModelingProject.targets" />
   <ItemGroup>
+    <Content Include="PhotonOperationFlow.sequencediagram">
+      <SubType>Content</SubType>
+    </Content>
+    <Content Include="PhotonOperationFlow.sequencediagram.layout">
+      <SubType>Content</SubType>
+      <DependentUpon>PhotonOperationFlow.sequencediagram</DependentUpon>
+    </Content>
     <Content Include="RoutedConnectionfullOperationFlow.sequencediagram">
       <SubType>Content</SubType>
     </Content>
