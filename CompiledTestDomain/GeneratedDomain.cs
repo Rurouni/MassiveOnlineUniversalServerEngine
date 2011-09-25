@@ -165,40 +165,40 @@ namespace Protocol.Generated
         {
             base.Serialize(w);
             w.Write(requestId);
-    		ComplexDataSerializer.Serialize(data, w);
+            ComplexDataSerializer.Serialize(data, w);
             w.WriteUnicode(name);
-			if(datas != null)
-			{
-				w.Write(true);
-				w.Write((int)datas.Count);
-				foreach(var element in datas)
-		    		ComplexDataSerializer.Serialize(element, w);
-			}
-			else
-				w.Write(false);
+            if(datas != null)
+            {
+                w.Write(true);
+                w.Write((int)datas.Count);
+                foreach(var element in datas)
+                    ComplexDataSerializer.Serialize(element, w);
+            }
+            else
+                w.Write(false);
         }
 
         public override void Deserialize(NativeReader r)
         {
             base.Deserialize(r);
             requestId = r.ReadInt32();
-    		data = ComplexDataSerializer.Deserialize(r);
+            data = ComplexDataSerializer.Deserialize(r);
             name = r.ReadUnicode();
             {
-				bool isNotNull = r.ReadBoolean();
-				if(!isNotNull)
-					datas = null;
-				else
-				{
-					int lenght = r.ReadInt32();
-					var list = new List< TestDomain.ComplexData >(lenght);
-					for(int i = 0; i < lenght; i++)
-					{
-			    		var x = ComplexDataSerializer.Deserialize(r);
-						list.Add(x);
-					}
-					datas = list;
-				}
+                bool isNotNull = r.ReadBoolean();
+                if(!isNotNull)
+                    datas = null;
+                else
+                {
+                    int lenght = r.ReadInt32();
+                    var list = new List< TestDomain.ComplexData >(lenght);
+                    for(int i = 0; i < lenght; i++)
+                    {
+                        var x = ComplexDataSerializer.Deserialize(r);
+                        list.Add(x);
+                    }
+                    datas = list;
+                }
             }
         }
 
@@ -220,94 +220,94 @@ namespace Protocol.Generated
         public override void Serialize(NativeWriter w)
         {
             base.Serialize(w);
-    		ComplexDataSerializer.Serialize(RetVal, w);
+            ComplexDataSerializer.Serialize(RetVal, w);
         }
 
         public override void Deserialize(NativeReader r)
         {
             base.Deserialize(r);
-    		RetVal = ComplexDataSerializer.Deserialize(r);
+            RetVal = ComplexDataSerializer.Deserialize(r);
         }
 
         public override MessagePriority Priority { get { return MessagePriority.High; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
-	
+    
     public static class ComplexDataSerializer	
     {
         public static void Serialize(TestDomain.ComplexData x, NativeWriter w)
         {
-			if(x == null)
-			{
-				w.Write(false);
-				return;
-			}
-			w.Write(true);
+            if(x == null)
+            {
+                w.Write(false);
+                return;
+            }
+            w.Write(true);
             w.Write(x.SomeInt);
             w.Write(x.SomeULong);
             w.WriteUnicode(x.SomeString);
-			if(x.SomeArrString != null)
-			{
-				w.Write(true);
-				w.Write((int)x.SomeArrString.Count);
-				foreach(var element in x.SomeArrString)
-		            w.WriteUnicode(element);
-			}
-			else
-				w.Write(false);
-			if(x.SomeArrRec != null)
-			{
-				w.Write(true);
-				w.Write((int)x.SomeArrRec.Count);
-				foreach(var element in x.SomeArrRec)
-		    		ComplexDataSerializer.Serialize(element, w);
-			}
-			else
-				w.Write(false);
+            if(x.SomeArrString != null)
+            {
+                w.Write(true);
+                w.Write((int)x.SomeArrString.Count);
+                foreach(var element in x.SomeArrString)
+                    w.WriteUnicode(element);
+            }
+            else
+                w.Write(false);
+            if(x.SomeArrRec != null)
+            {
+                w.Write(true);
+                w.Write((int)x.SomeArrRec.Count);
+                foreach(var element in x.SomeArrRec)
+                    ComplexDataSerializer.Serialize(element, w);
+            }
+            else
+                w.Write(false);
         }
         
         public static TestDomain.ComplexData Deserialize(NativeReader r)
         {
-			{
-				bool isNotNull = r.ReadBoolean();
-				if(!isNotNull)
-					return null;
-			}
+            {
+                bool isNotNull = r.ReadBoolean();
+                if(!isNotNull)
+                    return null;
+            }
             var ret = new TestDomain.ComplexData();
             ret.SomeInt = r.ReadInt32();
             ret.SomeULong = r.ReadUInt64();
             ret.SomeString = r.ReadUnicode();
             {
-				bool isNotNull = r.ReadBoolean();
-				if(!isNotNull)
-					ret.SomeArrString = null;
-				else
-				{
-					int lenght = r.ReadInt32();
-					var list = new List< System.String >(lenght);
-					for(int i = 0; i < lenght; i++)
-					{
-			            var x = r.ReadUnicode();
-						list.Add(x);
-					}
-					ret.SomeArrString = list;
-				}
+                bool isNotNull = r.ReadBoolean();
+                if(!isNotNull)
+                    ret.SomeArrString = null;
+                else
+                {
+                    int lenght = r.ReadInt32();
+                    var list = new List< System.String >(lenght);
+                    for(int i = 0; i < lenght; i++)
+                    {
+                        var x = r.ReadUnicode();
+                        list.Add(x);
+                    }
+                    ret.SomeArrString = list;
+                }
             }
             {
-				bool isNotNull = r.ReadBoolean();
-				if(!isNotNull)
-					ret.SomeArrRec = null;
-				else
-				{
-					int lenght = r.ReadInt32();
-					var list = new List< TestDomain.ComplexData >(lenght);
-					for(int i = 0; i < lenght; i++)
-					{
-			    		var x = ComplexDataSerializer.Deserialize(r);
-						list.Add(x);
-					}
-					ret.SomeArrRec = list;
-				}
+                bool isNotNull = r.ReadBoolean();
+                if(!isNotNull)
+                    ret.SomeArrRec = null;
+                else
+                {
+                    int lenght = r.ReadInt32();
+                    var list = new List< TestDomain.ComplexData >(lenght);
+                    for(int i = 0; i < lenght; i++)
+                    {
+                        var x = ComplexDataSerializer.Deserialize(r);
+                        list.Add(x);
+                    }
+                    ret.SomeArrRec = list;
+                }
             }
             return ret;
         }

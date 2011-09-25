@@ -84,7 +84,9 @@ namespace PhotonAdapter
 
         protected override void OnOperationRequest(OperationRequest operationRequest, SendParameters sendParameters)
         {
+            this.
             throw new NotImplementedException();
+
         }
     }
 
