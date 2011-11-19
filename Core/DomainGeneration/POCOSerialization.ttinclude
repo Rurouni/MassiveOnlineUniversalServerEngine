@@ -4,26 +4,26 @@ void GenerateSerialization(Type type)
 #>	
     public static class <#= type.Name+"Serializer" #>	
     {
-        public static void Serialize(<#= type.FullName #> x, NativeWriter w)
+        public static void Serialize(<#= TypeToString(type) #> x, NativeWriter w)
         {
-			if(x == null)
-			{
-				w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
-				return;
-			}
-			w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
+            if(x == null)
+            {
+                w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
+                return;
+            }
+            w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
 <#+ foreach (var field in type.GetFields().Where(x => x.ContainsAttribute<DataMemberAttribute>()))
         WriteComplex(field.FieldType, "x."+field.Name); #>
         }
         
-        public static <#= type.FullName #> Deserialize(NativeReader r)
+        public static <#= TypeToString(type) #> Deserialize(NativeReader r)
         {
-			{
-				bool isNotNull = r.Read<#= GetReadSuffix(typeof(bool)) #>();
-				if(!isNotNull)
-					return null;
-			}
-            var ret = new <#= type.FullName #>();
+            {
+                bool isNotNull = r.Read<#= GetReadSuffix(typeof(bool)) #>();
+                if(!isNotNull)
+                    return null;
+            }
+            var ret = new <#= TypeToString(type) #>();
 <#+ foreach (var field in type.GetFields().Where(x => x.ContainsAttribute<DataMemberAttribute>()))
         ReadComplex(field.FieldType, "ret."+field.Name); #>
             return ret;
@@ -42,7 +42,7 @@ void WriteComplex(Type type, string name)
 }
 void WriteExternal(Type type, string name)
 { #>
-    		<#= type.Name+"Serializer" #>.Serialize(<#= name #>, w);
+            <#= type.Name+"Serializer" #>.Serialize(<#= name #>, w);
 <#+ 
 }
 void WriteAtomic(Type type, string name)
@@ -52,15 +52,15 @@ void WriteAtomic(Type type, string name)
 }
 void WriteArray(Type type, string name)
 { #>
-			if(<#= name #> != null)
-			{
-				w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
-				w.Write<#= GetWriteSuffix(typeof(int)) #>((int)<#= name #>.Count);
-				foreach(var element in <#= name #>)
-		<#+ WriteComplex(type.GetGenericArguments()[0], "element");#>
-			}
-			else
-				w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
+            if(<#= name #> != null)
+            {
+                w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
+                w.Write<#= GetWriteSuffix(typeof(int)) #>((int)<#= name #>.Count);
+                foreach(var element in <#= name #>)
+        <#+ WriteComplex(type.GetGenericArguments()[0], "element");#>
+            }
+            else
+                w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
 <#+
 }
 void ReadComplex(Type type, string name)
@@ -74,7 +74,7 @@ void ReadComplex(Type type, string name)
 }
 void ReadExternal(Type type, string name)
 { #>
-    		<#= name #> = <#= type.Name+"Serializer" #>.Deserialize(r);
+            <#= name #> = <#= type.Name+"Serializer" #>.Deserialize(r);
 <#+ 
 }
 void ReadAtomic(Type type, string name)
@@ -85,20 +85,20 @@ void ReadAtomic(Type type, string name)
 void ReadArray(Type type, string name)
 { #>
             {
-				bool isNotNull = r.Read<#= GetReadSuffix(typeof(bool)) #>();
-				if(!isNotNull)
-					<#= name #> = null;
-				else
-				{
-					int lenght = r.Read<#= GetReadSuffix(typeof(int)) #>();
-					var list = new List< <#= type.GetGenericArguments()[0] #> >(lenght);
-					for(int i = 0; i < lenght; i++)
-					{
-			<#+ ReadComplex(type.GetGenericArguments()[0], "var x"); #>
-						list.Add(x);
-					}
-					<#= name #> = list;
-				}
+                bool isNotNull = r.Read<#= GetReadSuffix(typeof(bool)) #>();
+                if(!isNotNull)
+                    <#= name #> = null;
+                else
+                {
+                    int lenght = r.Read<#= GetReadSuffix(typeof(int)) #>();
+                    var list = new List< <#= type.GetGenericArguments()[0] #> >(lenght);
+                    for(int i = 0; i < lenght; i++)
+                    {
+            <#+ ReadComplex(type.GetGenericArguments()[0], "var x"); #>
+                        list.Add(x);
+                    }
+                    <#= name #> = list;
+                }
             }
 <#+ 
 }
@@ -120,7 +120,8 @@ bool IsAtomic(Type type)
     ||type == typeof(long)
     ||type == typeof(ulong)
     ||type == typeof(bool)
-    ||type == typeof(string);
+    ||type == typeof(string)
+    ||type.IsEnum;
 }
 bool IsArray(Type type)
 {
@@ -131,7 +132,7 @@ string GetReadSuffix(Type type)
     if(type == typeof(byte))
         return "Byte";
     if (type == typeof(bool))
-	    return "Boolean";
+        return "Boolean";
     if(type == typeof(short))
         return "Int16";
     if(type == typeof(ushort))
@@ -146,7 +147,8 @@ string GetReadSuffix(Type type)
         return "UInt64";
     if(type == typeof(string))
         return "Unicode";
-    
+    if(type.IsEnum)
+        return GetReadSuffix(Enum.GetUnderlyingType(type));
     throw new Exception("Cannot map type:"+type);
 }
 string GetWriteSuffix(Type type)
@@ -154,7 +156,7 @@ string GetWriteSuffix(Type type)
     if(type == typeof(byte))
         return "";
     if (type == typeof(bool))
-	    return "";
+        return "";
     if(type == typeof(short))
         return "";
     if(type == typeof(ushort))
@@ -169,7 +171,8 @@ string GetWriteSuffix(Type type)
         return "";
     if(type == typeof(string))
         return "Unicode";
-    
+    if (type.IsEnum)
+        return GetWriteSuffix(Enum.GetUnderlyingType(type));
     throw new Exception("Cannot map type:"+type);
 }
 #>

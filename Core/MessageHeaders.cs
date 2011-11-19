@@ -15,21 +15,17 @@ namespace MOUSE.Core
             switch (headerId)
             {
                 case 1: return new TransportHeader(reader);
-                case 2: return new EntityOperationRequest(reader);
-                case 3: return new EntityOperationReply(reader);
-                case 4: return new PropagateConnectionHeader(reader);
-                case 5: return new UpdateEntityRoutingHeader(reader);
+                case 2: return new OperationHeader(reader);
+                case 3: return new ServiceHeader(reader);
                 default: throw new Exception("Not supported header id:" + headerId);
             }
         }
 
         public static void Serialize(MessageHeader header, NativeWriter writer)
         {
-            if (header is TransportHeader) writer.Write((byte)1);
-            else if (header is EntityOperationRequest) writer.Write((byte)2);
-            else if (header is EntityOperationReply) writer.Write((byte)3);
-            else if (header is PropagateConnectionHeader) writer.Write((byte)4);
-            else if (header is UpdateEntityRoutingHeader) writer.Write((byte)5);
+            if      (header is TransportHeader) writer.Write((byte)1);
+            else if (header is OperationHeader) writer.Write((byte)2);
+            else if (header is ServiceHeader)   writer.Write((byte)3);
             else
                 throw new Exception("Not supported header id:" + header);
 
@@ -71,100 +67,58 @@ namespace MOUSE.Core
     }
 
     [DataContract]
-    public class EntityOperationRequest : MessageHeader
+    public class OperationHeader : MessageHeader
     {
         [DataMember]
-        public readonly uint RequestId;
+        public readonly int RequestId;
         [DataMember]
-        public readonly ulong TargetEntityId;
-
-        public EntityOperationRequest(uint requestId, ulong targetEntityId)
+        public readonly OperationType Type;
+        
+        public OperationHeader(int requestId, OperationType type)
         {
             RequestId = requestId;
-            TargetEntityId = targetEntityId;
+            Type = type;
         }
 
-        public EntityOperationRequest(NativeReader reader)
+        public OperationHeader(NativeReader reader)
         {
-            RequestId = reader.ReadUInt32();
-            TargetEntityId = reader.ReadUInt64();
+            RequestId = reader.ReadInt32();
+            Type = (OperationType)reader.ReadByte();
         }
 
         public override void Serialize(NativeWriter writer)
         {
             writer.Write(RequestId);
-            writer.Write(TargetEntityId);
+            writer.Write((byte)Type);
         }
     }
 
+    public enum OperationType
+    {
+        Request,
+        Reply
+    }
+
+    
     [DataContract]
-    public class EntityOperationReply : MessageHeader
+    public class ServiceHeader : MessageHeader
     {
         [DataMember]
-        public readonly uint RequestId;
+        public readonly ulong TargetServiceId;
 
-        public EntityOperationReply(uint requestId)
+        public ServiceHeader(ulong targetServiceId)
         {
-            RequestId = requestId;
+            TargetServiceId = targetServiceId;
         }
 
-        public EntityOperationReply(NativeReader reader)
+        public ServiceHeader(NativeReader reader)
         {
-            RequestId = reader.ReadUInt32();
+            TargetServiceId = reader.ReadUInt64();
         }
 
         public override void Serialize(NativeWriter writer)
         {
-            writer.Write(RequestId);
-        }
-    }
-
-    [DataContract]
-    public class PropagateConnectionHeader : MessageHeader
-    {
-        [DataMember]
-        public readonly NodeDescription Description;
-
-        public PropagateConnectionHeader(NodeDescription description)
-        {
-            Description = description;
-        }
-
-        public PropagateConnectionHeader(NativeReader reader)
-        {
-            Description = new NodeDescription(reader);
-        }
-
-        public override void Serialize(NativeWriter writer)
-        {
-            Description.Serialize(writer);
-        }
-    }
-
-    [DataContract]
-    public class UpdateEntityRoutingHeader : MessageHeader
-    {
-        [DataMember]
-        public readonly ulong EntityId;
-        [DataMember]
-        public readonly ulong OwnerNodeId;
-
-        public UpdateEntityRoutingHeader(ulong entityId, ulong ownerNodeId)
-        {
-            EntityId = entityId;
-            OwnerNodeId = ownerNodeId;
-        }
-
-        public UpdateEntityRoutingHeader(NativeReader reader)
-        {
-            EntityId = reader.ReadUInt64();
-            OwnerNodeId = reader.ReadUInt64();
-        }
-
-        public override void Serialize(NativeWriter writer)
-        {
-            writer.Write(EntityId);
-            writer.Write(OwnerNodeId);
+            writer.Write(TargetServiceId);
         }
     }
 }

@@ -5,9 +5,13 @@ using System.Linq;
 using System.Text;
 using NLog;
 using System.Runtime.Serialization;
+using System.Collections.Concurrent;
 
 namespace MOUSE.Core
 {
+    /// <summary>
+    /// Should be thread-safe
+    /// </summary>
     public interface IMessageFactory
     {
         TMessage New<TMessage>() where TMessage : Message;
@@ -20,7 +24,7 @@ namespace MOUSE.Core
         Logger Log = LogManager.GetCurrentClassLogger();
         private Dictionary<Type, uint> _msgIdByType = new Dictionary<Type,uint>();
         private Dictionary<uint, Type> _typeByMsgId = new Dictionary<uint,Type>();
-        private Dictionary<uint, List<Message>> _messagePoolByMsgId = new Dictionary<uint,List<Message>>();
+        private ConcurrentDictionary<uint, ConcurrentStack<Message>> _messagePoolByMsgId = new ConcurrentDictionary<uint, ConcurrentStack<Message>>();
 
         
         public MessageFactory(IEnumerable<Message> importedMessages)
@@ -30,7 +34,9 @@ namespace MOUSE.Core
                 Type type = msg.GetType();
                 _msgIdByType.Add(type, msg.Id);
                 _typeByMsgId.Add(msg.Id, type);
-                _messagePoolByMsgId.Add(msg.Id, new List<Message> { msg });
+                var pool = new ConcurrentStack<Message>();
+                pool.Push(msg);
+                _messagePoolByMsgId[msg.Id] = pool;
                 Log.Info("Registered Message<Id:{0} Type:{1}>", msg.Id, type);
             }
         }
@@ -46,24 +52,23 @@ namespace MOUSE.Core
 
         private Message New(uint msgId, Type type)
         {
-            List<Message> pool = _messagePoolByMsgId[msgId];
-            if(pool.Count == 0)
+            ConcurrentStack<Message> pool = _messagePoolByMsgId[msgId];
+            Message msg;
+            if(pool.TryPop(out msg))
             {
-                Message msg = (Message)FormatterServices.GetUninitializedObject(type);
-                pool.Add(msg);
                 return msg;
             }
             else
             {
-                Message msg = pool[pool.Count-1];
-                pool.RemoveAt(pool.Count-1);
+                msg = (Message)FormatterServices.GetUninitializedObject(type);
+                pool.Push(msg);
                 return msg;
             }
         }
 
         public void Free(Message msg)
         {
- 	        _messagePoolByMsgId[msg.Id].Add(msg);
+            _messagePoolByMsgId[msg.Id].Push(msg);
         }
 
         public Message Deserialize(NativeReader reader)

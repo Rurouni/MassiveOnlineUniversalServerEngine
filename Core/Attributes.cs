@@ -6,24 +6,24 @@ using System.Text;
 namespace MOUSE.Core
 {
     [AttributeUsage(AttributeTargets.Interface)]
-    public class NodeEntityContractAttribute : Attribute
+    public class NetContractAttribute : Attribute
     {
         public bool Connectionfull { get; set; }
 
-        public NodeEntityContractAttribute()
+        public NetContractAttribute()
         {
             Connectionfull = false;
         }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class NodeEntityOperationAttribute : Attribute
+    public class NetOperationAttribute : Attribute
     {
         public MessagePriority Priority { get; set; }
         public MessageReliability Reliability { get; set; }
         public LockType Lock { get; set; }
 
-        public NodeEntityOperationAttribute()
+        public NetOperationAttribute()
         {
             Priority = MessagePriority.Medium;
             Reliability = MessageReliability.ReliableOrdered;
@@ -46,14 +46,14 @@ namespace MOUSE.Core
     }
 
     [AttributeUsage(AttributeTargets.Class)]
-    public class NodeEntityProxyAttribute : Attribute
+    public class NetProxyAttribute : Attribute
     {
-        public uint EntityTypeId { get; set; }
+        public uint ContractTypeId { get; set; }
         public Type ContractType { get; set; }
     }
 
     [AttributeUsage(AttributeTargets.Method)]
-    public class NodeEntityOperationDispatcherAttribute : Attribute
+    public class NetOperationDispatcherAttribute : Attribute
     {
         public Type RequestMessage { get; set; }
         public Type ReplyMessage { get; set; }

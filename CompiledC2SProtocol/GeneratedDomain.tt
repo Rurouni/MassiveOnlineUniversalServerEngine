@@ -1,0 +1,8 @@
+﻿<#@ template debug="true" hostSpecific="true" #>
+<#@ output extension=".cs" #>
+<#@ Assembly Name="$(SolutionDir)Bin\SampleC2SProtocol.dll" #>
+<#
+    Assembly asm = AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name.Contains("SampleC2SProtocol")).FirstOrDefault();
+    GenerateProtocol(asm);
+#>
+<#@ include file="..\Core\DomainGeneration\EntityGeneration.ttinclude" #>

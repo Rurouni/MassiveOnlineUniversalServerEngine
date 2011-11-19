@@ -25,40 +25,40 @@ namespace Core.Tests
             var builder = new ContainerBuilder();
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestEntity))));
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(ITestEntityProxy))));
-            builder.RegisterType<MOUSE.Core.EntityDomain>().As<IEntityDomain>();
+            builder.RegisterType<MOUSE.Core.ServiceProtocol>().As<IServiceProtocol>();
             container = builder.Build();    
         }
 
         [Test]
         public void TypeIdOfITestEntityShouldBeConstant()
         {
-            var domain = container.Resolve<IEntityDomain>();
+            var domain = container.Resolve<IServiceProtocol>();
 
-            uint typeId = domain.GetTypeId(typeof(ITestEntity));
+            uint typeId = domain.GetContractId(typeof(ITestEntity));
             typeId.Should().Be(1996445736);
         }
 
         [Test]
         public void ShouldHaveValidEntityDescriptionForITestEntity()
         {
-            var domain = container.Resolve<IEntityDomain>();
+            var domain = container.Resolve<IServiceProtocol>();
 
-            NodeEntityContractDescription desc = domain.GetDescription(1996445736);
+            NodeServiceContractDescription desc = domain.GetDescription(1996445736);
 
             desc.Should().NotBeNull();
             desc.Connectionfull.Should().BeFalse();
             desc.ContractType.Should().Be(typeof (ITestEntity));
             desc.ProxyType.Should().Be(typeof (ITestEntityProxy));
             desc.TypeId.Should().Be(1996445736);
-            desc.Attribute.Should().Be(typeof(ITestEntity).GetAttribute<NodeEntityContractAttribute>());
+            desc.Attribute.Should().Be(typeof(ITestEntity).GetAttribute<NetContractAttribute>());
         }
 
         [Test]
         public void EntityDescriptionForITestEntityShouldHaveValidOperations()
         {
-            var domain = container.Resolve<IEntityDomain>();
+            var domain = container.Resolve<IServiceProtocol>();
 
-            NodeEntityContractDescription desc = domain.GetDescription(1996445736);
+            NodeServiceContractDescription desc = domain.GetDescription(1996445736);
 
             desc.Operations.Should().HaveCount(3);
             desc.Operations[0].Name.Should().Be("Simple");

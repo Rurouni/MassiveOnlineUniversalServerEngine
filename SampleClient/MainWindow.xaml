@@ -1,0 +1,12 @@
+﻿<Window x:Class="SampleClient.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MainWindow" Height="384" Width="504">
+    <Grid>
+        <ComboBox Height="23" HorizontalAlignment="Left" Margin="16,12,0,0" Name="cbConnection" VerticalAlignment="Top" Width="198" ItemsSource="{Binding}" IsEditable="False" IsReadOnly="True" />
+        <Button Content="Connect" Height="23" Margin="220,12,0,0" Name="btnConnect" VerticalAlignment="Top" HorizontalAlignment="Left" Width="74" Click="btnConnect_Click" />
+        <TextBox Margin="16,0,12,12" Name="txtChat" Height="37" VerticalAlignment="Bottom" />
+        <TextBox Margin="16,70,12,55" Name="txtMyMessage" />
+        <ComboBox Height="23" HorizontalAlignment="Left" Margin="16,41,0,0" Name="cbChatRooms" VerticalAlignment="Top" Width="198" />
+    </Grid>
+</Window>

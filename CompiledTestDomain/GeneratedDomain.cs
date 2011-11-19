@@ -7,40 +7,40 @@ using System.Runtime.Serialization;
 
 namespace Protocol.Generated
 {
-    [Export(typeof(NodeEntityProxy))]
-    [NodeEntityProxy(EntityTypeId = 1996445736, ContractType = typeof(TestDomain.ITestEntity))]
-    public sealed class ITestEntityProxy : NodeEntityProxy, TestDomain.ITestEntity
+    [Export(typeof(NodeServiceProxy))]
+    [NetProxy(ContractTypeId = 1996445736, ContractType = typeof(TestDomain.ITestEntity))]
+    public sealed class ITestEntityProxy : NodeServiceProxy, TestDomain.ITestEntity
     {
-        public async Task< System.Int32 > Simple ( int requestId )
+        public async Task< int > Simple ( int requestId )
         {
             var request = Node.MessageFactory.New< ITestEntitySimpleRequest >();
             request.requestId=requestId;
-            Message reply = await Node.Execute(request, this);
+            Message reply = await Node.ExecuteServiceOperation(this, request);
             var ret = ((ITestEntitySimpleReply)reply).RetVal;
             Node.MessageFactory.Free(reply);
             Node.MessageFactory.Free(request);
             return ret;
         }
-        [NodeEntityOperationDispatcher(RequestMessage = typeof(ITestEntitySimpleRequest), ReplyMessage = typeof(ITestEntitySimpleReply))]
-        public static async Task<Message> Simple(INodeEntity entity, Message input)
+        [NetOperationDispatcher(RequestMessage = typeof(ITestEntitySimpleRequest), ReplyMessage = typeof(ITestEntitySimpleReply))]
+        public static async Task<Message> Simple(IMessageFactory msgFactory, object target, Message input)
         {
             var msg = (ITestEntitySimpleRequest)input;
-            var retVal = await ((TestDomain.ITestEntity)entity).Simple(msg.requestId);
-            var retMsg = entity.Context.Node.MessageFactory.New<ITestEntitySimpleReply>();
+            var retVal = await ((TestDomain.ITestEntity)target).Simple(msg.requestId);
+            var retMsg = msgFactory.New<ITestEntitySimpleReply>();
             retMsg.RetVal = retVal;
             return retMsg;
         }
         public void SimpleOneWay (  )
         {
             var request = Node.MessageFactory.New< ITestEntitySimpleOneWayRequest >();
-            Node.Execute(request, this);
+            Node.ExecuteServiceOperation(this, request);
             Node.MessageFactory.Free(request);
         }
-        [NodeEntityOperationDispatcher(RequestMessage = typeof(ITestEntitySimpleOneWayRequest), ReplyMessage = null)]
-        public static async Task<Message> SimpleOneWay(INodeEntity entity, Message input)
+        [NetOperationDispatcher(RequestMessage = typeof(ITestEntitySimpleOneWayRequest), ReplyMessage = null)]
+        public static async Task<Message> SimpleOneWay(IMessageFactory msgFactory, object target, Message input)
         {
             var msg = (ITestEntitySimpleOneWayRequest)input;
-            ((TestDomain.ITestEntity)entity).SimpleOneWay();
+            ((TestDomain.ITestEntity)target).SimpleOneWay();
             return null;
         }
         public async Task< TestDomain.ComplexData > Complex ( int requestId, TestDomain.ComplexData data, string name, System.Collections.Generic.List<TestDomain.ComplexData> datas )
@@ -50,18 +50,18 @@ namespace Protocol.Generated
             request.data=data;
             request.name=name;
             request.datas=datas;
-            Message reply = await Node.Execute(request, this);
+            Message reply = await Node.ExecuteServiceOperation(this, request);
             var ret = ((ITestEntityComplexReply)reply).RetVal;
             Node.MessageFactory.Free(reply);
             Node.MessageFactory.Free(request);
             return ret;
         }
-        [NodeEntityOperationDispatcher(RequestMessage = typeof(ITestEntityComplexRequest), ReplyMessage = typeof(ITestEntityComplexReply))]
-        public static async Task<Message> Complex(INodeEntity entity, Message input)
+        [NetOperationDispatcher(RequestMessage = typeof(ITestEntityComplexRequest), ReplyMessage = typeof(ITestEntityComplexReply))]
+        public static async Task<Message> Complex(IMessageFactory msgFactory, object target, Message input)
         {
             var msg = (ITestEntityComplexRequest)input;
-            var retVal = await ((TestDomain.ITestEntity)entity).Complex(msg.requestId, msg.data, msg.name, msg.datas);
-            var retMsg = entity.Context.Node.MessageFactory.New<ITestEntityComplexReply>();
+            var retVal = await ((TestDomain.ITestEntity)target).Complex(msg.requestId, msg.data, msg.name, msg.datas);
+            var retMsg = msgFactory.New<ITestEntityComplexReply>();
             retMsg.RetVal = retVal;
             return retMsg;
         }
@@ -232,7 +232,7 @@ namespace Protocol.Generated
         public override MessagePriority Priority { get { return MessagePriority.High; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
-    
+	
     public static class ComplexDataSerializer	
     {
         public static void Serialize(TestDomain.ComplexData x, NativeWriter w)
@@ -313,6 +313,8 @@ namespace Protocol.Generated
         }
     }
 }
+
+
 
 
 

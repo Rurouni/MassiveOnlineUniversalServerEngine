@@ -8,16 +8,19 @@ using System.Runtime.Serialization;
 
 namespace MOUSE.Core
 {
-    public enum NodeMessageId: uint
+    public enum NodeMessageId : uint
     {
         Empty = 1,
         ConnectionRequest = 2,
         ConnectionReply = 3,
         UpdateClusterInfo = 4,
-        InvalidEntityOperation = 5,
+        InvalidOperation = 5,
         EntityDiscoveryRequest = 6,
         EntityDiscoveryReply = 7,
-        Last //used for protocol generation
+        ServiceAccessRequest = 8,
+        ServiceAccessReply = 9,
+        ConnectToService = 10,
+        Last, //used for protocol generation
     }
 
 
@@ -69,6 +72,97 @@ namespace MOUSE.Core
         {
             base.Deserialize(reader);
             Description = new NodeDescription(reader);
+        }
+    }
+
+    [Export(typeof(Message))]
+    [DataContract]
+    public sealed class ServiceAccessRequest : Message
+    {
+        [DataMember]
+        public ulong ServiceId;
+
+        public override uint Id { get { return (uint)NodeMessageId.ServiceAccessRequest; } }
+
+        public ServiceAccessRequest(ulong serviceId)
+        {
+            ServiceId = serviceId;
+        }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            base.Serialize(writer);
+            writer.Write(ServiceId);
+        }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+            ServiceId = reader.ReadUInt64();
+        }
+    }
+
+    
+
+    [Export(typeof(Message))]
+    [DataContract]
+    public sealed class ServiceAccessReply : Message
+    {
+        [DataMember]
+        public bool IsValid;
+        [DataMember]
+        public ulong AccessTicket;
+        [DataMember]
+        public NodeDescription ServiceOwner;
+
+        public override uint Id { get { return (uint)NodeMessageId.ServiceAccessReply; } }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            base.Serialize(writer);
+            writer.Write(IsValid);
+            writer.Write(AccessTicket);
+            ServiceOwner.Serialize(writer);
+        }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+            IsValid = reader.ReadBoolean();
+            AccessTicket = reader.ReadUInt64();
+            ServiceOwner = new NodeDescription(reader);
+        }
+    }
+
+    [Export(typeof(Message))]
+    [DataContract]
+    public sealed class ConnectToService : Message
+    {
+        [DataMember]
+        public readonly ulong ServiceId;
+        [DataMember]
+        public readonly ulong Ticket;
+
+        public override uint Id { get { return (uint)NodeMessageId.ConnectToService; } }
+
+        public override MessagePriority Priority { get { return MessagePriority.High; } }
+
+        public ConnectToService(ulong serviceFullId, ulong ticket)
+        {
+            ServiceId = serviceFullId;
+            Ticket = ticket;
+        }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            base.Serialize(writer);
+            writer.Write(Ticket);
+        }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+            Ticket = reader.ReadUInt64();
         }
     }
 
@@ -131,9 +225,34 @@ namespace MOUSE.Core
 
     [Export(typeof(Message))]
     [DataContract]
-    public sealed class InvalidEntityOperation : Message
+    public sealed class InvalidOperation : Message
     {
-        public override uint Id { get { return (uint)NodeMessageId.InvalidEntityOperation; } }
+        [DataMember]
+        public ushort ErrorCode;
+        [DataMember]
+        public string DebugDescription;
+
+        public override uint Id { get { return (uint)NodeMessageId.InvalidOperation; } }
+
+        public InvalidOperation(ushort errorCode, string debugDescription)
+        {
+            ErrorCode = errorCode;
+            DebugDescription = debugDescription;
+        }
+
+        public override void Serialize(NativeWriter writer)
+        {
+            base.Serialize(writer);
+            writer.Write(ErrorCode);
+            writer.WriteUnicode(DebugDescription);
+        }
+
+        public override void Deserialize(NativeReader reader)
+        {
+            base.Deserialize(reader);
+            ErrorCode = reader.ReadUInt16();
+            DebugDescription = reader.ReadUnicode();
+        }
     }
 
     [DataContract]

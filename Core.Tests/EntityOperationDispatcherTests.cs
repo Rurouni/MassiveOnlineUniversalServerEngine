@@ -27,7 +27,7 @@ namespace Core.Tests
             var builder = new ContainerBuilder();
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestEntity))));
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(ITestEntityProxy))));
-            builder.RegisterType<MOUSE.Core.EntityDomain>().As<IEntityDomain>();
+            builder.RegisterType<MOUSE.Core.ServiceProtocol>().As<IServiceProtocol>();
             builder.RegisterType<MOUSE.Core.MessageFactory>().As<IMessageFactory>();
             container = builder.Build();
         }
@@ -36,7 +36,7 @@ namespace Core.Tests
         public void ShouldProperlyInvokeRequestReplyMethod()
         {
             #region Arrange
-            var domain = container.Resolve<IEntityDomain>();
+            var domain = container.Resolve<IServiceProtocol>();
             var messageFactory = container.Resolve<IMessageFactory>();
             
             var output = new ComplexData(2, 3, "24", new List<string>{"T1","T2"}, new List<ComplexData>());
@@ -48,7 +48,7 @@ namespace Core.Tests
 
             
             var node = new Mock<IEntityClusterNode>();
-            node.Setup(x => x.Domain).Returns(domain);
+            node.Setup(x => x.Protocol).Returns(domain);
             node.Setup(x => x.MessageFactory).Returns(messageFactory);
 
             int calls = 0;
@@ -63,7 +63,7 @@ namespace Core.Tests
                 .Callback(()=>calls++);
 
             var operationContext = new OperationContext(node.Object, inputMsg, null);
-            var nodeEntity = testEntity.As<INodeEntity>();
+            var nodeEntity = testEntity.As<INodeService>();
             nodeEntity.Setup(x=>x.Context).Returns(operationContext);
             #endregion
 
@@ -83,11 +83,11 @@ namespace Core.Tests
         public void ShouldProperlyInvokeRobustOneWayMethod()
         {
             #region Arrange
-            var domain = container.Resolve<IEntityDomain>();
+            var domain = container.Resolve<IServiceProtocol>();
             var messageFactory = container.Resolve<IMessageFactory>();
 
             var node = new Mock<IEntityClusterNode>();
-            node.Setup(x => x.Domain).Returns(domain);
+            node.Setup(x => x.Protocol).Returns(domain);
             node.Setup(x => x.MessageFactory).Returns(messageFactory);
 
             var inputMsg = new ITestEntitySimpleRequest();
@@ -106,7 +106,7 @@ namespace Core.Tests
                 .Callback(() => calls++);
 
             var operationContext = new OperationContext(node.Object, inputMsg, null);
-            var nodeEntity = testEntity.As<INodeEntity>();
+            var nodeEntity = testEntity.As<INodeService>();
             nodeEntity.Setup(x => x.Context).Returns(operationContext);
             #endregion
 
@@ -126,11 +126,11 @@ namespace Core.Tests
         public void ShouldProperlyInvokeOneWayMethod()
         {
             #region Arrange
-            var domain = container.Resolve<IEntityDomain>();
+            var domain = container.Resolve<IServiceProtocol>();
             var messageFactory = container.Resolve<IMessageFactory>();
 
             var node = new Mock<IEntityClusterNode>();
-            node.Setup(x => x.Domain).Returns(domain);
+            node.Setup(x => x.Protocol).Returns(domain);
             node.Setup(x => x.MessageFactory).Returns(messageFactory);
 
             var inputMsg = new ITestEntitySimpleOneWayRequest();
@@ -141,7 +141,7 @@ namespace Core.Tests
                 .Callback(()=>calls++);
 
             var operationContext = new OperationContext(node.Object, inputMsg, null);
-            var nodeEntity = testEntity.As<INodeEntity>();
+            var nodeEntity = testEntity.As<INodeService>();
             nodeEntity.Setup(x=>x.Context).Returns(operationContext);
             #endregion
 

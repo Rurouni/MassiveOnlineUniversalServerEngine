@@ -3,7 +3,7 @@
   <Class Name="MOUSE.Core.NodeProxy">
     <Position X="0.75" Y="12" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAACAACAAAAgBAAEAEAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AAACAACAAAAgBAAEAEAAAAAAAAAAEAAAAAAAAAAABAA=</HashCode>
       <FileName>Node.cs</FileName>
     </TypeIdentifier>
   </Class>
@@ -13,41 +13,18 @@
       <Compartment Name="Fields" Collapsed="true" />
     </Compartments>
     <TypeIdentifier>
-      <HashCode>IAUDiAAAiKCgIawEAERAAJAiABkCBAACICQCAAEIBoM=</HashCode>
+      <HashCode>IA0DqAAACKCgIawEAERAAJBCABmCBAACICQCBAEIBsE=</HashCode>
       <FileName>Node.cs</FileName>
     </TypeIdentifier>
     <ShowAsAssociation>
       <Property Name="MessageFactory" />
-      <Property Name="Net" />
-    </ShowAsAssociation>
-    <Lollipop Position="0.2" />
-  </Class>
-  <Class Name="MOUSE.Core.EntityClusterNode">
-    <Position X="8.25" Y="4.75" Width="2.5" />
-    <Compartments>
-      <Compartment Name="Fields" Collapsed="true" />
-    </Compartments>
-    <TypeIdentifier>
-      <HashCode>AECAAAJAAAAGCASACFAMACAAAhEACEAEAAAEAAAIIAA=</HashCode>
-      <FileName>Node.cs</FileName>
-    </TypeIdentifier>
-    <ShowAsAssociation>
-      <Property Name="Domain" />
-      <Property Name="Repository" />
     </ShowAsAssociation>
     <Lollipop Position="0.2" />
   </Class>
   <Interface Name="MOUSE.Core.INode">
     <Position X="0.75" Y="1" Width="2" />
     <TypeIdentifier>
-      <HashCode>IAQAAAAAACAAAAAAAEAAAJAAABACAAAAIAAAAAAIAAA=</HashCode>
-      <FileName>Node.cs</FileName>
-    </TypeIdentifier>
-  </Interface>
-  <Interface Name="MOUSE.Core.IEntityClusterNode">
-    <Position X="8" Y="1" Width="2.25" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAIAAAAAAASAAAAAAAAAAgAAAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>IAQAAAAAACAAAAQAAEAAAJBAABACAAAAIAAAAAAIAEA=</HashCode>
       <FileName>Node.cs</FileName>
     </TypeIdentifier>
   </Interface>
@@ -58,24 +35,17 @@
       <FileName>MessageFactory.cs</FileName>
     </TypeIdentifier>
   </Interface>
-  <Interface Name="MOUSE.Core.INetPeer">
+  <Interface Name="MOUSE.Core.INetProvider">
     <Position X="4.5" Y="5.75" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAgAAAQAAAAEAAAZAAAAEAIAAAAAAAAgAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAQAAAAEAAAZAAAAEAIAAAAAAAAgAAAAA=</HashCode>
       <FileName>Transport.cs</FileName>
-    </TypeIdentifier>
-  </Interface>
-  <Interface Name="MOUSE.Core.IEntityDomain">
-    <Position X="12.75" Y="4.75" Width="2.25" />
-    <TypeIdentifier>
-      <HashCode>AAgAAAACAAAAAAAAIBAAAAAQAAAAAAAAAAAAJAAAAAA=</HashCode>
-      <FileName>EntityDomain.cs</FileName>
     </TypeIdentifier>
   </Interface>
   <Interface Name="MOUSE.Core.IEntityRepository">
     <Position X="12.75" Y="7.5" Width="1.75" />
     <TypeIdentifier>
-      <HashCode>AAIAAAAAAAAAAABAAAAABAAAAAEAAAAAAAABAAAQAAA=</HashCode>
+      <HashCode>AAIAAAAAAAAAAABAAAAABAAAAAEAAEAAAAABAAAQAAA=</HashCode>
       <FileName>NodeEntityRepository.cs</FileName>
     </TypeIdentifier>
   </Interface>

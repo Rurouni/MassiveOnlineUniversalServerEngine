@@ -10,23 +10,23 @@ using System.Runtime.Serialization;
 namespace TestDomain
 {
     //ideally this should be in separate dll, but for sake of tests here we have all in one
-    [NodeEntityContract]
+    [NetContract]
     public interface ITestEntity
     {
-        [NodeEntityOperation]
+        [NetOperation]
         Task<int> Simple(int requestId);
 
-        [NodeEntityOperation(Lock = LockType.None, Reliability = MessageReliability.Unreliable)]
+        [NetOperation(Lock = LockType.None, Reliability = MessageReliability.Unreliable)]
         void SimpleOneWay();
 
-        [NodeEntityOperation(Lock = LockType.Entity, Priority = MessagePriority.High, Reliability = MessageReliability.ReliableOrdered)]
+        [NetOperation(Lock = LockType.Full, Priority = MessagePriority.High, Reliability = MessageReliability.ReliableOrdered)]
         Task<ComplexData> Complex(int requestId, ComplexData data, string name, List<ComplexData> datas);
 
     }
 
-    [Export(typeof(NodeEntity))]
+    [Export(typeof(NodeService))]
     [NodeEntity(typeof(ITestEntity))]
-    public class TestEntity : NodeEntity, ITestEntity
+    public class TestEntity : NodeService, ITestEntity
     {
         public const int SimpleOperationReturned = 42;
         public int SimpleOneWayOperationCalled = 0;

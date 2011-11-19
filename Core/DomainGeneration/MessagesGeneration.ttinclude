@@ -1,23 +1,24 @@
 ﻿<#+ 
 void GenerateMessages(Type contractType)
 {
-    var attr = contractType.GetAttribute<NodeEntityContractAttribute>();
+    var attr = contractType.GetAttribute<NetContractAttribute>();
     foreach (MethodInfo method in contractType.GetMethods())
     {
-        var opAttr = method.GetAttribute<NodeEntityOperationAttribute>();
+        var opAttr = method.GetAttribute<NetOperationAttribute>();
         string requestMsgName = contractType.Name+method.Name+"Request";
         string replyMsgName = contractType.Name+method.Name+"Reply";
         GenerateMessage(Misc.GenerateHash(requestMsgName), requestMsgName, method.GetParameters().Select(x=>Tuple.Create(x.ParameterType, x.Name)).ToList(), opAttr.Priority, opAttr.Reliability);
         if(method.ReturnType != typeof(void))
         {
             if(method.ReturnType == typeof(Task))
-                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>(), opAttr.Priority, opAttr.Reliability);
+                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>(), opAttr.Priority, opAttr.Reliability, opAttr.Lock);
             else
-                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>{Tuple.Create(method.ReturnType.GetGenericArguments()[0], "RetVal")}, opAttr.Priority, opAttr.Reliability);
+                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>{Tuple.Create(method.ReturnType.GetGenericArguments()[0], "RetVal")},
+                    opAttr.Priority, opAttr.Reliability, opAttr.Lock);
         }
     }
 }
-void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> parameters, MessagePriority messagePriority, MessageReliability messageReliability)
+void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> parameters, MessagePriority messagePriority, MessageReliability messageReliability, LockType lockType)
 {#>
     [Export(typeof(Message))]
     [DataContract]
@@ -54,6 +55,7 @@ void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> paramete
 
         public override MessagePriority Priority { get { return MessagePriority.<#= messagePriority.ToString() #>; } }
         public override MessageReliability Reliability { get { return MessageReliability.<#= messageReliability.ToString() #>; } }
+        public override LockType LockType { get { return LockType.<#= lockType.ToString() #>; } }
     }
 <#+
 }

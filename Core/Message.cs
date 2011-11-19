@@ -24,6 +24,11 @@ namespace MOUSE.Core
             get { return MessageReliability.ReliableOrdered; }
         }
 
+        public virtual LockType LockType
+        {
+            get { return LockType.Full; }
+        }
+
         public void AttachHeader(MessageHeader header)
         {
             if (_headers == null)
@@ -45,6 +50,16 @@ namespace MOUSE.Core
                 return;
 
             _headers.RemoveAll(x => x is THeader);
+        }
+        NativeWriter _writer;
+        public NativeWriter GetSerialized()
+        {
+            if (_writer == null)
+                _writer = new NativeWriter(new byte[128], true);
+            else
+                _writer.Position = 0;
+            Serialize(_writer);
+            return _writer;
         }
 
         public virtual void Serialize(NativeWriter writer)

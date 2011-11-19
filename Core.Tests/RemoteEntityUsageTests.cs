@@ -27,11 +27,11 @@ namespace Core.Tests
             var builder = new ContainerBuilder();
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestEntity))));
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(ITestEntityProxy))));
-            builder.RegisterType<EntityDomain>().As<IEntityDomain>();
-            builder.RegisterType<EntityRepository>().As<IEntityRepository>();
+            builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>();
+            builder.RegisterType<ServiceRepository>().As<IServiceRepository>();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>();
-            builder.RegisterType<RakPeerInterface>().As<INetPeer>();
-            builder.RegisterType<EntityClusterNode>().As<IEntityClusterNode>();
+            builder.RegisterType<RakPeerInterface>().As<INetProvider>();
+            builder.RegisterType<EntityClusterNode>().As<INetNode>();
             builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>();
             container = builder.Build();
         }
@@ -39,7 +39,7 @@ namespace Core.Tests
         [Test]
         public void OperationOnLocallyAvailableEntityShouldGoWithoutNetwork()
         {
-            var node = container.Resolve<IEntityClusterNode>();
+            var node = container.Resolve<INetNode>();
             node.Start(true);
             //ITestEntity entity = node.Create<ITestEntity>(42);
             var proxy = node.Get<ITestEntity>(42);

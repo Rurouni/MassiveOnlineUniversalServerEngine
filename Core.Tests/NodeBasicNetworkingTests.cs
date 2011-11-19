@@ -31,11 +31,11 @@ namespace Core.Tests
         public void Init()
         {
             var builder = new ContainerBuilder();
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(Node))));
+            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(NetNode))));
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestMessage))));
             builder.RegisterType<MOUSE.Core.MessageFactory>().As<IMessageFactory>();
-            builder.RegisterType<RakPeerInterface>().As<INetPeer>();
-            builder.RegisterType<Node>().As<INode>();
+            builder.RegisterType<RakPeerInterface>().As<INetProvider>();
+            builder.RegisterType<NetNode>().As<INetNode>();
             container = builder.Build();
         }
 
@@ -43,33 +43,33 @@ namespace Core.Tests
         public void NodeShouldBeAbleToConnectToOtherNode()
         {
             var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            var node1 = container.Resolve<INode>();
-            var node2 = container.Resolve<INode>();
+            var node1 = container.Resolve<INetNode>();
+            var node2 = container.Resolve<INetNode>();
 
             node1.Start(true, endpoint);
             node2.Start(true);
 
             try
             {
-                NodeProxy node1ProxyInNode2 = null;
-                NodeProxy node2ProxyInNode1 = null;
+                NetPeer node1ProxyInNode2 = null;
+                NetPeer node2ProxyInNode1 = null;
                 int node1OnConnectCalls = 0;
                 int node2OnConnectCalls = 0;
 
-                node1.OnNodeConnected.Subscribe((proxy) =>
+                node1.NodeConnectedEvent.Subscribe((proxy) =>
                                                     {
                                                         node2ProxyInNode1 = proxy;
                                                         node1OnConnectCalls++;
                                                     });
 
-                node2.OnNodeConnected.Subscribe((proxy) =>
+                node2.NodeConnectedEvent.Subscribe((proxy) =>
                                                     {
                                                         node1ProxyInNode2 = proxy;
                                                         node2OnConnectCalls++;
                                                     });
 
 
-                Task<NodeProxy> connectTask = node2.Connect(endpoint);
+                Task<NetPeer> connectTask = node2.Connect(endpoint);
 
                 connectTask.IsCompleted.Should().BeFalse();
 
@@ -101,29 +101,29 @@ namespace Core.Tests
         public void NodeShouldBeAbleToSendAndReceiveMessages()
         {
             var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            var node1 = container.Resolve<INode>();
-            var node2 = container.Resolve<INode>();
+            var node1 = container.Resolve<INetNode>();
+            var node2 = container.Resolve<INetNode>();
 
             node1.Start(true, endpoint);
             node2.Start(true);
 
-            NodeProxy node1ProxyInNode2 = null;
-            NodeProxy node2ProxyInNode1 = null;
+            NetPeer node1ProxyInNode2 = null;
+            NetPeer node2ProxyInNode1 = null;
             Message msg = null;
-            NodeProxy senderNode = null;
-            INode receiverNode = null;
+            NetPeer senderNode = null;
+            INetNode receiverNode = null;
 
-            node1.OnNodeConnected.Subscribe((proxy) =>
+            node1.NodeConnectedEvent.Subscribe((proxy) =>
             {
                 node2ProxyInNode1 = proxy;
             });
 
-            node2.OnNodeConnected.Subscribe((proxy) =>
+            node2.NodeConnectedEvent.Subscribe((proxy) =>
             {
                 node1ProxyInNode2 = proxy;
             });
 
-            node1.OnNodeMessage.Subscribe((context) =>
+            node1.NodeMessageEvent.Subscribe((context) =>
             {
                 msg = context.Message;
                 senderNode = context.Source;
@@ -132,7 +132,7 @@ namespace Core.Tests
 
             try
             {
-                Task<NodeProxy> connectTask = node2.Connect(endpoint);
+                Task<NetPeer> connectTask = node2.Connect(endpoint);
 
                 Stopwatch timer = Stopwatch.StartNew();
                 while (!connectTask.IsCompleted
@@ -178,21 +178,21 @@ namespace Core.Tests
         public void ShouldImmediatelyReturnSameProxyIfAlreadyConnected()
         {
             var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            var node1 = container.Resolve<INode>();
-            var node2 = container.Resolve<INode>();
+            var node1 = container.Resolve<INetNode>();
+            var node2 = container.Resolve<INetNode>();
 
             node1.Start(true, endpoint);
             node2.Start(true);
 
             try
             {
-                NodeProxy node1ProxyInNode2 = null;
-                NodeProxy node2ProxyInNode1 = null;
+                NetPeer node1ProxyInNode2 = null;
+                NetPeer node2ProxyInNode1 = null;
 
-                node1.OnNodeConnected.Subscribe((proxy) => node2ProxyInNode1 = proxy);
-                node2.OnNodeConnected.Subscribe((proxy) => node1ProxyInNode2 = proxy);
+                node1.NodeConnectedEvent.Subscribe((proxy) => node2ProxyInNode1 = proxy);
+                node2.NodeConnectedEvent.Subscribe((proxy) => node1ProxyInNode2 = proxy);
 
-                Task<NodeProxy> connectTask = node2.Connect(endpoint);
+                Task<NetPeer> connectTask = node2.Connect(endpoint);
 
                 Stopwatch timer = Stopwatch.StartNew();
                 while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)
@@ -203,7 +203,7 @@ namespace Core.Tests
                 }
 
                 //Assert
-                Task<NodeProxy> connectTask2 = node2.Connect(endpoint);
+                Task<NetPeer> connectTask2 = node2.Connect(endpoint);
 
                 connectTask2.IsCompleted.Should().BeTrue();
                 connectTask2.Result.Should().Be(node1ProxyInNode2);
@@ -219,30 +219,30 @@ namespace Core.Tests
         public void ShouldNotifyOnDisconnect()
         {
             var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            var node1 = container.Resolve<INode>();
-            var node2 = container.Resolve<INode>();
+            var node1 = container.Resolve<INetNode>();
+            var node2 = container.Resolve<INetNode>();
 
             node1.Start(true, endpoint);
             node2.Start(true);
             try
             {
 
-                NodeProxy node1ProxyInNode2 = null;
-                NodeProxy node2ProxyInNode1 = null;
+                NetPeer node1ProxyInNode2 = null;
+                NetPeer node2ProxyInNode1 = null;
 
-                NodeProxy disconectedProxy = null;
+                NetPeer disconectedProxy = null;
                 int disconnectCalls = 0;
 
-                node1.OnNodeConnected.Subscribe((proxy) => node2ProxyInNode1 = proxy);
-                node2.OnNodeConnected.Subscribe((proxy) => node1ProxyInNode2 = proxy);
+                node1.NodeConnectedEvent.Subscribe((proxy) => node2ProxyInNode1 = proxy);
+                node2.NodeConnectedEvent.Subscribe((proxy) => node1ProxyInNode2 = proxy);
 
-                node2.OnNodeDisconnected.Subscribe((proxy) =>
+                node2.NodeDisconnectedEvent.Subscribe((proxy) =>
                                                    {
                                                        disconectedProxy = proxy;
                                                        disconnectCalls++;
                                                    });
 
-                Task<NodeProxy> connectTask = node2.Connect(endpoint);
+                Task<NetPeer> connectTask = node2.Connect(endpoint);
 
                 Stopwatch timer = Stopwatch.StartNew();
                 while ((node1ProxyInNode2 == null || node2ProxyInNode1 == null)

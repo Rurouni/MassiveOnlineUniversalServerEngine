@@ -2,12 +2,17 @@
 <TransformationPropertyValues xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Values>
     <TransformationPropertyValue>
+      <FileName>DomainGeneration\POCOSerialization.ttinclude</FileName>
+      <PropertyName>Host</PropertyName>
+      <Value>VisualStudio</Value>
+    </TransformationPropertyValue>
+    <TransformationPropertyValue>
       <FileName>DomainGeneration\EntityGeneration.ttinclude</FileName>
       <PropertyName>Host</PropertyName>
       <Value>VisualStudio</Value>
     </TransformationPropertyValue>
     <TransformationPropertyValue>
-      <FileName>DomainGeneration\POCOSerialization.ttinclude</FileName>
+      <FileName>DomainGeneration\MessagesGeneration.ttinclude</FileName>
       <PropertyName>Host</PropertyName>
       <Value>VisualStudio</Value>
     </TransformationPropertyValue>

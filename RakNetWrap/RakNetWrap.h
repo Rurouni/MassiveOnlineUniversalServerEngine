@@ -21,29 +21,33 @@ using namespace System;
 using namespace System::IO;
 using namespace System::Net;
 using namespace MOUSE::Core;
+using namespace System::Collections::Generic;
 using namespace System::ComponentModel::Composition;
 
 namespace RakNetWrapper
 {
-	[Export(INetPeer::typeid)]
-    public ref class RakPeerInterface : INetPeer
+    ref class RakChannel;
+
+    [Export(INetProvider::typeid)]
+    public ref class RakPeerInterface : INetProvider
     {
         RakNet::RakPeerInterface* _rakPeer;
         NativeReader^ _reader;
         array<unsigned char>^ _buff;
+        Dictionary<int, RakChannel^ >^ _channels;
+        INetEventProcessor^ _processor;
 
     public:
         RakPeerInterface();
         ~RakPeerInterface();
 
-        virtual bool Startup(IPEndPoint^ endpoint, int maxConnections);
+        virtual bool Startup(INetEventProcessor^ processor, IPEndPoint^ endpoint, int maxConnections);
 
         virtual void Connect(IPEndPoint^ endpoint);
-        virtual void CloseConnection(int netId);
+        void CloseConnection(int netId);
 
-        virtual void Send(int netId, array<Byte>^ data, int length, MessagePriority priority, MessageReliability reliability);
-        virtual void SendLoopback(array<Byte>^ data, int length);
-        virtual bool ProcessNetEvent(INetEventProcessor^ processor);
+        void Send(int netId, array<Byte>^ data, int length, MessagePriority priority, MessageReliability reliability);
+        virtual bool PumpEvents();
         virtual void Shutdown();
         
         virtual property IPEndPoint^ EndPoint
@@ -55,7 +59,7 @@ namespace RakNetWrapper
             }
         }
 
-        virtual IPEndPoint^ GetEndPointOf(int netId)
+        IPEndPoint^ GetEndPointOf(int netId)
         {
             RakNet::SystemAddress addr = _rakPeer->GetSystemAddressFromIndex(netId);
             return gcnew IPEndPoint(IPAddress::Parse(gcnew String(addr.ToString(false))), addr.GetPort());
@@ -67,6 +71,49 @@ namespace RakNetWrapper
             RakNet::RakNetStatistics* rss =_rakPeer->GetStatistics(_rakPeer->GetSystemAddressFromIndex(0));
             RakNet::StatisticsToString(rss, text, 2);
             return gcnew String(&text[0]);
+        }
+    };
+
+    public ref class RakChannel : INetChannel
+    {
+        int _netId;
+        IPEndPoint^ _ipEndPoint;
+        RakPeerInterface^ _rakPeer;
+    public:
+
+        RakChannel(RakPeerInterface^ rakPeer, RakNet::SystemAddress& addr)
+        {
+            _netId = addr.systemIndex;
+            _rakPeer = rakPeer;
+            _ipEndPoint = gcnew IPEndPoint(IPAddress::Parse(gcnew String(addr.ToString(false))), addr.GetPort());
+        }
+
+        virtual property unsigned int Id
+        {
+            unsigned int get()
+            {
+                return _netId;
+            }
+        }
+
+        virtual property IPEndPoint^ EndPoint
+        {
+            IPEndPoint^ get()
+            {
+                return _ipEndPoint;
+            }
+        }
+
+        
+        virtual void Send(Message^ msg)
+        {
+            NativeWriter^ writer = msg->GetSerialized();
+            _rakPeer->Send(_netId, writer->Buff, writer->Position, msg->Priority, msg->Reliability);
+        }
+
+        virtual void Close()
+        {
+            _rakPeer->CloseConnection(_netId);
         }
     };
 }

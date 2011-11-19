@@ -12,28 +12,28 @@ using NLog;
 
 namespace MOUSE.Core
 {
-    public interface IEntityRepository : IEnumerable<NodeEntity>
+    public interface IServiceRepository : IEnumerable<NodeService>
     {
-        Task<NodeEntity> Activate(ulong entityId);
-        bool TryGet(ulong entityId, out NodeEntity entity);
+        Task<NodeService> Activate(ulong entityId);
+        bool TryGet(ulong entityId, out NodeService entity);
         bool Contains(ulong entityId);
-        void Remove(NodeEntity entity);
-        void Add(NodeEntity entity);
-        Task<NodeEntity> Create(ulong entityId);
-        Task<TEntity> Create<TEntity>(uint localEntityId = 0) where TEntity : NodeEntity;
-        Task Delete(NodeEntity entity);
+        void Remove(NodeService entity);
+        void Add(NodeService entity);
+        Task<NodeService> Create(ulong entityId);
+        Task<TEntity> Create<TEntity>(uint localEntityId = 0) where TEntity : NodeService;
+        Task Delete(NodeService entity);
     }
 
-    public class EntityRepository : IEntityRepository
+    public class ServiceRepository : IServiceRepository
     {
         Logger Log = LogManager.GetCurrentClassLogger();
-        Dictionary<uint, NodeEntityDescription> _descriptionsByTypeId = new Dictionary<uint, NodeEntityDescription>();
-        Dictionary<ulong, NodeEntity> _entitiesByFullId = new Dictionary<ulong, NodeEntity>();
+        Dictionary<uint, NodeServiceDescription> _descriptionsByTypeId = new Dictionary<uint, NodeServiceDescription>();
+        Dictionary<ulong, NodeService> _entitiesByFullId = new Dictionary<ulong, NodeService>();
 
         public readonly IPersistanceProvider Storage;
-        public readonly IEntityDomain Domain;
+        public readonly IServiceProtocol Domain;
 
-        public EntityRepository(IPersistanceProvider storage, IEntityDomain domain, IEnumerable<NodeEntity> importedEntities)
+        public ServiceRepository(IPersistanceProvider storage, IServiceProtocol domain, IEnumerable<NodeService> importedEntities)
         {
             Storage = storage;
             Domain = domain;
@@ -42,30 +42,30 @@ namespace MOUSE.Core
             {
                 Type type = entity.GetType();
                 var attr = type.GetAttribute<NodeEntityAttribute>();
-                uint typeId = Domain.GetTypeId(attr.ContractType);
-                var desc = new NodeEntityDescription(type, Domain.GetDescription(typeId), attr);
+                uint typeId = Domain.GetContractId(attr.ContractType);
+                var desc = new NodeServiceDescription(type, Domain.GetDescription(typeId), attr);
                 _descriptionsByTypeId.Add(typeId, desc);
                 Log.Info("Registered entityType:{0} for contractType:{1} with typeId:{2}", type, attr.ContractType, typeId);
             }
         }
 
-        public NodeEntityDescription GetDescription(ulong entityId)
+        public NodeServiceDescription GetDescription(ulong entityId)
         {
-            NodeEntityDescription desc;
-            uint typeId = Domain.GetTypeId(entityId);
+            NodeServiceDescription desc;
+            uint typeId = Domain.GetContractId(entityId);
             if (!_descriptionsByTypeId.TryGetValue(typeId, out desc))
                 throw new Exception("Entity with TypeId:{0} is not implemented");
 
             return desc;
         }
 
-        public async Task<NodeEntity> Activate(ulong entityId)
+        public async Task<NodeService> Activate(ulong entityId)
         {
             Log.Debug("Activating entity {0}", entityId);
-            NodeEntity entity;
+            NodeService entity;
             if (!_entitiesByFullId.TryGetValue(entityId, out entity))
             {
-                NodeEntityDescription desc = GetDescription(entityId);
+                NodeServiceDescription desc = GetDescription(entityId);
                 if (desc.Persistant)
                     entity = await Storage.Get(entityId);
                 if (entity == null && desc.AutoCreate)
@@ -77,15 +77,15 @@ namespace MOUSE.Core
             return entity;
         }
 
-        public async Task<NodeEntity> Create(ulong entityId)
+        public async Task<NodeService> Create(ulong entityId)
         {
             Log.Debug("Creating entity {0}", entityId);
 
-            NodeEntity entity;
+            NodeService entity;
             if (_entitiesByFullId.TryGetValue(entityId, out entity))
                 throw new EntityAlreadyExistException(entity);
 
-            NodeEntityDescription desc = GetDescription(entityId);
+            NodeServiceDescription desc = GetDescription(entityId);
             if (desc.Persistant)
             {
                 entity = await
@@ -100,13 +100,13 @@ namespace MOUSE.Core
             return entity;
         }
 
-        public async Task<TEntity> Create<TEntity>(uint localEntityId = 0) where TEntity : NodeEntity
+        public async Task<TEntity> Create<TEntity>(uint localEntityId = 0) where TEntity : NodeService
         {
-            NodeEntity entity = await Create(Domain.GetFullId<TEntity>(localEntityId));
+            NodeService entity = await Create(Domain.GetFullId<TEntity>(localEntityId));
             return (TEntity)entity;
         }
 
-        public async Task Delete(NodeEntity entity)
+        public async Task Delete(NodeService entity)
         {
             Log.Debug("Deleting {0}", entity);
             if (entity.Description.Persistant)
@@ -115,15 +115,15 @@ namespace MOUSE.Core
             Remove(entity);
         }
 
-        private NodeEntity Create(ulong entityId, NodeEntityDescription desc)
+        private NodeService Create(ulong entityId, NodeServiceDescription desc)
         {
             Log.Debug("Creating entity {0}", entityId);
-            var entity = (NodeEntity)FormatterServices.GetUninitializedObject(desc.ImplementerType);
+            var entity = (NodeService)FormatterServices.GetUninitializedObject(desc.ImplementerType);
             entity.Init(entityId, desc);
             return entity;
         }
         
-        public bool TryGet(ulong entityId, out NodeEntity entity)
+        public bool TryGet(ulong entityId, out NodeService entity)
         {
             return _entitiesByFullId.TryGetValue(entityId, out entity);
         }
@@ -133,19 +133,19 @@ namespace MOUSE.Core
             return _entitiesByFullId.ContainsKey(entityId);
         }
 
-        public void Remove(NodeEntity entity)
+        public void Remove(NodeService entity)
         {
             Log.Debug("Creating {0}", entity);
             _entitiesByFullId.Remove(entity.Id);
         }
 
-        public void Add(NodeEntity entity)
+        public void Add(NodeService entity)
         {
             Log.Debug("Adding {0}", entity);
             _entitiesByFullId.Add(entity.Id, entity);
         }
 
-        public IEnumerator<NodeEntity> GetEnumerator()
+        public IEnumerator<NodeService> GetEnumerator()
         {
             return _entitiesByFullId.Values.GetEnumerator();
         }
@@ -158,9 +158,9 @@ namespace MOUSE.Core
 
     public class EntityAlreadyExistException : Exception
     {
-        public NodeEntity Entity;
+        public NodeService Entity;
 
-        public EntityAlreadyExistException(NodeEntity entity)
+        public EntityAlreadyExistException(NodeService entity)
         {
             Entity = entity;
         }

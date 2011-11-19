@@ -28,10 +28,10 @@ namespace Core.Tests
             var builder = new ContainerBuilder();
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestEntity))));
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(ITestEntityProxy))));
-            builder.RegisterType<EntityDomain>().As<IEntityDomain>();
-            builder.RegisterType<EntityRepository>().As<IEntityRepository>();
+            builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>();
+            builder.RegisterType<ServiceRepository>().As<IServiceRepository>();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>();
-            builder.RegisterType<RakPeerInterface>().As<INetPeer>();
+            builder.RegisterType<RakPeerInterface>().As<INetProvider>();
             builder.RegisterType<EntityClusterNode>().As<IEntityClusterNode>();
             builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>();
             container = builder.Build();
@@ -74,21 +74,21 @@ namespace Core.Tests
 
             var mockedNode = new Mock<IEntityClusterNode>();
             mockedNode.Setup(x => x.MessageFactory).Returns(node.MessageFactory);
-            mockedNode.Setup(x => x.Execute(It.IsAny<Message>(), ((NodeEntityProxy)entityProxy)))
+            mockedNode.Setup(x => x.Execute(It.IsAny<Message>(), ((NodeServiceProxy)entityProxy)))
                 .Returns(() =>
                          {
                              var tcs = new TaskCompletionSource<Message>();
                              tcs.SetResult(new ITestEntitySimpleReply() { RetVal = output });
                              return tcs.Task;
                          })
-                .Callback((Message msg, NodeEntityProxy proxy) =>
+                .Callback((Message msg, NodeServiceProxy proxy) =>
                         {
                             requestMsg = msg as ITestEntitySimpleRequest;
                             calls++;
                         });
 
 
-            ((NodeEntityProxy)entityProxy).Node = mockedNode.Object;
+            ((NodeServiceProxy)entityProxy).Node = mockedNode.Object;
 
             Task<int> retTask = entityProxy.Simple(input);
 

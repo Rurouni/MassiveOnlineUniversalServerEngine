@@ -25,6 +25,7 @@ RakPeerInterface::RakPeerInterface()
     _reader = gcnew NativeReader();
     _buff = gcnew array<unsigned char>(1024*1024*10);
     _buff[0] = (unsigned char)ID_USER_PACKET_ENUM;
+    _channels = gcnew Dictionary<int, RakChannel^>();
 }
 
 RakPeerInterface::~RakPeerInterface()
@@ -33,16 +34,17 @@ RakPeerInterface::~RakPeerInterface()
         RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
 }
 
-bool RakPeerInterface::Startup(IPEndPoint^ endpoint, int maxConnections)
+bool RakPeerInterface::Startup(INetEventProcessor^ processor, IPEndPoint^ endpoint, int maxConnections)
 {
+    _processor = processor;
     RakNet::SocketDescriptor sd;
     if(endpoint != nullptr)
     {
         char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(endpoint->Address->ToString());
         strncpy(sd.hostAddress, str2, sizeof(sd.hostAddress) - 1);
         sd.hostAddress[sizeof(sd.hostAddress) - 1] = '\0';
-		sd.port = (unsigned short)endpoint->Port;
-		Marshal::FreeHGlobal((System::IntPtr)str2);
+        sd.port = (unsigned short)endpoint->Port;
+        Marshal::FreeHGlobal((System::IntPtr)str2);
     }
     else
         sd.hostAddress[0] = '\0';
@@ -53,8 +55,8 @@ bool RakPeerInterface::Startup(IPEndPoint^ endpoint, int maxConnections)
     _rakPeer->SetOccasionalPing(true);
     _rakPeer->SetUnreliableTimeout(1000);
     _rakPeer->SetTimeoutTime(10000, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
-	int retCode = res;
-	Console::WriteLine("NetInitialization code="+retCode);
+    int retCode = res;
+    Console::WriteLine("NetInitialization code="+retCode);
     return res == RakNet::RAKNET_STARTED;
 }
 
@@ -114,19 +116,10 @@ void RakPeerInterface::Send(int netId, array<Byte>^ data, int length, MessagePri
     _rakPeer->Send((char*)pbuff, length+1, pp, pr, 0, _rakPeer->GetSystemAddressFromIndex(netId), false);
 }
 
-void RakPeerInterface::SendLoopback(array<Byte>^ data, int length)
-
-{
-    pin_ptr<unsigned char> npbuff = &data[0];
-    unsigned char *pbuff = npbuff;
-
-    return _rakPeer->SendLoopback((char*)pbuff, length);
-}
-
-
-bool RakPeerInterface::ProcessNetEvent(INetEventProcessor^ processor)
+bool RakPeerInterface::PumpEvents()
 {
     RakNet::Packet *np;
+    RakChannel^ channel;
     
     if (_rakPeer == NULL)
         return false;
@@ -144,14 +137,22 @@ bool RakPeerInterface::ProcessNetEvent(INetEventProcessor^ processor)
     {
         case ID_NEW_INCOMING_CONNECTION :
             _rakPeer->SetTimeoutTime(10000, np->systemAddress);//TODO : move to config
-            processor->OnNetConnect(np->systemAddress.systemIndex);
+            channel = gcnew RakChannel(this, np->systemAddress);
+            _channels->Add(channel->Id, channel);
+            _processor->OnNetConnect(channel);
             break;
         case ID_CONNECTION_REQUEST_ACCEPTED:
-            processor->OnNetConnectionAccepted(np->systemAddress.systemIndex);
+             channel= gcnew RakChannel(this, np->systemAddress);
+            _channels->Add(channel->Id, channel);
+            _processor->OnNetConnectionAccepted(channel);
             break;
         case ID_CONNECTION_LOST:
         case ID_DISCONNECTION_NOTIFICATION:
-            processor->OnNetDisconnect(np->systemAddress.systemIndex);
+            if(_channels->TryGetValue(np->systemAddress.systemIndex, channel))
+            {
+                _channels->Remove(channel->Id);
+                _processor->OnNetDisconnect(channel);
+            }
             break;	
 
         case ID_USER_PACKET_ENUM :
@@ -166,8 +167,11 @@ bool RakPeerInterface::ProcessNetEvent(INetEventProcessor^ processor)
 
             memcpy(pbuff, np->data, np->length);
             
-            _reader->SetBuffer(_buff, 1);//skip rakNet control byte
-            processor->OnNetData(np->systemAddress.systemIndex, _reader);
+            if(_channels->TryGetValue(np->systemAddress.systemIndex, channel))
+            {
+                _reader->SetBuffer(_buff, 1);//skip rakNet control byte
+                _processor->OnNetData(channel, _reader);
+            }
             break;
     }
         

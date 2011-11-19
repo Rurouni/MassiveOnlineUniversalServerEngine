@@ -8,28 +8,28 @@ namespace MOUSE.Core
 {
     public interface IPersistanceProvider
     {
-        Task<NodeEntity> Get(ulong entityId);
-        Task Put(NodeEntity entity);
-        Task Delete(NodeEntity entity);
+        Task<NodeService> Get(ulong entityId);
+        Task Put(NodeService entity);
+        Task Delete(NodeService entity);
     }
 
     public class NullPersistanceProvider : IPersistanceProvider
     {
-        public Task Delete(NodeEntity entity)
+        public Task Delete(NodeService entity)
         {
-            var tcs = new TaskCompletionSource<NodeEntity>();
+            var tcs = new TaskCompletionSource<NodeService>();
             tcs.SetResult(null);
             return tcs.Task;
         }
 
-        public Task<NodeEntity> Get(ulong entityId)
+        public Task<NodeService> Get(ulong entityId)
         {
-            var tcs = new TaskCompletionSource<NodeEntity>();
+            var tcs = new TaskCompletionSource<NodeService>();
             tcs.SetResult(null);
             return tcs.Task;
         }
 
-        public Task Put(NodeEntity entity)
+        public Task Put(NodeService entity)
         {
             var tcs = new TaskCompletionSource<object>();
             tcs.SetResult(null);
