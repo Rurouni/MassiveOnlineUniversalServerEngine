@@ -28,9 +28,6 @@ namespace MOUSE.Core
 
         public OperationContext Context {get;set;}
 
-        public void OnNodeDisconnected(NetPeer node)
-        {}
-
         public void Init(ulong serviceId, NodeServiceDescription desc)
         {
             _id = serviceId;
@@ -38,6 +35,11 @@ namespace MOUSE.Core
         }
 
         public NodeServiceDescription Description { get { return _description; } }
+
+        public void Process(Message msg, ClientNodePeer peer)
+        {
+            throw new NotImplementedException();
+        }
     }
     
     public class NodeServiceDescription
@@ -81,7 +83,10 @@ namespace MOUSE.Core
             Operations = operations;
         }
 
-        public bool Connectionfull { get { return Attribute.Connectionfull; } }
+        public bool AllowExternalConnections
+        {
+            get { return Attribute.AllowExternalConnections; }
+        }
     }
 
     public class NodeServiceOperationDescription

@@ -8,11 +8,11 @@ namespace MOUSE.Core
     [AttributeUsage(AttributeTargets.Interface)]
     public class NetContractAttribute : Attribute
     {
-        public bool Connectionfull { get; set; }
+        public bool AllowExternalConnections { get; set; }
 
         public NetContractAttribute()
         {
-            Connectionfull = false;
+            AllowExternalConnections = false;
         }
     }
 

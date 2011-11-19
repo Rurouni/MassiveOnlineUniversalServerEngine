@@ -12,17 +12,17 @@ namespace SampleC2SProtocol
     [NetContract]
     public interface IChatLogin
     {
-        [NetOperation]
+        [NetOperation(Lock = LockType.Full)]
         Task<LoginResult> Login(string name);
     }
 
     [NetContract]
     public interface IChatService
     {
-        [NetOperation]
+        [NetOperation(Lock = LockType.ReadReentrant)]
         Task<List<ChatRoomInfo>> GetRooms();
 
-        [NetOperation]
+        [NetOperation(Lock = LockType.Full)]
         Task<CreateRoomResponse> CreateRoom(string roomName);
 
         /// <returns>Ticket</returns>
@@ -30,13 +30,13 @@ namespace SampleC2SProtocol
         Task<long> JoinRoom(uint roomId);
     }
     
-    [NetContract]
+    [NetContract(AllowExternalConnections = true)]
     public interface IChatRoomService
     {
         [NetOperation]
         Task<List<string>> Join(long ticket);
 
-        [NetOperation]
+        [NetOperation(Lock = LockType.ReadReentrant)]
         void Say(string message);
     }
 
@@ -85,9 +85,15 @@ namespace SampleC2SProtocol
     public class ChatRoomInfo
     {
         [DataMember]
-        public uint RoomId;
+        public uint Id;
         [DataMember]
-        public string RoomName;
+        public string Name;
+
+        public ChatRoomInfo(uint id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
     }
 
 }

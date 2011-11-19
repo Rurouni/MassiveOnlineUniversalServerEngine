@@ -16,19 +16,13 @@ namespace MOUSE.Core
     {
         Task<Message> Dispatch(object target, Message msg);
         NodeServiceProxy CreateProxy(ulong serviceId);
-        [Pure]
+        
         ulong GetFullId<TServiceContract>(uint serviceId = 0);
-        [Pure]
         uint GetContractId(ulong serviceId);
-        [Pure]
         uint GetContractId(Type contractType);
-        [Pure]
         Type GetContractType(uint serviceTypeId);
-        [Pure]
         uint GetLocalId(ulong serviceId);
-        [Pure]
         NodeServiceContractDescription GetDescription(uint serviceTypeId);
-        [Pure]
         NodeServiceContractDescription GetDescription(ulong serviceId);
     }
 
@@ -160,7 +154,7 @@ namespace MOUSE.Core
             if (_descByTypeId.TryGetValue(serviceTypeId, out desc))
                 return desc.ContractType;
             else
-                throw new Exception("Unregistered service typeId - " + serviceTypeId);
+                return null;
         }
 
         public NodeServiceContractDescription GetDescription(uint typeId)
@@ -169,7 +163,7 @@ namespace MOUSE.Core
             if (_descByTypeId.TryGetValue(typeId, out desc))
                 return desc;
             else
-                throw new Exception("Unregistered service typeId - " + typeId);
+                return null;
         }
 
         public NodeServiceContractDescription GetDescription(ulong serviceId)

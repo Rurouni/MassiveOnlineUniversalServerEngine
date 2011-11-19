@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Net;
 using System.Reactive.Linq;
 using System.Threading.Tasks.Dataflow;
+using NLog;
 
 namespace MOUSE.Core
 {
@@ -21,7 +22,6 @@ namespace MOUSE.Core
     {
         private readonly ConcurrentDictionary<uint, object> _handlersByNetContractId = new ConcurrentDictionary<uint, object>();
         protected ServerNode Node;
-        private bool _isMasterPeer;
         private readonly ActionBlock<Message> _dispatchingQueue;
         private ActionBlock<Func<Task>> _writeLockedQueue;
         private ActionBlock<Func<Task>> _readLockedQueue;
@@ -32,12 +32,11 @@ namespace MOUSE.Core
             _dispatchingQueue = new ActionBlock<Message>((Func<Message, Task>)DispatchServiceOperation);
             CreateQueues();
             Node = node;
-            SetupProcessingLoop();
+            MessageEvent.Subscribe(OnClientMessage);
         }
 
         private void CreateQueues()
         {
-            
             _readLockedQueue = new ActionBlock<Func<Task>>(
                 async(func) =>
                 {
@@ -52,30 +51,86 @@ namespace MOUSE.Core
 
         protected void SetHandler<TNetContract>(TNetContract implementer)
         {
-             _handlersByNetContractId[Node.Protocol.GetContractId(typeof(TNetContract))] = implementer;
+            _handlersByNetContractId[Node.Protocol.GetContractId(typeof(TNetContract))] = implementer;
         }
 
-        public async Task SetupProcessingLoop()
+        protected void RemoveHandler<TNetContract>()
+        {
+            object removed;
+            _handlersByNetContractId.TryRemove(Node.Protocol.GetContractId(typeof(TNetContract)), out removed);
+        }
+
+        private async Task DispatchServiceOperation(Message msg)
         {
             try
             {
-                ConnectToService connectMsg = await ReceiveMessage<ConnectToService>(TimeSpan.FromSeconds(3));
-
-                if (connectMsg.ServiceId == 0)//this is master connection and this peer will be managing client state
+                var serviceHeader = msg.GetHeader<ServiceHeader>();
+                var operationHeader = msg.GetHeader<OperationHeader>();
+                if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
                 {
-                    _isMasterPeer = true;
-                    OnInit();
-                    MessageEvent.Subscribe(OnClientMessage);
-                    
+                    object handler;
+                    if (_handlersByNetContractId.TryGetValue(Node.Protocol.GetContractId(serviceHeader.TargetServiceId), out handler))
+                    {
+                        Log.Debug("{0} - Dispatching {1} to {2}", operationHeader.RequestId, msg, handler);
+                        switch (msg.LockType)
+                        {
+                            case LockType.None:
+                                DispatchAndReply(handler, operationHeader.RequestId, msg);
+                                break;
+                            case LockType.ReadReentrant:
+                                _readLockedQueue.Post(() => DispatchAndReply(handler, operationHeader.RequestId, msg));
+                                break;
+                            case LockType.WriteReentrant:
+                                _writeLockedQueue.Post(() => DispatchAndReply(handler, operationHeader.RequestId, msg));
+                                break;
+                            case LockType.Full:
+                                _readLockedQueue.Complete();
+                                _writeLockedQueue.Complete();
+                                await _readLockedQueue.Completion;
+                                await _writeLockedQueue.Completion;
+                                await DispatchAndReply(handler, operationHeader.RequestId, msg);
+                                CreateQueues();
+                                break;
+                        }
+                    }
+                    else Log.Warn("{0} has no message handler for it", msg);
                 }
-                else //this is dependant connection to access some service, this peer won't manage anything
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex.ToString);
+                Channel.Close();
+            }
+        }
+
+        private void OnClientMessage(Message msg)
+        {
+            try
+            {
+                if (msg is ServiceAccessRequest)
                 {
-                    if(!Node.ConnectToService(this, connectMsg))
-                        Channel.Close();
+                    var requestMsg = (msg as ServiceAccessRequest);
+                    if (_handlersByNetContractId.ContainsKey(Node.Protocol.GetContractId(requestMsg.ServiceId)))
+                        Channel.Send(new ServiceAccessReply(true, null));
                     else
                     {
-                        _isMasterPeer = false;
-                        MessageEvent.Subscribe(OnClientMessage);
+                        var serviceDesc = Node.Protocol.GetDescription(requestMsg.ServiceId);
+                        if (serviceDesc == null || !serviceDesc.AllowExternalConnections)
+                            Channel.Send(new ServiceAccessReply(false, null));
+                        else
+                            Node.ProcessServiceAccess(this, requestMsg.ServiceId);
+                    }
+                }
+                else 
+                {
+                    var serviceHeader = msg.GetHeader<ServiceHeader>();
+                    var operationHeader = msg.GetHeader<OperationHeader>();
+                    if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
+                    {
+                        if (_handlersByNetContractId.ContainsKey(Node.Protocol.GetContractId(serviceHeader.TargetServiceId)))
+                            _dispatchingQueue.Post(msg);
+                        else
+                            Node.DispatchServiceMessage(serviceHeader.TargetServiceId, msg, this);
                     }
                 }
             }
@@ -86,62 +141,7 @@ namespace MOUSE.Core
             }
         }
 
-        protected  void OnRoutedMessage(Message msg)
-        {
-            var serviceHeader = msg.GetHeader<ServiceHeader>();
-            var operationHeader = msg.GetHeader<OperationHeader>();
-            if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
-            {
-                Node.DispatchServiceMessage(serviceHeader.TargetServiceId, msg, this);
-            }
-        }
-
-        private async Task DispatchServiceOperation(Message msg)
-        {
-            var serviceHeader = msg.GetHeader<ServiceHeader>();
-            var operationHeader = msg.GetHeader<OperationHeader>();
-            if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
-            {
-                object handler;
-                if (_handlersByNetContractId.TryGetValue(Node.Protocol.GetContractId(serviceHeader.TargetServiceId), out handler))
-                {
-                    Log.Debug("{0} - Dispatching {1} to {2}", operationHeader.RequestId, msg, handler);
-                    switch (msg.LockType)
-                    {
-                        case LockType.None:
-                            DispatchAndReply(handler, operationHeader.RequestId, msg);
-                            break;
-                        case LockType.ReadReentrant:
-                            _readLockedQueue.Post(() => DispatchAndReply(handler, operationHeader.RequestId, msg));
-                            break;
-                        case LockType.WriteReentrant:
-                            _writeLockedQueue.Post(() => DispatchAndReply(handler, operationHeader.RequestId, msg));
-                            break;
-                        case LockType.Full:
-                            _readLockedQueue.Complete();
-                            _writeLockedQueue.Complete();
-                            await _readLockedQueue.Completion;
-                            await _writeLockedQueue.Completion;
-                            await DispatchAndReply(handler, operationHeader.RequestId, msg);
-                            CreateQueues();
-                            break;
-                    }
-                }
-                else
-                    Log.Warn("{0} has no message handler for it", msg);
-
-            }
-        }
-
-        protected void OnClientMessage(Message msg)
-        {
-            if(msg is ServiceAccessRequest)
-                Node.ProcessServiceAccess(this, (msg as ServiceAccessRequest).ServiceId);
-            else
-                _dispatchingQueue.Post(msg);
-        }
-
-        protected async Task DispatchAndReply(object handler, int requestId, Message msg)
+        private async Task DispatchAndReply(object handler, int requestId, Message msg)
         {
             try
             {
@@ -157,16 +157,13 @@ namespace MOUSE.Core
             {
                 Log.Error(ex.ToString());
             }
-            
-        }
-
-        protected virtual void OnInit()
-        {
         }
     }
 
     public class ServerNode : IServiceNode
     {
+        private readonly ulong _id; 
+        public readonly Logger Log;
         private Dictionary<ulong, NodeServiceProxy> _proxyCache = new Dictionary<ulong, NodeServiceProxy>();
         //protected readonly Dictionary<ulong, NetPeer> _connectedNodesByNodeId = new Dictionary<ulong, NetPeer>();
 
@@ -177,6 +174,11 @@ namespace MOUSE.Core
         protected Random Rnd
         {
             get { return _random; }
+        }
+
+        public ulong Id
+        {
+            get { return _id; }
         }
 
         public IServiceRepository Repository { get; private set; }
@@ -191,6 +193,8 @@ namespace MOUSE.Core
         public ServerNode(Func<INetChannel, ClientNodePeer> clientPeerFactory, INetProvider externalNetProvider, INetProvider internalNetProvider,
             IMessageFactory factory, IServiceProtocol protocol, IServiceRepository repository)
         {
+            _id = GenerateUniqueId();
+            Log = LogManager.GetLogger(ToString());
             Repository = repository;
             Protocol = protocol;
             ExternalNet = new NetNode<ClientNodePeer>(externalNetProvider, factory, protocol, clientPeerFactory);
@@ -214,9 +218,43 @@ namespace MOUSE.Core
             throw new NotImplementedException();
         }
 
+        public void DispatchServiceMessage(ulong serviceId, Message msg, ClientNodePeer clientNodePeer)
+        {
+            NodeServiceContractDescription desc = Protocol.GetDescription(serviceId);
+            if (desc == null || !desc.AllowExternalConnections)
+            {
+                Log.Debug("Received operation with invalid service target");
+                return;
+            }
+            NodeService service;
+
+            if (Repository.TryGet(serviceId, out service))
+                service.Process(msg, clientNodePeer);
+
+
+        }
+
+        public void ProcessServiceAccess(ClientNodePeer peer, ulong serviceId)
+        {
+            NodeServiceContractDescription desc = Protocol.GetDescription(serviceId);
+            if(desc == null || !desc.AllowExternalConnections)
+                peer.Channel.Send(new ServiceAccessReply(false, null));
+            else if(Repository.Contains(serviceId))
+                peer.Channel.Send(new ServiceAccessReply(true, null));
+            else
+            {
+                desc.
+            }
+        }
+
         private ulong GenerateUniqueId()
         {
             return ((ulong)Rnd.Next() << 32) ^ (ulong)Rnd.Next();
+        }
+
+        public override string ToString()
+        {
+            return string.Format("ServerNode<Id:{0}>", _id);
         }
 
         //protected override void OnNodeMessage(NetPeer source, Message msg)
@@ -501,11 +539,5 @@ namespace MOUSE.Core
 
         //public abstract async void EntityCallOnewayAsync<TRequestMessage>(TRequestMessage input, NodeEntityProxy caller)
         //    where TRequestMessage : Message;
-
-
-        public void DispatchServiceMessage(ulong targetServiceId, Message msg, ClientNodePeer clientNodePeer)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

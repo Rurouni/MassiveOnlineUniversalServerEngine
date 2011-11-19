@@ -60,7 +60,6 @@ namespace MOUSE.Core
 
             ServerEndPoint = endPoint;
             ServerPeer = (NetPeer)await Connect(endPoint).ConfigureAwait(false);
-            ServerPeer.Channel.Send(new ConnectToService(0, 0));//notify server that this is our master connection
         }
 
         public override NetPeer CreatePeer(INetChannel channel)
@@ -131,9 +130,6 @@ namespace MOUSE.Core
                     serviceOwnerNode = (NetPeer)await base.Connect(reply.ServiceOwner.EndPoint).ConfigureAwait(false);
                 else
                     serviceOwnerNode = ServerPeer;
-
-                if (reply.AccessTicket > 0)
-                    serviceOwnerNode.Channel.Send(new ConnectToService(fullId, reply.AccessTicket));
 
                 proxy = Protocol.CreateProxy(fullId);
                 proxy.Node = this;

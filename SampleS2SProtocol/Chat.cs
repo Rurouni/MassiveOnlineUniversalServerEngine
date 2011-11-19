@@ -12,16 +12,16 @@ namespace SampleS2SProtocol
     [NetContract]
     public interface IChatManager
     {
-        [NetOperation]
+        [NetOperation(Lock = LockType.ReadReentrant)]
         Task<ChatUserInfo> GetUser(string name);
 
         [NetOperation]
-        Task<uint> RegisterUser(string name);
+        Task<ChatUserInfo> TryRegisterUser(string name);
 
         [NetOperation]
         void UnregisterUser(uint id);
 
-        [NetOperation]
+        [NetOperation(Lock = LockType.ReadReentrant)]
         Task<List<ChatRoomInfo>> GetRooms();
 
         [NetOperation]
@@ -34,17 +34,14 @@ namespace SampleS2SProtocol
     [NetContract]
     public interface IChatRoom
     {
-        [NetOperation]
+        [NetOperation(Lock = LockType.ReadReentrant)]
         Task<List<ChatUserInfo>> GetUsersInside();
 
         [NetOperation]
-        Task<List<string>> AddUser(ChatUserInfo user);
+        Task<long> AwaitUser(ChatUserInfo user);
 
         [NetOperation]
         Task RemoveUser(uint userId);
-
-        [NetOperation]
-        void Say(uint userId, string message);
     }
 
     [DataContract]
@@ -53,8 +50,12 @@ namespace SampleS2SProtocol
         [DataMember]
         public uint Id;
         [DataMember]
-        public long NodeId;
-        [DataMember]
         public string Name;
+
+        public ChatUserInfo(uint id, string name)
+        {
+            Name = name;
+            Id = id;
+        }
     }
 }

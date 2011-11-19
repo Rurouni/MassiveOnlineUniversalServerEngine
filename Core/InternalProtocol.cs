@@ -111,8 +111,6 @@ namespace MOUSE.Core
         [DataMember]
         public bool IsValid;
         [DataMember]
-        public ulong AccessTicket;
-        [DataMember]
         public NodeDescription ServiceOwner;
 
         public override uint Id { get { return (uint)NodeMessageId.ServiceAccessReply; } }
@@ -121,7 +119,6 @@ namespace MOUSE.Core
         {
             base.Serialize(writer);
             writer.Write(IsValid);
-            writer.Write(AccessTicket);
             ServiceOwner.Serialize(writer);
         }
 
@@ -129,40 +126,13 @@ namespace MOUSE.Core
         {
             base.Deserialize(reader);
             IsValid = reader.ReadBoolean();
-            AccessTicket = reader.ReadUInt64();
             ServiceOwner = new NodeDescription(reader);
         }
-    }
 
-    [Export(typeof(Message))]
-    [DataContract]
-    public sealed class ConnectToService : Message
-    {
-        [DataMember]
-        public readonly ulong ServiceId;
-        [DataMember]
-        public readonly ulong Ticket;
-
-        public override uint Id { get { return (uint)NodeMessageId.ConnectToService; } }
-
-        public override MessagePriority Priority { get { return MessagePriority.High; } }
-
-        public ConnectToService(ulong serviceFullId, ulong ticket)
+        public ServiceAccessReply(bool isValid, NodeDescription serviceOwner)
         {
-            ServiceId = serviceFullId;
-            Ticket = ticket;
-        }
-
-        public override void Serialize(NativeWriter writer)
-        {
-            base.Serialize(writer);
-            writer.Write(Ticket);
-        }
-
-        public override void Deserialize(NativeReader reader)
-        {
-            base.Deserialize(reader);
-            Ticket = reader.ReadUInt64();
+            IsValid = isValid;
+            ServiceOwner = serviceOwner;
         }
     }
 

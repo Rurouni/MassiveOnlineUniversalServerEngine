@@ -418,13 +418,13 @@ namespace MOUSE.Core
         }
 
 
-        Subject<TNetPeer> _onNodeConnectedSubject = new Subject<TNetPeer>();
+        readonly Subject<TNetPeer> _onNodeConnectedSubject = new Subject<TNetPeer>();
         public IObservable<TNetPeer> PeerConnectedEvent
         {
             get { return _onNodeConnectedSubject; }
         }
 
-        Subject<TNetPeer> _onNodeDisconnectedSubject = new Subject<TNetPeer>();
+        readonly Subject<TNetPeer> _onNodeDisconnectedSubject = new Subject<TNetPeer>();
         public IObservable<TNetPeer> PeerDisconnectedEvent
         {
             get { return _onNodeDisconnectedSubject; }
@@ -442,7 +442,7 @@ namespace MOUSE.Core
             return _pendingConnections.AddOrUpdate(endPoint,
                         (key) =>
                         {
-                            PendingConnection val = new PendingConnection(key);
+                            var val = new PendingConnection(key);
                             Log.Info("Connecting to " + endPoint);
                             Net.Connect(endPoint);
 
