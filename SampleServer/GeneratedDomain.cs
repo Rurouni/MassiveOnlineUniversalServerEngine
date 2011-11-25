@@ -224,7 +224,7 @@ namespace Protocol.Generated
             retMsg.RetVal = retVal;
             return retMsg;
         }
-        public async Task< uint > CreateRoom ( string roomName )
+        public async Task< uint > GetOrCreateRoom ( string roomName )
         {
             var request = Node.MessageFactory.New< IChatManagerCreateRoomRequest >();
             request.roomName=roomName;
@@ -238,7 +238,7 @@ namespace Protocol.Generated
         public static async Task<Message> CreateRoom(IMessageFactory msgFactory, object target, Message input)
         {
             var msg = (IChatManagerCreateRoomRequest)input;
-            var retVal = await ((SampleS2SProtocol.IChatManager)target).CreateRoom(msg.roomName);
+            var retVal = await ((SampleS2SProtocol.IChatManager)target).GetOrCreateRoom(msg.roomName);
             var retMsg = msgFactory.New<IChatManagerCreateRoomReply>();
             retMsg.RetVal = retVal;
             return retMsg;

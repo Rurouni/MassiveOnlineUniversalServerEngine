@@ -4,7 +4,9 @@ using System.Linq;
 using System.Runtime.ConstrainedExecution;
 using System.Text;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using NLog;
 
 namespace MOUSE.Core
 {
@@ -17,28 +19,56 @@ namespace MOUSE.Core
     public class NodeService : INodeService
     {
         private ulong _id;
-        private IServiceNode _node;
-        private uint _issuerNodeId;
         NodeServiceDescription _description;
+        protected Logger Log;
+        protected ServerFiber Fiber;
 
         public ulong Id
         {
             get { return _id; }
         }
 
-        public OperationContext Context {get;set;}
+
+        /// <summary>
+        /// Any async method using this should be aware that Context is not restored in continuations, so only LockType.Full garanties safety,
+        ///  or you can save Context in stack variable(or clojure)
+        /// </summary>
+        public OperationContext Context { get;set; }
 
         public void Init(ulong serviceId, NodeServiceDescription desc)
         {
             _id = serviceId;
             _description = desc;
+            Log = LogManager.GetLogger(string.Format("{0}<Id:{1}>", GetType().Name, serviceId));
+            Fiber = new ServerFiber();
         }
 
         public NodeServiceDescription Description { get { return _description; } }
 
-        public void Process(Message msg, ClientNodePeer peer)
+        public void Process(OperationContext operationContext)
         {
-            throw new NotImplementedException();
+            Fiber.Process(() => DispatchAndReplyAsync(operationContext), operationContext.Message.LockType);
+        }
+
+        private async Task DispatchAndReplyAsync(OperationContext context)
+        {
+            try
+            {
+                int requestId = context.Message.GetHeader<OperationHeader>().RequestId;
+                //TODO: research how to make this context propagate on async continuations
+                Context = context;
+                Message reply = await context.Node.Protocol.Dispatch(this, context.Message);
+                if (reply != null)
+                {
+                    reply.AttachHeader(new OperationHeader(requestId, OperationType.Reply));
+                    context.Source.Channel.Send(reply);
+                    Log.Debug("{0} - Sending back {1}", requestId, reply);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex.ToString());
+            }
         }
     }
     
@@ -109,11 +139,13 @@ namespace MOUSE.Core
     {
         private ulong _serviceId;
         private NodeServiceContractDescription _description;
+        private ServiceHeader _serviceHeader;
 
         internal void Init(ulong serviceId, NodeServiceContractDescription description)
         {
             _serviceId = serviceId;
             _description = description;
+            _serviceHeader = new ServiceHeader(_serviceId);
         }
 
         public ulong ServiceId
@@ -121,12 +153,24 @@ namespace MOUSE.Core
             get { return _serviceId; }
         }
 
-        public IServiceNode Node { get; set; }
+        public IMessageFactory MessageFactory { get; set; }
         public INetPeer Target { get; set; }
 
         public NodeServiceContractDescription Description
         {
             get { return _description; }
+        }
+
+        public Task<Message> ExecuteServiceOperation(Message request)
+        {
+            request.AttachHeader(_serviceHeader);
+            return Target.ExecuteOperation(request);
+        }
+
+        public void ExecuteOneWayServiceOperation(Message request)
+        {
+            request.AttachHeader(_serviceHeader);
+            Target.Channel.Send(request);
         }
     }
 

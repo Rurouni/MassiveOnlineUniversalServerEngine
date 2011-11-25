@@ -52,10 +52,10 @@ namespace MOUSE.Core
     public class OperationContext
     {
         public readonly Message Message;
-        public readonly INetNode<INetPeer> Node;
+        public readonly ServerNode Node;
         public readonly INetPeer Source;
 
-        public OperationContext(INetNode<INetPeer> node, Message message, NetPeer source)
+        public OperationContext(ServerNode node, Message message, INetPeer source)
         {
             Node = node;
             Message = message;
@@ -71,6 +71,7 @@ namespace MOUSE.Core
         IObservable<Message> MessageEvent { get; }
 
         Task<Message> ExecuteOperation(Message input);
+        T As<T>();
     }
     /// <summary>
     /// Different peers could simultaniously receive events, so implementation should be aware of this
@@ -79,6 +80,7 @@ namespace MOUSE.Core
         where TNetPeer : INetPeer
     {
         IMessageFactory MessageFactory { get; }
+        IServiceProtocol Protocol { get; }
         
         /// <summary>
         /// should be called only for manually updated Nodes
@@ -94,95 +96,12 @@ namespace MOUSE.Core
 
     public interface IServiceNode
     {
-        Task<Message> ExecuteServiceOperation(NodeServiceProxy proxy, Message input);
         Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0);
         IServiceProtocol Protocol { get; }
         IMessageFactory MessageFactory { get; }
     }
 
-    public class Fiber
-    {
-        readonly ActionBlock<Action> _processingQueue;
-        private readonly bool _manualUpdate;
-        readonly ConcurrentQueue<Action> _manualProcessingQueue = new ConcurrentQueue<Action>(); 
-
-        public Fiber(TaskScheduler scheduler, bool manualUpdate = false)
-        {
-            _processingQueue = new ActionBlock<Action>((func) => func(),
-                new ExecutionDataflowBlockOptions
-                {
-                    TaskScheduler = scheduler
-                });
-            _manualUpdate = manualUpdate;
-        }
-
-        public Fiber(bool manualUpdate = false)
-            :this(TaskScheduler.Default, manualUpdate)
-        {
-        }
-
-
-        public void Process(Action func)
-        {
-            if (_manualUpdate)
-                _manualProcessingQueue.Enqueue(func);
-            else
-                _processingQueue.Post(func);
-        }
-
-        public Task ContinueOn()
-        {
-            var tcs = new TaskCompletionSource<object>();
-            Process(() => tcs.SetResult(null));
-            return tcs.Task;
-        }
-
-        public Task<T> Process<T>(Func<Task<T>> func)
-        {
-            var tcs = new TaskCompletionSource<T>();
-            Process(async()=>
-                {
-                    try
-                    {
-                        T result = await func();
-                        tcs.SetResult(result);
-                    }
-                    catch(Exception ex)
-                    {
-                        tcs.SetException(ex);
-                    }
-                });
-            return tcs.Task;
-        }
-
-        public Task<T> Process<T>(Func<T> func)
-        {
-            var tcs = new TaskCompletionSource<T>();
-            Process(() =>
-            {
-                try
-                {
-                    T result = func();
-                    tcs.SetResult(result);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                }
-            });
-            return tcs.Task;
-        }
-
-        public void ExecuteAllInplace()
-        {
-            if (!_manualUpdate)
-                return;
-            Action action;
-            int limit = 0;
-            while (limit++ <10000 && _manualProcessingQueue.TryDequeue(out action))
-                action();
-        }
-    }
+    
 
     public class NetPeer : INetPeer
     {
@@ -192,17 +111,19 @@ namespace MOUSE.Core
         public INetChannel Channel { get; private set; }
         private readonly Subject<INetPeer> _onDisconnectedSubject = new Subject<INetPeer>();
         private readonly Subject<Message> _onMessageSubject = new Subject<Message>();
-        public INetNode<INetPeer> Owner {get; private set;}
+        public INetNode<INetPeer> Owner { get; private set; }
 
-        private int RequestId = 0;
-        protected readonly ConcurrentDictionary<int, PendingOperation> PendingOperationsByRequestId
-            = new ConcurrentDictionary<int, PendingOperation>();
+        private int _requestId = 0;
+        protected readonly ConcurrentDictionary<int, PendingOperation> PendingOperationsByRequestId =
+            new ConcurrentDictionary<int, PendingOperation>();
+        private readonly ConcurrentDictionary<ulong, NodeServiceProxy> _proxyCache =
+            new ConcurrentDictionary<ulong, NodeServiceProxy>();
 
         public NetPeer(INetChannel channel, INetNode<INetPeer> owner)
         {
             Channel = channel;
             Owner = owner;
-            Log = LogManager.GetLogger(ToString());
+            Log = LogManager.GetLogger(ToString());//intended
         }
 
         void INetChannelListener.OnDisconnected()
@@ -224,7 +145,7 @@ namespace MOUSE.Core
                     if (msg.Id == (uint)NodeMessageId.InvalidOperation)
                     {
                         var invMsg = msg as InvalidOperation;
-                        continuation.TCS.SetException(new InvalidOperationException(invMsg.ErrorCode, invMsg.DebugDescription));
+                        continuation.TCS.SetException(new InvalidInput(invMsg.ErrorCode, invMsg.DebugDescription));
                     }
                     else
                         continuation.TCS.SetResult(msg);
@@ -250,7 +171,7 @@ namespace MOUSE.Core
 
         public Task<Message> ExecuteOperation(Message input)
         {
-            int requestId = Interlocked.Increment(ref RequestId);
+            int requestId = Interlocked.Increment(ref _requestId);
             input.AttachHeader(new OperationHeader(requestId, OperationType.Request));
             Channel.Send(input);
 
@@ -270,6 +191,20 @@ namespace MOUSE.Core
             return continuation.TCS.Task;
         }
 
+        public T As<T>()
+        {
+            ulong serviceId = Owner.Protocol.GetFullId<T>();
+            return (T)(object)_proxyCache.GetOrAdd(serviceId, createProxy);
+        }
+
+        private NodeServiceProxy createProxy(ulong serviceId)
+        {
+            var proxy = Owner.Protocol.CreateProxy(serviceId);
+            proxy.MessageFactory = Owner.MessageFactory;
+            proxy.Target = this;
+            return proxy;
+        }
+
         public IObservable<INetPeer> DisconnectedEvent
         {
             get { return _onDisconnectedSubject; }
@@ -284,20 +219,6 @@ namespace MOUSE.Core
         {
             return string.Format("NodeProxy<NetId:{0}, Endpoint:{1}>", Channel.Id, Channel.EndPoint);
         }
-    }
-
-    public class NodeIssue
-    {
-        public NodeIssueType Type;
-        public object Data;
-    }
-
-    public enum NodeIssueType
-    {
-        ConnectedEvent,
-        DisconnectedEvent,
-        ConnectCommand
-
     }
 
     /// <summary>
@@ -319,7 +240,7 @@ namespace MOUSE.Core
         
         
         private int _updateLoopRunning = 0;
-        private Thread _updateThread;
+        private readonly Thread _updateThread;
 
         private Func<INetChannel, TNetPeer> _peerFactory;
                         
@@ -476,12 +397,17 @@ namespace MOUSE.Core
         }
     }
 
-    public class InvalidOperationException : Exception
+    public class InvalidInput : Exception
     {
         public ushort ErrorCode;
 
-        public InvalidOperationException(ushort errorCode, string debugMessage)
+        public InvalidInput(ushort errorCode, string debugMessage)
             :base(debugMessage)
+        {
+            ErrorCode = errorCode;
+        }
+
+        public InvalidInput(ushort errorCode) : base("InvalidInput:"+errorCode)
         {
             ErrorCode = errorCode;
         }

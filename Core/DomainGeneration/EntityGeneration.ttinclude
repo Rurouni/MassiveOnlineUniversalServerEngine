@@ -104,7 +104,7 @@ void WriteMethodDef(MethodInfo method)
 
 void WriteMethodBody(MethodInfo method, Type contractType)
 {	#>
-    var request = Node.MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
+    var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
 <#+ foreach(var par in method.GetParameters())
     {	#>
             request.<#= par.Name +"="+ par.Name #>;
@@ -112,20 +112,21 @@ void WriteMethodBody(MethodInfo method, Type contractType)
     }
     if(method.ReturnType == typeof(void))
     {	#>
-            Node.ExecuteServiceOperation(this, request);
-            Node.MessageFactory.Free(request);
+			ExecuteOneWayServiceOperation(request);
+            MessageFactory.Free(request);
 <#+ }
     else if(!method.ReturnType.IsGenericType)
     {	#>
-            await Node.ExecuteServiceOperation(this, request);
-            Node.MessageFactory.Free(request);
+            Message reply = await ExecuteServiceOperation(request);
+            MessageFactory.Free(request);
+			MessageFactory.Free(reply);
 <#+ }
     else
     {	#>
-            Message reply = await Node.ExecuteServiceOperation(this, request);
+            Message reply = await ExecuteServiceOperation(this, request);
             var ret = ((<#= contractType.Name + method.Name + "Reply" #>)reply).RetVal;
-            Node.MessageFactory.Free(reply);
-            Node.MessageFactory.Free(request);
+            MessageFactory.Free(reply);
+            MessageFactory.Free(request);
             return ret;
 <#+ }
 }

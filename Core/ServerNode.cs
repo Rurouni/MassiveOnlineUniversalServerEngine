@@ -14,25 +14,28 @@ using NLog;
 
 namespace MOUSE.Core
 {
-
-    /// <summary>
-    /// assumes sequential events flow from NetPeer
-    /// </summary>
-    public class ClientNodePeer : NetPeer
+    public class ServerFiber
     {
-        private readonly ConcurrentDictionary<uint, object> _handlersByNetContractId = new ConcurrentDictionary<uint, object>();
-        protected ServerNode Node;
-        private readonly ActionBlock<Message> _dispatchingQueue;
+        protected class ProcessingIssue
+        {
+            public Func<Task> Func;
+            public LockType Lock;
+
+            public ProcessingIssue(Func<Task> func, LockType @lock)
+            {
+                Func = func;
+                Lock = @lock;
+            }
+        }
+
+        private readonly ActionBlock<ProcessingIssue> _dispatchingQueue;
+        private readonly ConcurrentExclusiveSchedulerPair _schedulerPair = new ConcurrentExclusiveSchedulerPair();
         private ActionBlock<Func<Task>> _writeLockedQueue;
         private ActionBlock<Func<Task>> _readLockedQueue;
-        readonly ConcurrentExclusiveSchedulerPair _schedulerPair = new ConcurrentExclusiveSchedulerPair();
-        
-        public ClientNodePeer(INetChannel channel, ServerNode node) : base(channel, node.ExternalNet)
+
+        public ServerFiber()
         {
-            _dispatchingQueue = new ActionBlock<Message>((Func<Message, Task>)DispatchServiceOperation);
-            CreateQueues();
-            Node = node;
-            MessageEvent.Subscribe(OnClientMessage);
+            _dispatchingQueue = new ActionBlock<ProcessingIssue>((Func<ProcessingIssue, Task>)AsyncProcessor);
         }
 
         private void CreateQueues()
@@ -49,6 +52,53 @@ namespace MOUSE.Core
                 }, new ExecutionDataflowBlockOptions { TaskScheduler = _schedulerPair.ExclusiveScheduler });
         }
 
+        private async Task AsyncProcessor(ProcessingIssue issue)
+        {
+            switch (issue.Lock)
+            {
+                case LockType.None:
+                    issue.Func();
+                    break;
+                case LockType.ReadReentrant:
+                    _readLockedQueue.Post(issue.Func);
+                    break;
+                case LockType.WriteReentrant:
+                    _writeLockedQueue.Post(issue.Func);
+                    break;
+                case LockType.Full:
+                    _readLockedQueue.Complete();
+                    _writeLockedQueue.Complete();
+                    await _readLockedQueue.Completion;
+                    await _writeLockedQueue.Completion;
+                    await issue.Func();
+                    CreateQueues();
+                    break;
+            }
+        }
+
+        public void Process(Func<Task> func, LockType lockType)
+        {
+            _dispatchingQueue.Post(new ProcessingIssue(func, lockType));
+        }
+    }
+
+    /// <summary>
+    /// assumes sequential events flow from NetPeer
+    /// </summary>
+    public class ClientNodePeer : NetPeer
+    {
+        private readonly ConcurrentDictionary<uint, object> _handlersByNetContractId = new ConcurrentDictionary<uint, object>();
+        protected ServerNode Node;
+        
+        public readonly ServerFiber Fiber;
+        
+        public ClientNodePeer(INetChannel channel, ServerNode node) : base(channel, node.ExternalNet)
+        {
+            Node = node;
+            MessageEvent.Subscribe(OnClientMessage);
+            Fiber = new ServerFiber();
+        }
+
         protected void SetHandler<TNetContract>(TNetContract implementer)
         {
             _handlersByNetContractId[Node.Protocol.GetContractId(typeof(TNetContract))] = implementer;
@@ -58,49 +108,6 @@ namespace MOUSE.Core
         {
             object removed;
             _handlersByNetContractId.TryRemove(Node.Protocol.GetContractId(typeof(TNetContract)), out removed);
-        }
-
-        private async Task DispatchServiceOperation(Message msg)
-        {
-            try
-            {
-                var serviceHeader = msg.GetHeader<ServiceHeader>();
-                var operationHeader = msg.GetHeader<OperationHeader>();
-                if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
-                {
-                    object handler;
-                    if (_handlersByNetContractId.TryGetValue(Node.Protocol.GetContractId(serviceHeader.TargetServiceId), out handler))
-                    {
-                        Log.Debug("{0} - Dispatching {1} to {2}", operationHeader.RequestId, msg, handler);
-                        switch (msg.LockType)
-                        {
-                            case LockType.None:
-                                DispatchAndReply(handler, operationHeader.RequestId, msg);
-                                break;
-                            case LockType.ReadReentrant:
-                                _readLockedQueue.Post(() => DispatchAndReply(handler, operationHeader.RequestId, msg));
-                                break;
-                            case LockType.WriteReentrant:
-                                _writeLockedQueue.Post(() => DispatchAndReply(handler, operationHeader.RequestId, msg));
-                                break;
-                            case LockType.Full:
-                                _readLockedQueue.Complete();
-                                _writeLockedQueue.Complete();
-                                await _readLockedQueue.Completion;
-                                await _writeLockedQueue.Completion;
-                                await DispatchAndReply(handler, operationHeader.RequestId, msg);
-                                CreateQueues();
-                                break;
-                        }
-                    }
-                    else Log.Warn("{0} has no message handler for it", msg);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex.ToString);
-                Channel.Close();
-            }
         }
 
         private void OnClientMessage(Message msg)
@@ -127,8 +134,15 @@ namespace MOUSE.Core
                     var operationHeader = msg.GetHeader<OperationHeader>();
                     if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
                     {
-                        if (_handlersByNetContractId.ContainsKey(Node.Protocol.GetContractId(serviceHeader.TargetServiceId)))
-                            _dispatchingQueue.Post(msg);
+                        object handler;
+                        if (_handlersByNetContractId.TryGetValue(Node.Protocol.GetContractId(serviceHeader.TargetServiceId), out handler))
+                        {
+                            Log.Debug("{0} - Dispatching {1} to {2}", operationHeader.RequestId, msg, handler);
+                            if (msg.LockType == LockType.None)
+                                DispatchAndReplyAsync(handler, operationHeader.RequestId, msg);
+                            else
+                                Fiber.Process(() => DispatchAndReplyAsync(handler, operationHeader.RequestId, msg), msg.LockType);
+                        }
                         else
                             Node.DispatchServiceMessage(serviceHeader.TargetServiceId, msg, this);
                     }
@@ -141,7 +155,7 @@ namespace MOUSE.Core
             }
         }
 
-        private async Task DispatchAndReply(object handler, int requestId, Message msg)
+        private async Task DispatchAndReplyAsync(object handler, int requestId, Message msg)
         {
             try
             {
@@ -201,18 +215,6 @@ namespace MOUSE.Core
             //InternalNet = new NetNode<ClientNodePeer>(internalNetProvider, factory, protocol);
         }
 
-        public Task<Message> ExecuteServiceOperation(NodeServiceProxy proxy, Message input)
-        {
-            if(proxy == null)//we contain needed Service
-            {
-                
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
-        }
-
         public Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0)
         {
             throw new NotImplementedException();
@@ -227,11 +229,8 @@ namespace MOUSE.Core
                 return;
             }
             NodeService service;
-
             if (Repository.TryGet(serviceId, out service))
-                service.Process(msg, clientNodePeer);
-
-
+                service.Process(new OperationContext(this, msg, clientNodePeer));
         }
 
         public void ProcessServiceAccess(ClientNodePeer peer, ulong serviceId)
@@ -239,12 +238,22 @@ namespace MOUSE.Core
             NodeServiceContractDescription desc = Protocol.GetDescription(serviceId);
             if(desc == null || !desc.AllowExternalConnections)
                 peer.Channel.Send(new ServiceAccessReply(false, null));
-            else if(Repository.Contains(serviceId))
-                peer.Channel.Send(new ServiceAccessReply(true, null));
             else
             {
-                desc.
+                NodeDescription ownerNode = GetNodeForService(serviceId);
+                if(ownerNode != null)
+                    throw new NotImplementedException();
+
+                if (Repository.Contains(serviceId))
+                    peer.Channel.Send(new ServiceAccessReply(true, null));
+                else
+                    peer.Channel.Send(new ServiceAccessReply(false, null));
             }
+        }
+
+        private NodeDescription GetNodeForService(ulong serviceId)
+        {
+            return null;
         }
 
         private ulong GenerateUniqueId()

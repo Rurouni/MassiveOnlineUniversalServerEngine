@@ -20,43 +20,41 @@ namespace SampleServer
     [Export(typeof(ClientNodePeer))]
     public class ChatClient : ClientNodePeer, IChatLogin, IChatService
     {
-        string _name;
         ClientState _state;
-        uint _userId;
+        private ChatUserInfo _user;
         uint _roomId;
 
         public ChatClient(INetChannel channel, ServerNode node) : base(channel, node)
         {
             SetHandler<IChatLogin>(this);
-            DisconnectedEvent.Subscribe(OnDisconnect);
+            DisconnectedEvent.Subscribe(OnDisconnectAsync);
         }
 
-        public async void OnDisconnect(INetPeer peer)
+        public async void OnDisconnectAsync(INetPeer peer)
         {
             if (_state != ClientState.Unregistered)
             {
                 IChatManager chatManager = await Node.GetService<IChatManager>();
-                chatManager.UnregisterUser(_userId);
+                chatManager.UnregisterUser(_user.Id);
             }
             if(_state == ClientState.InRoom)
             {
-                IChatRoom room = await Node.GetService<IChatRoom>();
-                room.RemoveUser(_userId);
+                IChatRoom room = await Node.GetService<IChatRoom>(_roomId);
+                room.RemoveUser(_user.Id);
             }
         }
 
         public async Task<LoginResult> Login(string name)
         {
             if (_state != ClientState.Unregistered)
-                return LoginResult.InvalidRequest;
+                return LoginResult.AlreadyRegistered;
 
-            _name = name;
             IChatManager chatManager = await Node.GetService<IChatManager>();
             ChatUserInfo userInfo = await chatManager.TryRegisterUser(name);
             if (userInfo == null)
                 return LoginResult.NameInUse;
 
-            _userId = userInfo.Id;
+            _user = userInfo;
             _state = ClientState.Registered;
             SetHandler<IChatService>(this);
             return LoginResult.Ok;
@@ -70,18 +68,18 @@ namespace SampleServer
             return rooms;
         }
 
-        public async Task<CreateRoomResponse> CreateRoom(string roomName)
+        public async Task<CreateRoomResponse> JoinOrCreateRoom(string roomName)
         {
             IChatManager chatManager = await Node.GetService<IChatManager>();
-            uint roomId = await chatManager.CreateRoom(roomName);
+            _roomId = await chatManager.GetOrCreateRoom(roomName);
 
-            IChatRoom room = await Node.GetService<IChatRoom>(roomId);
-            long ticket = await room.AwaitUser(new ChatUserInfo(_userId, _name));
+            IChatRoom room = await Node.GetService<IChatRoom>(_roomId);
+            long ticket = await room.AwaitUser(_user);
 
             return new CreateRoomResponse
                 {
-                    Code = CreateRoomResponseCode.Ok,
-                    Data = new CreateRoomResponse.CreateRoomResponseSubData { RoomId = roomId, Ticket = ticket }
+                    RoomId = _roomId,
+                    Ticket = ticket
                 };
         }
 
@@ -92,10 +90,11 @@ namespace SampleServer
             if(rooms.Any(x=>x.Id == roomId))
             {
                 IChatRoom room = await Node.GetService<IChatRoom>(roomId);
-                long ticket = await room.AwaitUser(new ChatUserInfo(_userId, _name));
+                _roomId = roomId;
+                long ticket = await room.AwaitUser(_user);
                 return ticket;
             }
-            return -1;
+            throw new InvalidInput((ushort) JoinRoomInvalidRetCode.RoomNotFound);
         }
     }
 }

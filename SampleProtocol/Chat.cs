@@ -22,11 +22,11 @@ namespace SampleC2SProtocol
         [NetOperation(Lock = LockType.ReadReentrant)]
         Task<List<ChatRoomInfo>> GetRooms();
 
-        [NetOperation(Lock = LockType.Full)]
-        Task<CreateRoomResponse> CreateRoom(string roomName);
+        [NetOperation]
+        Task<CreateRoomResponse> JoinOrCreateRoom(string roomName);
 
         /// <returns>Ticket</returns>
-        [NetOperation]
+        [NetOperation(InvalidRetCode = typeof(JoinRoomInvalidRetCode))]
         Task<long> JoinRoom(uint roomId);
     }
     
@@ -52,35 +52,23 @@ namespace SampleC2SProtocol
     {
         Ok,
         NameInUse,
-        InvalidRequest
+        AlreadyRegistered
     }
 
-    public enum CreateRoomResponseCode
+    public enum JoinRoomInvalidRetCode
     {
-        Ok,
-        NameInUse,
-        InvalidRequest
+        RoomNotFound
     }
 
     [DataContract]
     public class CreateRoomResponse
     {
-        //aggregate optional params
-        [DataContract]
-        public class CreateRoomResponseSubData
-        {
-            [DataMember]
-            public uint RoomId;
-            [DataMember]
-            public long Ticket;
-        }
-
         [DataMember]
-        public CreateRoomResponseCode Code;
+        public uint RoomId;
         [DataMember]
-        public CreateRoomResponseSubData Data;
+        public long Ticket;
     }
-    
+
     [DataContract]
     public class ChatRoomInfo
     {

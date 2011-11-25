@@ -7,12 +7,12 @@
       <Value>VisualStudio</Value>
     </TransformationPropertyValue>
     <TransformationPropertyValue>
-      <FileName>DomainGeneration\EntityGeneration.ttinclude</FileName>
+      <FileName>DomainGeneration\MessagesGeneration.ttinclude</FileName>
       <PropertyName>Host</PropertyName>
       <Value>VisualStudio</Value>
     </TransformationPropertyValue>
     <TransformationPropertyValue>
-      <FileName>DomainGeneration\MessagesGeneration.ttinclude</FileName>
+      <FileName>DomainGeneration\EntityGeneration.ttinclude</FileName>
       <PropertyName>Host</PropertyName>
       <Value>VisualStudio</Value>
     </TransformationPropertyValue>

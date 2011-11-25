@@ -53,7 +53,7 @@ namespace SampleServer
             return _rooms;
         }
 
-        public async Task<uint> CreateRoom(string roomName)
+        public async Task<uint> GetOrCreateRoom(string roomName)
         {
             ChatRoomInfo room = _rooms.Find(x=>x.Name == roomName);
             if(room == null)

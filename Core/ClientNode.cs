@@ -9,6 +9,7 @@ using System.Net;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks.Dataflow;
 
 namespace MOUSE.Core
 {
@@ -19,19 +20,104 @@ namespace MOUSE.Core
         IObservable<IClientNode> DisconnectedEvent { get; }
     }
 
+
+    public class ClientFiber
+    {
+        readonly ActionBlock<Action> _processingQueue;
+        private readonly bool _manualUpdate;
+        readonly ConcurrentQueue<Action> _manualProcessingQueue = new ConcurrentQueue<Action>();
+
+        public ClientFiber(TaskScheduler scheduler, bool manualUpdate = false)
+        {
+            _processingQueue = new ActionBlock<Action>((func) => func(),
+                new ExecutionDataflowBlockOptions
+                {
+                    TaskScheduler = scheduler
+                });
+            _manualUpdate = manualUpdate;
+        }
+
+        public ClientFiber(bool manualUpdate = false)
+            : this(TaskScheduler.Default, manualUpdate)
+        {
+        }
+
+
+        public void Process(Action func)
+        {
+            if (_manualUpdate)
+                _manualProcessingQueue.Enqueue(func);
+            else
+                _processingQueue.Post(func);
+        }
+
+        public Task ContinueOn()
+        {
+            var tcs = new TaskCompletionSource<object>();
+            Process(() => tcs.SetResult(null));
+            return tcs.Task;
+        }
+
+        public Task<T> Process<T>(Func<Task<T>> func)
+        {
+            var tcs = new TaskCompletionSource<T>();
+            Process(async() =>
+            {
+                try
+                {
+                    T result = await func();
+                    tcs.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
+            return tcs.Task;
+        }
+
+        public Task<T> Process<T>(Func<T> func)
+        {
+            var tcs = new TaskCompletionSource<T>();
+            Process(() =>
+            {
+                try
+                {
+                    T result = func();
+                    tcs.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
+            return tcs.Task;
+        }
+
+        public void ExecuteAllInplace()
+        {
+            if (!_manualUpdate)
+                return;
+            Action action;
+            int limit = 0;
+            while (limit++ < 10000 && _manualProcessingQueue.TryDequeue(out action))
+                action();
+        }
+    }
    
     /// <summary>
     /// uses internal Fiber to receive all continuations and process messages to achieve thread-safety and provide manual update loop(if needed)
     /// </summary>
     public class ClientNode : NetNode<NetPeer>, IClientNode
     {
-        private Dictionary<uint, object> _handlersByNetContractId = new Dictionary<uint, object>();
-        private Dictionary<ulong, NodeServiceProxy> _proxyCache = new Dictionary<ulong, NodeServiceProxy>();
+        private readonly Dictionary<uint, object> _handlersByNetContractId = new Dictionary<uint, object>();
+        private readonly Dictionary<ulong, NodeServiceProxy> _proxyCache = new Dictionary<ulong, NodeServiceProxy>();
 
         protected IPEndPoint ServerEndPoint;
         protected NetPeer ServerPeer;
 
-        public Fiber Fiber;
+        public ClientFiber Fiber;
+        readonly ConcurrentQueue<Action> _manualProcessingQueue = new ConcurrentQueue<Action>(); 
 
         public ClientNode(INetProvider net, IMessageFactory msgFactory, IServiceProtocol protocol,
             bool manualUpdate = false, IPEndPoint serverEndpoint = null)
@@ -39,9 +125,9 @@ namespace MOUSE.Core
         {
             ServerEndPoint = serverEndpoint;
             if (SynchronizationContext.Current != null)
-                Fiber = new Fiber(TaskScheduler.FromCurrentSynchronizationContext(), manualUpdate);
+                Fiber = new ClientFiber(TaskScheduler.FromCurrentSynchronizationContext(), manualUpdate);
             else
-                Fiber = new Fiber(manualUpdate);
+                Fiber = new ClientFiber(manualUpdate);
         }
 
         protected override void OnNodeUpdate()
@@ -132,7 +218,7 @@ namespace MOUSE.Core
                     serviceOwnerNode = ServerPeer;
 
                 proxy = Protocol.CreateProxy(fullId);
-                proxy.Node = this;
+                proxy.MessageFactory = MessageFactory;
                 proxy.Target = serviceOwnerNode;
                 await Fiber.ContinueOn().ConfigureAwait(false);
                 _proxyCache.Add(fullId, proxy);

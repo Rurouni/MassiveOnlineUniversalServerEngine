@@ -25,7 +25,7 @@ namespace SampleS2SProtocol
         Task<List<ChatRoomInfo>> GetRooms();
 
         [NetOperation]
-        Task<uint> CreateRoom(string roomName);
+        Task<uint> GetOrCreateRoom(string roomName);
 
         [NetOperation]
         Task DeleteRoom(uint roomId);
