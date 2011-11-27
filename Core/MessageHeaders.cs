@@ -104,21 +104,21 @@ namespace MOUSE.Core
     public class ServiceHeader : MessageHeader
     {
         [DataMember]
-        public readonly ulong TargetServiceId;
+        public readonly NodeServiceKey TargetServiceKey;
 
-        public ServiceHeader(ulong targetServiceId)
+        public ServiceHeader(NodeServiceKey targetServiceKey)
         {
-            TargetServiceId = targetServiceId;
+            TargetServiceKey = targetServiceKey;
         }
 
         public ServiceHeader(NativeReader reader)
         {
-            TargetServiceId = reader.ReadUInt64();
+            TargetServiceKey = new NodeServiceKey(reader);
         }
 
         public override void Serialize(NativeWriter writer)
         {
-            writer.Write(TargetServiceId);
+            TargetServiceKey.Serialize(writer);
         }
     }
 }

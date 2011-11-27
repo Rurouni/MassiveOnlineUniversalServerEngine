@@ -16,26 +16,26 @@ namespace MOUSE.Core
 {
     public class ServerFiber
     {
-        protected class ProcessingIssue
+        protected class Issue
         {
             public Func<Task> Func;
             public LockType Lock;
 
-            public ProcessingIssue(Func<Task> func, LockType @lock)
+            public Issue(Func<Task> func, LockType @lock)
             {
                 Func = func;
                 Lock = @lock;
             }
         }
 
-        private readonly ActionBlock<ProcessingIssue> _dispatchingQueue;
+        private readonly ActionBlock<Issue> _issueQueue;
         private readonly ConcurrentExclusiveSchedulerPair _schedulerPair = new ConcurrentExclusiveSchedulerPair();
         private ActionBlock<Func<Task>> _writeLockedQueue;
         private ActionBlock<Func<Task>> _readLockedQueue;
 
         public ServerFiber()
         {
-            _dispatchingQueue = new ActionBlock<ProcessingIssue>((Func<ProcessingIssue, Task>)AsyncProcessor);
+            _issueQueue = new ActionBlock<Issue>((Func<Issue, Task>)ProcessIssue);
         }
 
         private void CreateQueues()
@@ -52,7 +52,7 @@ namespace MOUSE.Core
                 }, new ExecutionDataflowBlockOptions { TaskScheduler = _schedulerPair.ExclusiveScheduler });
         }
 
-        private async Task AsyncProcessor(ProcessingIssue issue)
+        private async Task ProcessIssue(Issue issue)
         {
             switch (issue.Lock)
             {
@@ -78,21 +78,21 @@ namespace MOUSE.Core
 
         public void Process(Func<Task> func, LockType lockType)
         {
-            _dispatchingQueue.Post(new ProcessingIssue(func, lockType));
+            _issueQueue.Post(new Issue(func, lockType));
         }
     }
 
     /// <summary>
     /// assumes sequential events flow from NetPeer
     /// </summary>
-    public class ClientNodePeer : NetPeer
+    public class ClientPeer : NetPeer
     {
         private readonly ConcurrentDictionary<uint, object> _handlersByNetContractId = new ConcurrentDictionary<uint, object>();
         protected ServerNode Node;
         
         public readonly ServerFiber Fiber;
         
-        public ClientNodePeer(INetChannel channel, ServerNode node) : base(channel, node.ExternalNet)
+        public ClientPeer(INetChannel channel, ServerNode node) : base(channel, node.ExternalNet)
         {
             Node = node;
             MessageEvent.Subscribe(OnClientMessage);
@@ -135,7 +135,7 @@ namespace MOUSE.Core
                     if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
                     {
                         object handler;
-                        if (_handlersByNetContractId.TryGetValue(Node.Protocol.GetContractId(serviceHeader.TargetServiceId), out handler))
+                        if (_handlersByNetContractId.TryGetValue(Node.Protocol.GetContractId(serviceHeader.TargetServiceKey), out handler))
                         {
                             Log.Debug("{0} - Dispatching {1} to {2}", operationHeader.RequestId, msg, handler);
                             if (msg.LockType == LockType.None)
@@ -144,7 +144,7 @@ namespace MOUSE.Core
                                 Fiber.Process(() => DispatchAndReplyAsync(handler, operationHeader.RequestId, msg), msg.LockType);
                         }
                         else
-                            Node.DispatchServiceMessage(serviceHeader.TargetServiceId, msg, this);
+                            Node.DispatchClientOperationToService(serviceHeader.TargetServiceKey, msg, this);
                     }
                 }
             }
@@ -174,14 +174,15 @@ namespace MOUSE.Core
         }
     }
 
-    public class ServerNode : IServiceNode
+
+    public class ServerNode
     {
         private readonly ulong _id; 
         public readonly Logger Log;
-        private Dictionary<ulong, NodeServiceProxy> _proxyCache = new Dictionary<ulong, NodeServiceProxy>();
+        private readonly ConcurrentDictionary<NodeServiceKey, NodeServiceProxy> _proxyCache = new ConcurrentDictionary<NodeServiceKey, NodeServiceProxy>();
         //protected readonly Dictionary<ulong, NetPeer> _connectedNodesByNodeId = new Dictionary<ulong, NetPeer>();
 
-        public readonly INetNode<ClientNodePeer> ExternalNet;
+        public readonly INetNode<ClientPeer> ExternalNet;
         //protected INetNode<ClientNodePeer> InternalNet;
 
         private readonly Random _random = new Random();
@@ -204,36 +205,47 @@ namespace MOUSE.Core
             get { return ExternalNet.MessageFactory; }
         }
 
-        public ServerNode(Func<INetChannel, ClientNodePeer> clientPeerFactory, INetProvider externalNetProvider, INetProvider internalNetProvider,
+        public ServerNode(Func<INetChannel, ClientPeer> clientPeerFactory, INetProvider externalNetProvider, INetProvider internalNetProvider,
             IMessageFactory factory, IServiceProtocol protocol, IServiceRepository repository)
         {
             _id = GenerateUniqueId();
             Log = LogManager.GetLogger(ToString());
             Repository = repository;
             Protocol = protocol;
-            ExternalNet = new NetNode<ClientNodePeer>(externalNetProvider, factory, protocol, clientPeerFactory);
+            ExternalNet = new NetNode<ClientPeer>(externalNetProvider, factory, protocol, clientPeerFactory);
             //InternalNet = new NetNode<ClientNodePeer>(internalNetProvider, factory, protocol);
         }
 
-        public Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0)
+        public async Task<TNetContract> GetService<TNetContract>(uint serviceId = 0)
         {
-            throw new NotImplementedException();
+            NodeServiceKey serviceKey = Protocol.GetKey<TNetContract>(serviceId);
+            return (TNetContract)(object)_proxyCache.GetOrAdd(serviceKey, createProxy);
         }
 
-        public void DispatchServiceMessage(ulong serviceId, Message msg, ClientNodePeer clientNodePeer)
+        private NodeServiceProxy createProxy(NodeServiceKey serviceKey)
+        {
+            NodeService service;
+            Repository.TryGet(serviceKey, out service);
+            var proxy = Protocol.CreateProxy(serviceKey, null, service);
+            return proxy;
+        }
+
+        public void DispatchClientOperationToService(ulong serviceId, Message msg, ClientPeer clientPeer)
         {
             NodeServiceContractDescription desc = Protocol.GetDescription(serviceId);
             if (desc == null || !desc.AllowExternalConnections)
             {
-                Log.Debug("Received operation with invalid service target");
+                Log.Debug("{0} sends operation to invalid or not visible serviceId:{1}", clientPeer, serviceId);
                 return;
             }
             NodeService service;
             if (Repository.TryGet(serviceId, out service))
-                service.Process(new OperationContext(this, msg, clientNodePeer));
+                service.Process(new OperationContext(this, msg, clientPeer));
+            else
+                Log.Debug("{0} sends operation to non active serviceId:{1}", clientPeer, serviceId);
         }
 
-        public void ProcessServiceAccess(ClientNodePeer peer, ulong serviceId)
+        public void ProcessServiceAccess(ClientPeer peer, ulong serviceId)
         {
             NodeServiceContractDescription desc = Protocol.GetDescription(serviceId);
             if(desc == null || !desc.AllowExternalConnections)

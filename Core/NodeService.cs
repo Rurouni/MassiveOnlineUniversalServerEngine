@@ -18,28 +18,28 @@ namespace MOUSE.Core
 
     public class NodeService : INodeService
     {
-        private ulong _id;
         NodeServiceDescription _description;
         protected Logger Log;
         protected ServerFiber Fiber;
+        private uint _id;
 
-        public ulong Id
+        public uint Id
         {
             get { return _id; }
         }
 
 
         /// <summary>
-        /// Any async method using this should be aware that Context is not restored in continuations, so only LockType.Full garanties safety,
+        /// Any async method using this should be aware that Context is not restored in continuations, so only LockType.Full garanties Context remains the same,
         ///  or you can save Context in stack variable(or clojure)
         /// </summary>
         public OperationContext Context { get;set; }
 
-        public void Init(ulong serviceId, NodeServiceDescription desc)
+        public void Init(uint id, NodeServiceDescription desc)
         {
-            _id = serviceId;
+            _id = id;
             _description = desc;
-            Log = LogManager.GetLogger(string.Format("{0}<Id:{1}>", GetType().Name, serviceId));
+            Log = LogManager.GetLogger(string.Format("{0}<Id:{1}>", GetType().Name, id));
             Fiber = new ServerFiber();
         }
 
@@ -75,14 +75,12 @@ namespace MOUSE.Core
     public class NodeServiceDescription
     {
         public readonly NodeEntityAttribute Attribute;
-        public readonly NodeServiceContractDescription Contract;
-        public readonly Type ImplementerType;
+        public readonly List<NodeServiceContractDescription> ImplementedContracts;
 
-        public NodeServiceDescription(Type implementerType, NodeServiceContractDescription contract, NodeEntityAttribute attribute)
+        public NodeServiceDescription(IEnumerable<NodeServiceContractDescription> contracts, NodeEntityAttribute attribute)
         {
-            ImplementerType = implementerType;
-            Contract = contract;
             Attribute = attribute;
+            ImplementedContracts = contracts.ToList();
         }
 
         public bool Persistant 
@@ -137,24 +135,35 @@ namespace MOUSE.Core
 
     public abstract class NodeServiceProxy
     {
-        private ulong _serviceId;
+        private NodeServiceKey _serviceKey;
         private NodeServiceContractDescription _description;
         private ServiceHeader _serviceHeader;
+        private INetPeer _remoteTarget;
+        private object _directTarget;
 
-        internal void Init(ulong serviceId, NodeServiceContractDescription description)
+        internal void Init(NodeServiceKey serviceKey, NodeServiceContractDescription description, INetPeer remoteTarget, object directTarget = null)
         {
-            _serviceId = serviceId;
+            _serviceKey = serviceKey;
             _description = description;
-            _serviceHeader = new ServiceHeader(_serviceId);
+            _serviceHeader = new ServiceHeader(serviceKey);
+            _remoteTarget = remoteTarget;
+            _directTarget = directTarget;
         }
 
-        public ulong ServiceId
+        public NodeServiceKey ServiceKey
         {
-            get { return _serviceId; }
+            get { return _serviceKey; }
         }
 
-        public IMessageFactory MessageFactory { get; set; }
-        public INetPeer Target { get; set; }
+        public INetPeer RemoteTarget
+        {
+            get { return _remoteTarget; }
+        }
+
+        public object DirectTarget
+        {
+            get { return _directTarget; }
+        }
 
         public NodeServiceContractDescription Description
         {
@@ -164,15 +173,17 @@ namespace MOUSE.Core
         public Task<Message> ExecuteServiceOperation(Message request)
         {
             request.AttachHeader(_serviceHeader);
-            return Target.ExecuteOperation(request);
+            return RemoteTarget.ExecuteOperation(request);
         }
 
         public void ExecuteOneWayServiceOperation(Message request)
         {
             request.AttachHeader(_serviceHeader);
-            Target.Channel.Send(request);
+            RemoteTarget.Channel.Send(request);
         }
     }
+
+
 
     //public class NodeEntityType
     //{
@@ -342,61 +353,79 @@ namespace MOUSE.Core
     //    }
     //}
 
-    //public struct NodeEntityKey
-    //{
-    //    public NodeEntityType Type;
-    //    public uint Id;
+    public class NodeServiceKey
+    {
+        public readonly uint TypeId;
+        public readonly uint Id;
 
-    //    public NodeEntityKey(NodeEntityType type, uint id)
-    //    {
-    //        Type = type;
-    //        Id = id;
-    //    }
+        public NodeServiceKey(uint typeId, uint id)
+        {
+            TypeId = typeId;
+            Id = id;
+        }
 
-    //    public int TypeVal
-    //    {
-    //        get { return Type != null ? Type.Value : 0; }
-    //    }
+        public NodeServiceKey(NativeReader r)
+        {
+            TypeId = r.ReadUInt32();
+            Id = r.ReadUInt32();
+        }
 
-    //    public string TypeName
-    //    {
-    //        get { return Type != null ? Type.Type.Name : ""; }
-    //    }
+        public override bool Equals(object obj)
+        {
+            var key = (NodeServiceKey)obj;
+            return TypeId.Equals(key.TypeId) && Id.Equals(key.Id);
+        }
 
-    //    public override bool Equals(object obj)
-    //    {
-    //        var key = (NodeEntityKey)obj;
-    //        return Type.Equals(key.Type) && Id.Equals(key.Id);
-    //    }
+        public override int GetHashCode()
+        {
+            return (int)(TypeId ^ Id);
+        }
 
-    //    public override int GetHashCode()
-    //    {
-    //        return (int)(Type ^ Id);
-    //    }
+        public void Serialize(NativeWriter w)
+        {
+            w.Write(TypeId);
+            w.Write(Id);
+        }
 
-    //    public static long ConvertToLong(NodeEntityKey key)
-    //    {
-    //        return key.Id ^ ((long)key.Type << 32);
-    //    }
+        //public static long ConvertToLong(NodeServiceKey key)
+        //{
+        //    return key.Id ^ ((long)key.TypeId << 32);
+        //}
 
-    //    public static long ConvertToLong(uint id, NodeEntityType type)
-    //    {
-    //        return id ^ ((long)type << 32);
-    //    }
+        //public static long ConvertToLong(uint id, uint typeId)
+        //{
+        //    return id ^ ((long)type << 32);
+        //}
 
-    //    public static implicit operator long(NodeEntityKey key)
-    //    {
-    //        return ConvertToLong(key);
-    //    }
+        //public static implicit operator long(NodeServiceKey key)
+        //{
+        //    return ConvertToLong(key);
+        //}
 
-    //    public static implicit operator NodeEntityKey(long fullId)
-    //    {
-    //        return ConvertFromLong(fullId);
-    //    }
+        //public static implicit operator NodeServiceKey(long fullId)
+        //{
+        //    return ConvertFromLong(fullId);
+        //}
 
-    //    public static NodeEntityKey ConvertFromLong(long key)
-    //    {
-    //        return new NodeEntityKey((NodeEntityType)(key >> 32), (uint)(key & 0xffffffff));
-    //    }
-    //}
+        //public static NodeServiceKey ConvertFromLong(long key)
+        //{
+        //    return new NodeServiceKey((uint)key >> 32, (uint)(key & 0xffffffff));
+        //}
+    }
+
+    public static class NodeServiceKeySerializer
+    {
+        public static void Serialize(NodeServiceKey x, NativeWriter w)
+        {
+            w.Write(x.TypeId);
+            w.Write(x.Id);
+        }
+
+        public static NodeServiceKey Deserialize(NativeReader r)
+        {
+            uint typeId = r.ReadUInt32();
+            uint id = r.ReadUInt32();
+            return new NodeServiceKey(typeId, id);
+        }
+    }
 }

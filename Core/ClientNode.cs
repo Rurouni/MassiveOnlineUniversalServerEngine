@@ -13,9 +13,10 @@ using System.Threading.Tasks.Dataflow;
 
 namespace MOUSE.Core
 {
-    public interface IClientNode : IServiceNode
+    public interface IClientNode
     {
         Task ConnectToServer(IPEndPoint serverEndPoint);
+        Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0);
         void SetHandler<TNetContract>(TNetContract implementer);
         IObservable<IClientNode> DisconnectedEvent { get; }
     }
@@ -104,11 +105,27 @@ namespace MOUSE.Core
                 action();
         }
     }
+
+    public class Client2ServerPeer : NetPeer
+    {
+        public Client2ServerPeer(INetChannel channel, INetNode<INetPeer> owner)
+            : base(channel, owner)
+        {
+        }
+
+        public async override Task<Message> ExecuteOperation(Message input)
+        {
+            Message msg = await base.ExecuteOperation(input);
+            await ((ClientNode)Owner).Fiber.ContinueOn().ConfigureAwait(false);
+            return msg;
+        }
+
+    }
    
     /// <summary>
     /// uses internal Fiber to receive all continuations and process messages to achieve thread-safety and provide manual update loop(if needed)
     /// </summary>
-    public class ClientNode : NetNode<NetPeer>, IClientNode
+    public class ClientNode : NetNode<Client2ServerPeer>, IClientNode
     {
         private readonly Dictionary<uint, object> _handlersByNetContractId = new Dictionary<uint, object>();
         private readonly Dictionary<ulong, NodeServiceProxy> _proxyCache = new Dictionary<ulong, NodeServiceProxy>();
@@ -117,8 +134,7 @@ namespace MOUSE.Core
         protected NetPeer ServerPeer;
 
         public ClientFiber Fiber;
-        readonly ConcurrentQueue<Action> _manualProcessingQueue = new ConcurrentQueue<Action>(); 
-
+        
         public ClientNode(INetProvider net, IMessageFactory msgFactory, IServiceProtocol protocol,
             bool manualUpdate = false, IPEndPoint serverEndpoint = null)
             : base(net, msgFactory, protocol, null, manualUpdate)
@@ -148,9 +164,9 @@ namespace MOUSE.Core
             ServerPeer = (NetPeer)await Connect(endPoint).ConfigureAwait(false);
         }
 
-        public override NetPeer CreatePeer(INetChannel channel)
+        public override Client2ServerPeer CreatePeer(INetChannel channel)
         {
-            var peer = new NetPeer(channel, this);
+            var peer = new Client2ServerPeer(channel, this);
             peer.MessageEvent.Subscribe((msg)=> Fiber.Process(() => OnMessage(msg)));
             return peer;
         }
@@ -171,7 +187,7 @@ namespace MOUSE.Core
             var operationHeader = msg.GetHeader<OperationHeader>();
             if (serviceHeader != null && operationHeader.Type == OperationType.Request)
             {
-                uint serviceContractId = Protocol.GetContractId(serviceHeader.TargetServiceId);
+                uint serviceContractId = Protocol.GetContractId(serviceHeader.TargetServiceKey);
                 object handler;
                 if (_handlersByNetContractId.TryGetValue(serviceContractId, out handler))
                 {
@@ -179,14 +195,6 @@ namespace MOUSE.Core
                     Protocol.Dispatch(handler, msg);
                 }
             }
-        }
-
-        public async Task<Message> ExecuteServiceOperation(NodeServiceProxy proxy, Message input)
-        {
-            input.AttachHeader(new ServiceHeader(proxy.ServiceId));
-            Message output = await proxy.Target.ExecuteOperation(input).ConfigureAwait(false);
-            await Fiber.ContinueOn().ConfigureAwait(false);//we need this to support getting events only in Update func
-            return output;
         }
 
         public async Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0)
@@ -217,9 +225,7 @@ namespace MOUSE.Core
                 else
                     serviceOwnerNode = ServerPeer;
 
-                proxy = Protocol.CreateProxy(fullId);
-                proxy.MessageFactory = MessageFactory;
-                proxy.Target = serviceOwnerNode;
+                proxy = Protocol.CreateProxy(fullId, serviceOwnerNode);
                 await Fiber.ContinueOn().ConfigureAwait(false);
                 _proxyCache.Add(fullId, proxy);
             }

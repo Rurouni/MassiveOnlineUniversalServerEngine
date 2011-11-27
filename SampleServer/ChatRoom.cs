@@ -11,7 +11,6 @@ namespace SampleServer
 {
     public class ChatRoom : NodeService, IChatRoom, IChatRoomService
     {
-        private uint _roomId;
         private long _ticketCounter = 0;
         readonly Dictionary<uint, ChatRoomClient> _usersById = new Dictionary<uint, ChatRoomClient>();
         readonly Dictionary<uint, ChatRoomClient> _usersByChannelId = new Dictionary<uint, ChatRoomClient>();

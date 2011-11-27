@@ -136,13 +136,13 @@ namespace MOUSE.Core
         public void Remove(NodeService entity)
         {
             Log.Debug("Creating {0}", entity);
-            _entitiesByFullId.Remove(entity.Id);
+            _entitiesByFullId.Remove(entity.FullId);
         }
 
         public void Add(NodeService entity)
         {
             Log.Debug("Adding {0}", entity);
-            _entitiesByFullId.Add(entity.Id, entity);
+            _entitiesByFullId.Add(entity.FullId, entity);
         }
 
         public IEnumerator<NodeService> GetEnumerator()

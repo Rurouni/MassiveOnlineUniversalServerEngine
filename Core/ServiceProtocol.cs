@@ -15,25 +15,22 @@ namespace MOUSE.Core
     public interface IServiceProtocol
     {
         Task<Message> Dispatch(object target, Message msg);
-        NodeServiceProxy CreateProxy(ulong serviceId);
-        
-        ulong GetFullId<TServiceContract>(uint serviceId = 0);
-        uint GetContractId(ulong serviceId);
+        NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, INetPeer remoteTarget, object directTaget = null);
+
+        NodeServiceKey GetKey<TServiceContract>(uint serviceId = 0);
         uint GetContractId(Type contractType);
         Type GetContractType(uint serviceTypeId);
-        uint GetLocalId(ulong serviceId);
         NodeServiceContractDescription GetDescription(uint serviceTypeId);
-        NodeServiceContractDescription GetDescription(ulong serviceId);
     }
 
     public class ServiceProtocol : IServiceProtocol
     {
         Logger Log = LogManager.GetCurrentClassLogger();
 
-        private Dictionary<uint, NodeServiceContractDescription> _descByTypeId = new Dictionary<uint, NodeServiceContractDescription>();
-        private Dictionary<uint, Func<IMessageFactory, object, Message, Task<Message>>> _dispatcherByMsgId = new Dictionary<uint, Func<IMessageFactory, object, Message, Task<Message>>>();
-        private Dictionary<Type, uint> _serviceTypeIdByContractType = new Dictionary<Type, uint>();
-        private IMessageFactory _messageFactory;
+        private readonly Dictionary<uint, NodeServiceContractDescription> _descByTypeId = new Dictionary<uint, NodeServiceContractDescription>();
+        private readonly Dictionary<uint, Func<IMessageFactory, object, Message, Task<Message>>> _dispatcherByMsgId = new Dictionary<uint, Func<IMessageFactory, object, Message, Task<Message>>>();
+        private readonly Dictionary<Type, uint> _serviceTypeIdByContractType = new Dictionary<Type, uint>();
+        private readonly IMessageFactory _messageFactory;
 
         public ServiceProtocol(IMessageFactory msgfactory, IEnumerable<NodeServiceProxy> importedProxies)
         {
@@ -104,27 +101,26 @@ namespace MOUSE.Core
             
         }
 
-        public NodeServiceProxy CreateProxy(ulong serviceId)
+        public NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, INetPeer remoteTarget, object directTaget = null)
         {
             NodeServiceProxy proxy;
-            uint typeId = GetContractId(serviceId);
             NodeServiceContractDescription desc;
-            if (_descByTypeId.TryGetValue(typeId, out desc))
+            if (_descByTypeId.TryGetValue(serviceKey.TypeId, out desc))
             {
                 proxy = (NodeServiceProxy)FormatterServices.GetUninitializedObject(desc.ProxyType);
-                proxy.Init(serviceId, desc);
+                proxy.Init(serviceKey, desc, remoteTarget, directTaget);
             }
             else
-                throw new Exception("Unregistered entity typeId - " + typeId);
+                throw new Exception("Unregistered entity typeId - " + serviceKey.TypeId);
             
             return proxy;
         }
 
-        public ulong GetFullId<ServiceContract>(uint entityId = 0)
+        public NodeServiceKey GetKey<ServiceContract>(uint serviceId = 0)
         {
             uint typeId;
             if (_serviceTypeIdByContractType.TryGetValue(typeof(ServiceContract), out typeId))
-                return ((ulong)entityId) ^ ((ulong)typeId << 32);
+                return new NodeServiceKey(typeId, serviceId);
             else
                 throw new Exception("Unregistered service cotract - " + typeof(ServiceContract).FullName);
         }
@@ -136,16 +132,6 @@ namespace MOUSE.Core
                 return typeId;
             else
                 throw new Exception("Unregistered entity cotract - " + contractType.FullName);
-        }
-
-        public uint GetContractId(ulong serviceId)
-        {
-            return (uint)(serviceId >> 32);
-        }
-
-        public uint GetLocalId(ulong serviceId)
-        {
-            return (uint) (serviceId & 0xffffffffUL);
         }
 
         public Type GetContractType(uint serviceTypeId)
@@ -166,10 +152,6 @@ namespace MOUSE.Core
                 return null;
         }
 
-        public NodeServiceContractDescription GetDescription(ulong serviceId)
-        {
-            return GetDescription(GetContractId(serviceId));
-        }
     }
 
     public enum BasicErrorCode

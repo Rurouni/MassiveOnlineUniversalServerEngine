@@ -17,8 +17,8 @@ namespace SampleServer
         InRoom
     }
 
-    [Export(typeof(ClientNodePeer))]
-    public class ChatClient : ClientNodePeer, IChatLogin, IChatService
+    [Export(typeof(ClientPeer))]
+    public class ChatClient : ClientPeer, IChatLogin, IChatService
     {
         ClientState _state;
         private ChatUserInfo _user;

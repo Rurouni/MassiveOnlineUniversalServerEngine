@@ -70,6 +70,8 @@ namespace MOUSE.Core
         IObservable<INetPeer> DisconnectedEvent { get; }
         IObservable<Message> MessageEvent { get; }
 
+        IMessageFactory MessageFactory { get; }
+
         Task<Message> ExecuteOperation(Message input);
         T As<T>();
     }
@@ -93,15 +95,6 @@ namespace MOUSE.Core
         IObservable<TNetPeer> PeerDisconnectedEvent { get; }
         
     }
-
-    public interface IServiceNode
-    {
-        Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0);
-        IServiceProtocol Protocol { get; }
-        IMessageFactory MessageFactory { get; }
-    }
-
-    
 
     public class NetPeer : INetPeer
     {
@@ -169,7 +162,12 @@ namespace MOUSE.Core
             return MessageEvent.OfType<T>().StartAsync(cancelation.Token);
         }
 
-        public Task<Message> ExecuteOperation(Message input)
+        public IMessageFactory MessageFactory
+        {
+            get { return Owner.MessageFactory; }
+        }
+
+        public virtual Task<Message> ExecuteOperation(Message input)
         {
             int requestId = Interlocked.Increment(ref _requestId);
             input.AttachHeader(new OperationHeader(requestId, OperationType.Request));
@@ -191,7 +189,7 @@ namespace MOUSE.Core
             return continuation.TCS.Task;
         }
 
-        public T As<T>()
+        public virtual T As<T>()
         {
             ulong serviceId = Owner.Protocol.GetFullId<T>();
             return (T)(object)_proxyCache.GetOrAdd(serviceId, createProxy);
@@ -199,10 +197,7 @@ namespace MOUSE.Core
 
         private NodeServiceProxy createProxy(ulong serviceId)
         {
-            var proxy = Owner.Protocol.CreateProxy(serviceId);
-            proxy.MessageFactory = Owner.MessageFactory;
-            proxy.Target = this;
-            return proxy;
+            return Owner.Protocol.CreateProxy(serviceId, this);
         }
 
         public IObservable<INetPeer> DisconnectedEvent
