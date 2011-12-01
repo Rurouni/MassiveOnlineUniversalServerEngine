@@ -37,6 +37,8 @@ void WriteComplex(Type type, string name)
         WriteAtomic(type, name);
     else if(IsArray(type))
         WriteArray(type, name);
+	else if(type.IsEnum)
+		WriteEnum(type, name);
     else 
         WriteExternal(type, name);
 }
@@ -48,6 +50,11 @@ void WriteExternal(Type type, string name)
 void WriteAtomic(Type type, string name)
 { #>
             w.Write<#= GetWriteSuffix(type) #>(<#= name #>);
+<#+
+}
+void WriteEnum(Type type, string name)
+{ #>
+            w.Write<#= GetWriteSuffix(Enum.GetUnderlyingType(type)) #>((<#= TypeToString(Enum.GetUnderlyingType(type)) #>)<#= name #>);
 <#+
 }
 void WriteArray(Type type, string name)
@@ -69,6 +76,8 @@ void ReadComplex(Type type, string name)
         ReadAtomic(type, name);
     else if(IsArray(type))
         ReadArray(type, name);
+    else if (type.IsEnum)
+	    ReadEnum(type, name);
     else 
         ReadExternal(type, name);
 }
@@ -80,6 +89,11 @@ void ReadExternal(Type type, string name)
 void ReadAtomic(Type type, string name)
 { #>
             <#= name #> = r.Read<#= GetReadSuffix(type) #>();
+<#+
+}
+void ReadEnum(Type type, string name)
+{ #>
+            <#= name #> = (<#= TypeToString(type) #>)r.Read<#= GetReadSuffix(Enum.GetUnderlyingType(type)) #>();
 <#+
 }
 void ReadArray(Type type, string name)
@@ -120,8 +134,7 @@ bool IsAtomic(Type type)
     ||type == typeof(long)
     ||type == typeof(ulong)
     ||type == typeof(bool)
-    ||type == typeof(string)
-    ||type.IsEnum;
+    ||type == typeof(string);
 }
 bool IsArray(Type type)
 {
@@ -147,8 +160,6 @@ string GetReadSuffix(Type type)
         return "UInt64";
     if(type == typeof(string))
         return "Unicode";
-    if(type.IsEnum)
-        return GetReadSuffix(Enum.GetUnderlyingType(type));
     throw new Exception("Cannot map type:"+type);
 }
 string GetWriteSuffix(Type type)
@@ -171,8 +182,6 @@ string GetWriteSuffix(Type type)
         return "";
     if(type == typeof(string))
         return "Unicode";
-    if (type.IsEnum)
-        return GetWriteSuffix(Enum.GetUnderlyingType(type));
     throw new Exception("Cannot map type:"+type);
 }
 #>

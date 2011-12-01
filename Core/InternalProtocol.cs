@@ -80,25 +80,29 @@ namespace MOUSE.Core
     public sealed class ServiceAccessRequest : Message
     {
         [DataMember]
-        public ulong ServiceId;
+        public NodeServiceKey ServiceKey;
 
         public override uint Id { get { return (uint)NodeMessageId.ServiceAccessRequest; } }
 
-        public ServiceAccessRequest(ulong serviceId)
+        public ServiceAccessRequest(NodeServiceKey serviceKey)
         {
-            ServiceId = serviceId;
+            ServiceKey = serviceKey;
+        }
+
+        private ServiceAccessRequest()
+        {
         }
 
         public override void Serialize(NativeWriter writer)
         {
             base.Serialize(writer);
-            writer.Write(ServiceId);
+            ServiceKey.Serialize(writer);
         }
 
         public override void Deserialize(NativeReader reader)
         {
             base.Deserialize(reader);
-            ServiceId = reader.ReadUInt64();
+            ServiceKey = new NodeServiceKey(reader);
         }
     }
 
@@ -129,6 +133,10 @@ namespace MOUSE.Core
             ServiceOwner = new NodeDescription(reader);
         }
 
+        private ServiceAccessReply()
+        {
+        }
+        
         public ServiceAccessReply(bool isValid, NodeDescription serviceOwner)
         {
             IsValid = isValid;
@@ -203,6 +211,12 @@ namespace MOUSE.Core
         public string DebugDescription;
 
         public override uint Id { get { return (uint)NodeMessageId.InvalidOperation; } }
+
+        public InvalidOperation()
+        {
+            ErrorCode = 0;
+            DebugDescription = null;
+        }
 
         public InvalidOperation(ushort errorCode, string debugDescription)
         {

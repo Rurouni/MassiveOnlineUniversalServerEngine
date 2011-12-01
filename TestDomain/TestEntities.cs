@@ -25,7 +25,7 @@ namespace TestDomain
     }
 
     [Export(typeof(NodeService))]
-    [NodeEntity(typeof(ITestEntity))]
+    [NodeService(AutoCreate = true)]
     public class TestEntity : NodeService, ITestEntity
     {
         public const int SimpleOperationReturned = 42;

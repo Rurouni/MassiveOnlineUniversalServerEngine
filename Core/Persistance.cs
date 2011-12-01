@@ -8,7 +8,7 @@ namespace MOUSE.Core
 {
     public interface IPersistanceProvider
     {
-        Task<NodeService> Get(ulong entityId);
+        Task<NodeService> Get(NodeServiceKey serviceKey);
         Task Put(NodeService entity);
         Task Delete(NodeService entity);
     }
@@ -22,7 +22,7 @@ namespace MOUSE.Core
             return tcs.Task;
         }
 
-        public Task<NodeService> Get(ulong entityId)
+        public Task<NodeService> Get(NodeServiceKey serviceKey)
         {
             var tcs = new TaskCompletionSource<NodeService>();
             tcs.SetResult(null);

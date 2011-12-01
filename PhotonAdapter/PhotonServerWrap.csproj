@@ -41,7 +41,7 @@
       <HintPath>..\packages\Autofac.2.5.2.830\lib\NET40\Autofac.Configuration.dll</HintPath>
     </Reference>
     <Reference Include="Autofac.Integration.Mef">
-      <HintPath>..\packages\Autofac.Mef.2.5.1.827\lib\NET40\Autofac.Integration.Mef.dll</HintPath>
+      <HintPath>..\packages\Autofac.Mef.2.5.2.830\lib\NET40\Autofac.Integration.Mef.dll</HintPath>
     </Reference>
     <Reference Include="ExitGamesLibs">
       <HintPath>..\External\Photon\ExitGamesLibs.dll</HintPath>

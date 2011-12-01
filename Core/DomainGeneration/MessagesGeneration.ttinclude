@@ -7,13 +7,17 @@ void GenerateMessages(Type contractType)
         var opAttr = method.GetAttribute<NetOperationAttribute>();
         string requestMsgName = contractType.Name+method.Name+"Request";
         string replyMsgName = contractType.Name+method.Name+"Reply";
-        GenerateMessage(Misc.GenerateHash(requestMsgName), requestMsgName, method.GetParameters().Select(x=>Tuple.Create(x.ParameterType, x.Name)).ToList(), opAttr.Priority, opAttr.Reliability);
+        GenerateMessage(Misc.GenerateHash(requestMsgName), requestMsgName,
+	        method.GetParameters().Select(x => Tuple.Create(x.ParameterType, x.Name)).ToList(),
+	        opAttr.Priority, opAttr.Reliability, opAttr.Lock);
         if(method.ReturnType != typeof(void))
         {
             if(method.ReturnType == typeof(Task))
-                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>(), opAttr.Priority, opAttr.Reliability, opAttr.Lock);
+                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>(),
+	                opAttr.Priority, opAttr.Reliability, opAttr.Lock);
             else
-                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>{Tuple.Create(method.ReturnType.GetGenericArguments()[0], "RetVal")},
+                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName,
+	                new List<Tuple<Type, string>>{Tuple.Create(method.ReturnType.GetGenericArguments()[0], "RetVal")},
                     opAttr.Priority, opAttr.Reliability, opAttr.Lock);
         }
     }

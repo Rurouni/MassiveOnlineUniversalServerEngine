@@ -78,12 +78,14 @@ namespace MOUSE.Core
     /// <summary>
     /// Different peers could simultaniously receive events, so implementation should be aware of this
     /// </summary>
-    public interface INetNode<out TNetPeer> : IDisposable
+    public interface INetNode<out TNetPeer>
         where TNetPeer : INetPeer
     {
         IMessageFactory MessageFactory { get; }
         IServiceProtocol Protocol { get; }
-        
+
+        void Start();
+        void Stop();
         /// <summary>
         /// should be called only for manually updated Nodes
         /// </summary>
@@ -109,8 +111,8 @@ namespace MOUSE.Core
         private int _requestId = 0;
         protected readonly ConcurrentDictionary<int, PendingOperation> PendingOperationsByRequestId =
             new ConcurrentDictionary<int, PendingOperation>();
-        private readonly ConcurrentDictionary<ulong, NodeServiceProxy> _proxyCache =
-            new ConcurrentDictionary<ulong, NodeServiceProxy>();
+        private readonly ConcurrentDictionary<NodeServiceKey, NodeServiceProxy> _proxyCache =
+            new ConcurrentDictionary<NodeServiceKey, NodeServiceProxy>();
 
         public NetPeer(INetChannel channel, INetNode<INetPeer> owner)
         {
@@ -191,13 +193,13 @@ namespace MOUSE.Core
 
         public virtual T As<T>()
         {
-            ulong serviceId = Owner.Protocol.GetFullId<T>();
-            return (T)(object)_proxyCache.GetOrAdd(serviceId, createProxy);
+            NodeServiceKey serviceKey = Owner.Protocol.GetKey<T>();
+            return (T)(object)_proxyCache.GetOrAdd(serviceKey, createProxy);
         }
 
-        private NodeServiceProxy createProxy(ulong serviceId)
+        private NodeServiceProxy createProxy(NodeServiceKey serviceKey)
         {
-            return Owner.Protocol.CreateProxy(serviceId, this);
+            return Owner.Protocol.CreateProxy(serviceKey, this);
         }
 
         public IObservable<INetPeer> DisconnectedEvent
@@ -232,10 +234,10 @@ namespace MOUSE.Core
             = new ConcurrentDictionary<uint, TNetPeer>();
         private readonly ConcurrentDictionary<IPEndPoint, PendingConnection> _pendingConnections
             = new ConcurrentDictionary<IPEndPoint, PendingConnection>();
-        
-        
+
+        private readonly bool _manualUpdate;
         private int _updateLoopRunning = 0;
-        private readonly Thread _updateThread;
+        private Thread _updateThread;
 
         private Func<INetChannel, TNetPeer> _peerFactory;
                         
@@ -253,16 +255,34 @@ namespace MOUSE.Core
             MessageFactory = msgFactory;
             Protocol = protocol;
 
-            Log = LogManager.GetLogger(ToString());
+            _manualUpdate = manualUpdate;
+            _peerFactory = peerFactory;
 
-            if (!manualUpdate)
+            Log = LogManager.GetLogger(ToString());
+        }
+
+        public virtual void Start()
+        {
+            if (!Net.Init(this))
+                throw new Exception("Net layer can't initialize");
+
+            if (!_manualUpdate)
             {
                 _updateLoopRunning = 1;
                 _updateThread = new Thread(UpdateLoop);
                 _updateThread.Start();
                 Log.Info("UpdateThread started");
             }
-            Log.Info("Created on {0}", Net.EndPoint.ToString());
+        }
+
+        public virtual void Stop()
+        {
+            Net.Shutdown();
+            if (_updateLoopRunning == 1)
+            {
+                Interlocked.Exchange(ref _updateLoopRunning, 0);
+                _updateThread.Join();
+            }
         }
 
 
@@ -291,7 +311,7 @@ namespace MOUSE.Core
         INetChannelListener INetPeerFactory.OnNetConnect(INetChannel channel)
         {
             Log.Info("NetId:{0} has connected", channel.Id);
-            TNetPeer peer = _peerFactory(channel);
+            TNetPeer peer = CreatePeer(channel);
             peer.DisconnectedEvent.Subscribe(OnPeerDisconnected);
             if(!PeersByNetId.TryAdd(peer.Channel.Id, peer))
                 throw new Exception("NetId should increment monotonically or never called from different threads");
@@ -370,7 +390,6 @@ namespace MOUSE.Core
                                         if (_pendingConnections.TryRemove(key, out cont))
                                             cont.TCS.SetException(new Exception("Cant connect to -" + key));
                                     });
-                            expiration.Start();
                             return val;
                         },
                         (key, val) => val
@@ -381,30 +400,28 @@ namespace MOUSE.Core
         {
             return "NetNode - "+ Net.EndPoint;
         }
-
-        public void Dispose()
-        {
-            if(_updateLoopRunning == 1)
-            {
-                Interlocked.Exchange(ref _updateLoopRunning, 0);
-                _updateThread.Join();
-            }
-        }
     }
 
     public class InvalidInput : Exception
     {
         public ushort ErrorCode;
 
+        public InvalidInput(Enum errorCode, string debugMessage)
+            : base(debugMessage)
+        {
+            ErrorCode = Convert.ToUInt16(errorCode);
+        }
+
         public InvalidInput(ushort errorCode, string debugMessage)
-            :base(debugMessage)
+            : base(debugMessage)
         {
             ErrorCode = errorCode;
         }
 
-        public InvalidInput(ushort errorCode) : base("InvalidInput:"+errorCode)
+        public InvalidInput(Enum errorCode)
+            : base("InvalidInput:" + errorCode)
         {
-            ErrorCode = errorCode;
+            ErrorCode = Convert.ToUInt16(errorCode);
         }
     }
 }

@@ -13,12 +13,17 @@ namespace Protocol.Generated
     {
         public async Task< SampleC2SProtocol.LoginResult > Login ( string name )
         {
-            var request = Node.MessageFactory.New< IChatLoginLoginRequest >();
+        	if(DirectTarget != null)
+			{
+				var result = await ((SampleC2SProtocol.IChatLogin)DirectTarget).Login(name);
+				return result;
+			}	
+			var request = MessageFactory.New< IChatLoginLoginRequest >();
             request.name=name;
-            Message reply = await Node.ExecuteServiceOperation(this, request);
+            Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatLoginLoginReply)reply).RetVal;
-            Node.MessageFactory.Free(reply);
-            Node.MessageFactory.Free(request);
+            MessageFactory.Free(reply);
+            MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatLoginLoginRequest), ReplyMessage = typeof(IChatLoginLoginReply))]
@@ -37,11 +42,16 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<SampleC2SProtocol.ChatRoomInfo> > GetRooms (  )
         {
-            var request = Node.MessageFactory.New< IChatServiceGetRoomsRequest >();
-            Message reply = await Node.ExecuteServiceOperation(this, request);
+        	if(DirectTarget != null)
+			{
+				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).GetRooms();
+				return result;
+			}	
+			var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
+            Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceGetRoomsReply)reply).RetVal;
-            Node.MessageFactory.Free(reply);
-            Node.MessageFactory.Free(request);
+            MessageFactory.Free(reply);
+            MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatServiceGetRoomsRequest), ReplyMessage = typeof(IChatServiceGetRoomsReply))]
@@ -53,33 +63,43 @@ namespace Protocol.Generated
             retMsg.RetVal = retVal;
             return retMsg;
         }
-        public async Task< SampleC2SProtocol.CreateRoomResponse > CreateRoom ( string roomName )
+        public async Task< SampleC2SProtocol.CreateRoomResponse > JoinOrCreateRoom ( string roomName )
         {
-            var request = Node.MessageFactory.New< IChatServiceCreateRoomRequest >();
+        	if(DirectTarget != null)
+			{
+				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).JoinOrCreateRoom(roomName);
+				return result;
+			}	
+			var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
             request.roomName=roomName;
-            Message reply = await Node.ExecuteServiceOperation(this, request);
-            var ret = ((IChatServiceCreateRoomReply)reply).RetVal;
-            Node.MessageFactory.Free(reply);
-            Node.MessageFactory.Free(request);
+            Message reply = await ExecuteServiceOperation(request);
+            var ret = ((IChatServiceJoinOrCreateRoomReply)reply).RetVal;
+            MessageFactory.Free(reply);
+            MessageFactory.Free(request);
             return ret;
         }
-        [NetOperationDispatcher(RequestMessage = typeof(IChatServiceCreateRoomRequest), ReplyMessage = typeof(IChatServiceCreateRoomReply))]
-        public static async Task<Message> CreateRoom(IMessageFactory msgFactory, object target, Message input)
+        [NetOperationDispatcher(RequestMessage = typeof(IChatServiceJoinOrCreateRoomRequest), ReplyMessage = typeof(IChatServiceJoinOrCreateRoomReply))]
+        public static async Task<Message> JoinOrCreateRoom(IMessageFactory msgFactory, object target, Message input)
         {
-            var msg = (IChatServiceCreateRoomRequest)input;
-            var retVal = await ((SampleC2SProtocol.IChatService)target).CreateRoom(msg.roomName);
-            var retMsg = msgFactory.New<IChatServiceCreateRoomReply>();
+            var msg = (IChatServiceJoinOrCreateRoomRequest)input;
+            var retVal = await ((SampleC2SProtocol.IChatService)target).JoinOrCreateRoom(msg.roomName);
+            var retMsg = msgFactory.New<IChatServiceJoinOrCreateRoomReply>();
             retMsg.RetVal = retVal;
             return retMsg;
         }
         public async Task< long > JoinRoom ( uint roomId )
         {
-            var request = Node.MessageFactory.New< IChatServiceJoinRoomRequest >();
+        	if(DirectTarget != null)
+			{
+				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).JoinRoom(roomId);
+				return result;
+			}	
+			var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
             request.roomId=roomId;
-            Message reply = await Node.ExecuteServiceOperation(this, request);
+            Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceJoinRoomReply)reply).RetVal;
-            Node.MessageFactory.Free(reply);
-            Node.MessageFactory.Free(request);
+            MessageFactory.Free(reply);
+            MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatServiceJoinRoomRequest), ReplyMessage = typeof(IChatServiceJoinRoomReply))]
@@ -98,12 +118,17 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<string> > Join ( long ticket )
         {
-            var request = Node.MessageFactory.New< IChatRoomServiceJoinRequest >();
+        	if(DirectTarget != null)
+			{
+				var result = await ((SampleC2SProtocol.IChatRoomService)DirectTarget).Join(ticket);
+				return result;
+			}	
+			var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
             request.ticket=ticket;
-            Message reply = await Node.ExecuteServiceOperation(this, request);
+            Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatRoomServiceJoinReply)reply).RetVal;
-            Node.MessageFactory.Free(reply);
-            Node.MessageFactory.Free(request);
+            MessageFactory.Free(reply);
+            MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceJoinRequest), ReplyMessage = typeof(IChatRoomServiceJoinReply))]
@@ -117,10 +142,14 @@ namespace Protocol.Generated
         }
         public void Say ( string message )
         {
-            var request = Node.MessageFactory.New< IChatRoomServiceSayRequest >();
+        	if(DirectTarget != null)
+			{
+				((SampleC2SProtocol.IChatRoomService)DirectTarget).Say(message);
+			}	
+			var request = MessageFactory.New< IChatRoomServiceSayRequest >();
             request.message=message;
-            Node.ExecuteServiceOperation(this, request);
-            Node.MessageFactory.Free(request);
+			ExecuteOneWayServiceOperation(request);
+            MessageFactory.Free(request);
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceSayRequest), ReplyMessage = null)]
         public static async Task<Message> Say(IMessageFactory msgFactory, object target, Message input)
@@ -136,11 +165,15 @@ namespace Protocol.Generated
     {
         public void OnRoomMessage ( uint roomId, string message )
         {
-            var request = Node.MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
+        	if(DirectTarget != null)
+			{
+				((SampleC2SProtocol.IChatRoomServiceCallback)DirectTarget).OnRoomMessage(roomId, message);
+			}	
+			var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
             request.roomId=roomId;
             request.message=message;
-            Node.ExecuteServiceOperation(this, request);
-            Node.MessageFactory.Free(request);
+			ExecuteOneWayServiceOperation(request);
+            MessageFactory.Free(request);
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceCallbackOnRoomMessageRequest), ReplyMessage = null)]
         public static async Task<Message> OnRoomMessage(IMessageFactory msgFactory, object target, Message input)
@@ -176,6 +209,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -192,17 +226,18 @@ namespace Protocol.Generated
         public override void Serialize(NativeWriter w)
         {
             base.Serialize(w);
-            w.Write(RetVal);
+            w.Write((int)RetVal);
         }
 
         public override void Deserialize(NativeReader r)
         {
             base.Deserialize(r);
-            RetVal = r.ReadInt32();
+            RetVal = (SampleC2SProtocol.LoginResult)r.ReadInt32();
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -226,6 +261,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.ReadReentrant; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -276,17 +312,18 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.ReadReentrant; } }
     }
     [Export(typeof(Message))]
     [DataContract]
-    public sealed class IChatServiceCreateRoomRequest : Message
+    public sealed class IChatServiceJoinOrCreateRoomRequest : Message
     {
         [DataMember]
         public string roomName;
 
         public override uint Id
         {
-            get { return 646834541; }
+            get { return 956401361; }
         }
 
         public override void Serialize(NativeWriter w)
@@ -303,17 +340,18 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
-    public sealed class IChatServiceCreateRoomReply : Message
+    public sealed class IChatServiceJoinOrCreateRoomReply : Message
     {
         [DataMember]
         public SampleC2SProtocol.CreateRoomResponse RetVal;
 
         public override uint Id
         {
-            get { return 1012128215; }
+            get { return 1860964580; }
         }
 
         public override void Serialize(NativeWriter w)
@@ -330,6 +368,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -357,6 +396,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -384,6 +424,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -411,6 +452,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -461,6 +503,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -488,6 +531,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.ReadReentrant; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -519,6 +563,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
 	
     public static class CreateRoomResponseSerializer	
@@ -531,8 +576,8 @@ namespace Protocol.Generated
                 return;
             }
             w.Write(true);
-            w.Write(x.Code);
-            CreateRoomResponseSubDataSerializer.Serialize(x.Data, w);
+            w.Write(x.RoomId);
+            w.Write(x.Ticket);
         }
         
         public static SampleC2SProtocol.CreateRoomResponse Deserialize(NativeReader r)
@@ -543,34 +588,6 @@ namespace Protocol.Generated
                     return null;
             }
             var ret = new SampleC2SProtocol.CreateRoomResponse();
-            ret.Code = r.ReadInt32();
-            ret.Data = CreateRoomResponseSubDataSerializer.Deserialize(r);
-            return ret;
-        }
-    }
-	
-    public static class CreateRoomResponseSubDataSerializer	
-    {
-        public static void Serialize(SampleC2SProtocol.CreateRoomResponse.CreateRoomResponseSubData x, NativeWriter w)
-        {
-            if(x == null)
-            {
-                w.Write(false);
-                return;
-            }
-            w.Write(true);
-            w.Write(x.RoomId);
-            w.Write(x.Ticket);
-        }
-        
-        public static SampleC2SProtocol.CreateRoomResponse.CreateRoomResponseSubData Deserialize(NativeReader r)
-        {
-            {
-                bool isNotNull = r.ReadBoolean();
-                if(!isNotNull)
-                    return null;
-            }
-            var ret = new SampleC2SProtocol.CreateRoomResponse.CreateRoomResponseSubData();
             ret.RoomId = r.ReadUInt32();
             ret.Ticket = r.ReadInt64();
             return ret;
@@ -587,8 +604,8 @@ namespace Protocol.Generated
                 return;
             }
             w.Write(true);
-            w.Write(x.RoomId);
-            w.WriteUnicode(x.RoomName);
+            w.Write(x.Id);
+            w.WriteUnicode(x.Name);
         }
         
         public static SampleC2SProtocol.ChatRoomInfo Deserialize(NativeReader r)
@@ -599,8 +616,8 @@ namespace Protocol.Generated
                     return null;
             }
             var ret = new SampleC2SProtocol.ChatRoomInfo();
-            ret.RoomId = r.ReadUInt32();
-            ret.RoomName = r.ReadUnicode();
+            ret.Id = r.ReadUInt32();
+            ret.Name = r.ReadUnicode();
             return ret;
         }
     }

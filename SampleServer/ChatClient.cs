@@ -94,7 +94,7 @@ namespace SampleServer
                 long ticket = await room.AwaitUser(_user);
                 return ticket;
             }
-            throw new InvalidInput((ushort) JoinRoomInvalidRetCode.RoomNotFound);
+            throw new InvalidInput(JoinRoomInvalidRetCode.RoomNotFound);
         }
     }
 }

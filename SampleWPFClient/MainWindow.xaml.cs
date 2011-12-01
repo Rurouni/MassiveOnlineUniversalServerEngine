@@ -14,6 +14,7 @@ using System.Windows.Shapes;
 using System.Net;
 using Autofac.Integration.Mef;
 using MOUSE.Core;
+using RakNetWrapper;
 using SampleC2SProtocol;
 using System.Threading.Tasks;
 using Autofac;
@@ -43,16 +44,15 @@ namespace SampleWPFClient
 
             var builder = new ContainerBuilder();
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetExecutingAssembly()));
+            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INetPeer))));
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
-            builder.RegisterType<PhotonNetClient>().As<INetProvider>().SingleInstance();
+            builder.RegisterType<RakPeerInterface>().As<INetProvider>().SingleInstance();
             builder.RegisterType<ClientNode>().As<IClientNode>().SingleInstance();
             var container = builder.Build();
 
             _node = container.Resolve<IClientNode>();
             _node.SetHandler<IChatRoomServiceCallback>(this);
-
-            _node.Start(manualUpdate: false);
         }
 
         private async Task UpdateRooms()
@@ -68,7 +68,7 @@ namespace SampleWPFClient
             Application.Current.Shutdown();
         }
 
-        public void OnSay(uint roomId, string message)
+        public void OnRoomMessage(uint roomId, string message)
         {
             txtChat.AppendText(message +"\n");
         }
@@ -90,12 +90,12 @@ namespace SampleWPFClient
             UpdateRooms();
         }
 
-        private void cbChatRooms_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void cbChatRooms_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var room = (ChatRoomInfo)cbChatRooms.SelectedItem;
 
-            long ticket = await _chatServiceProxy.JoinRoom(room.RoomId);
-            _chatRoomServiceProxy = _node.GetService<IChatRoomService>(room.RoomId);
+            long ticket = await _chatServiceProxy.JoinRoom(room.Id);
+            _chatRoomServiceProxy = await _node.GetService<IChatRoomService>(room.Id);
             List<string> history = await _chatRoomServiceProxy.Join(ticket);
             txtChat.Clear();
             foreach (var msg in history)

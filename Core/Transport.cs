@@ -8,7 +8,7 @@ namespace MOUSE.Core
 {
     public interface INetProvider
     {
-        bool Startup(INetPeerFactory peerFactory, IPEndPoint listenEndpoint, int maxConnections);
+        bool Init(INetPeerFactory factory);
         void Shutdown();
         void Connect(IPEndPoint target);
         bool PumpEvents();

@@ -26,7 +26,7 @@ namespace PhotonAdapter
 
             builder.RegisterComposablePartCatalog(new DirectoryCatalog(""));
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>();
-            builder.RegisterType<ServiceRepository>().As<IServiceRepository>();
+            builder.RegisterType<ServicesRepository>().As<IServicesRepository>();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>();
             builder.RegisterType<EntityClusterNode>().As<INetNode>();
             builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>();

@@ -31,11 +31,11 @@ namespace Core.Tests
         public void Init()
         {
             var builder = new ContainerBuilder();
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(NetNode))));
+            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(NetNode<NetPeer>))));
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestMessage))));
-            builder.RegisterType<MOUSE.Core.MessageFactory>().As<IMessageFactory>();
+            builder.RegisterType<MessageFactory>().As<IMessageFactory>();
             builder.RegisterType<RakPeerInterface>().As<INetProvider>();
-            builder.RegisterType<NetNode>().As<INetNode>();
+            builder.RegisterType<NetNode<NetPeer>>().As<INetNode<INetPeer>>();
             container = builder.Build();
         }
 
@@ -43,33 +43,33 @@ namespace Core.Tests
         public void NodeShouldBeAbleToConnectToOtherNode()
         {
             var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            var node1 = container.Resolve<INetNode>();
-            var node2 = container.Resolve<INetNode>();
+            var node1 = container.Resolve<INetNode<INetPeer>>();
+            var node2 = container.Resolve<INetNode<INetPeer>>();
 
             node1.Start(true, endpoint);
             node2.Start(true);
 
             try
             {
-                NetPeer node1ProxyInNode2 = null;
-                NetPeer node2ProxyInNode1 = null;
+                INetPeer node1ProxyInNode2 = null;
+                INetPeer node2ProxyInNode1 = null;
                 int node1OnConnectCalls = 0;
                 int node2OnConnectCalls = 0;
 
-                node1.NodeConnectedEvent.Subscribe((proxy) =>
+                node1.PeerConnectedEvent.Subscribe((peer) =>
                                                     {
-                                                        node2ProxyInNode1 = proxy;
+                                                        node2ProxyInNode1 = peer;
                                                         node1OnConnectCalls++;
                                                     });
 
-                node2.NodeConnectedEvent.Subscribe((proxy) =>
+                node2.PeerConnectedEvent.Subscribe((peer) =>
                                                     {
-                                                        node1ProxyInNode2 = proxy;
+                                                        node1ProxyInNode2 = peer;
                                                         node2OnConnectCalls++;
                                                     });
 
 
-                Task<NetPeer> connectTask = node2.Connect(endpoint);
+                Task<INetPeer> connectTask = node2.Connect(endpoint);
 
                 connectTask.IsCompleted.Should().BeFalse();
 

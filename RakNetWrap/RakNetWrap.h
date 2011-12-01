@@ -35,13 +35,17 @@ namespace RakNetWrapper
         NativeReader^ _reader;
         array<unsigned char>^ _buff;
         Dictionary<int, RakChannel^ >^ _channels;
-        INetEventProcessor^ _processor;
+        INetPeerFactory^ _peerFactory;
+		IPEndPoint^ _endpoint;
+		unsigned short _maxConnections;
 
     public:
-        RakPeerInterface();
+        RakPeerInterface(IPEndPoint^ listenEndpoint, unsigned short maxConnections);
+		RakPeerInterface();
         ~RakPeerInterface();
 
-        virtual bool Startup(INetEventProcessor^ processor, IPEndPoint^ endpoint, int maxConnections);
+        virtual bool Init(INetPeerFactory^ peerFactory);
+		bool Startup();
 
         virtual void Connect(IPEndPoint^ endpoint);
         void CloseConnection(int netId);
@@ -54,8 +58,7 @@ namespace RakNetWrapper
         {
             IPEndPoint^ get()
             {
-                RakNet::SystemAddress addr = _rakPeer->GetMyBoundAddress();
-                return gcnew IPEndPoint(IPAddress::Parse(gcnew String(addr.ToString(false))), addr.GetPort());
+                return _endpoint;
             }
         }
 
@@ -80,6 +83,7 @@ namespace RakNetWrapper
         IPEndPoint^ _ipEndPoint;
         RakPeerInterface^ _rakPeer;
     public:
+		INetChannelListener^ ChannelListener;
 
         RakChannel(RakPeerInterface^ rakPeer, RakNet::SystemAddress& addr)
         {

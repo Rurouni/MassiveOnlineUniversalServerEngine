@@ -34,15 +34,13 @@ namespace MOUSE.Core
     }
 
     [AttributeUsage(AttributeTargets.Class)]
-    public class NodeEntityAttribute : Attribute
+    public class NodeServiceAttribute : Attribute
     {
-        public Type ContractType { get; set; }
         public bool Persistant { get; set; }
         public bool AutoCreate { get; set; }
 
-        public NodeEntityAttribute(Type contractType)
+        public NodeServiceAttribute()
         {
-            ContractType = contractType;
             Persistant = false;
             AutoCreate = true;
         }

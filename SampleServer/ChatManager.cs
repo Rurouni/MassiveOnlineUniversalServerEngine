@@ -11,6 +11,7 @@ using MOUSE.Core;
 namespace SampleServer
 {
     [Export(typeof(NodeService))]
+    [NodeService(AutoCreate = true, Persistant = false)]
     public class ChatManager : NodeService, IChatManager
     {
         private uint _userCounter = 0;

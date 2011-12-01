@@ -57,7 +57,8 @@ namespace SampleC2SProtocol
 
     public enum JoinRoomInvalidRetCode
     {
-        RoomNotFound
+        RoomNotFound,
+        ClientNotAwaited
     }
 
     [DataContract]
@@ -76,6 +77,10 @@ namespace SampleC2SProtocol
         public uint Id;
         [DataMember]
         public string Name;
+
+        public ChatRoomInfo()
+        {
+        }
 
         public ChatRoomInfo(uint id, string name)
         {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Composition;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,6 +10,8 @@ using SampleS2SProtocol;
 
 namespace SampleServer
 {
+    [Export(typeof(NodeService))]
+    [NodeService(AutoCreate = true, Persistant = false)]
     public class ChatRoom : NodeService, IChatRoom, IChatRoomService
     {
         private long _ticketCounter = 0;
@@ -63,11 +66,13 @@ namespace SampleServer
                 var client = new ChatRoomClient(Context.Source, info);
                 _usersById.Add(info.Id, client);
                 _usersByChannelId.Add(client.Peer.Channel.Id, client);
+
                 Context.Source.DisconnectedEvent.Subscribe(OnUserDisconnected);
+
                 _messages.Add(client.Info.Name + " has connected");
                 return _messages;
             }
-            throw new InvalidInput();
+            throw new InvalidInput(JoinRoomInvalidRetCode.ClientNotAwaited);
         }
 
         public void Say(string message)
@@ -80,7 +85,7 @@ namespace SampleServer
                 foreach (var otherClient in _usersByChannelId.Values)
                 {
                     var callback = otherClient.Peer.As<IChatRoomServiceCallback>();
-                    callback.OnRoomMessage(_roomId, fullMsg);
+                    callback.OnRoomMessage(Id, fullMsg);
                 }
             }
             else

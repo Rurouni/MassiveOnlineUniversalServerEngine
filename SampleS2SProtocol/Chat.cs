@@ -52,6 +52,10 @@ namespace SampleS2SProtocol
         [DataMember]
         public string Name;
 
+        public ChatUserInfo()
+        {
+        }
+
         public ChatUserInfo(uint id, string name)
         {
             Name = name;

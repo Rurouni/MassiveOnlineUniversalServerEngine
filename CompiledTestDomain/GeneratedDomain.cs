@@ -13,12 +13,17 @@ namespace Protocol.Generated
     {
         public async Task< int > Simple ( int requestId )
         {
-            var request = Node.MessageFactory.New< ITestEntitySimpleRequest >();
+        	if(DirectTarget != null)
+			{
+				var result = await ((TestDomain.ITestEntity)DirectTarget).Simple(requestId);
+				return result;
+			}	
+			var request = MessageFactory.New< ITestEntitySimpleRequest >();
             request.requestId=requestId;
-            Message reply = await Node.ExecuteServiceOperation(this, request);
+            Message reply = await ExecuteServiceOperation(request);
             var ret = ((ITestEntitySimpleReply)reply).RetVal;
-            Node.MessageFactory.Free(reply);
-            Node.MessageFactory.Free(request);
+            MessageFactory.Free(reply);
+            MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(ITestEntitySimpleRequest), ReplyMessage = typeof(ITestEntitySimpleReply))]
@@ -32,9 +37,13 @@ namespace Protocol.Generated
         }
         public void SimpleOneWay (  )
         {
-            var request = Node.MessageFactory.New< ITestEntitySimpleOneWayRequest >();
-            Node.ExecuteServiceOperation(this, request);
-            Node.MessageFactory.Free(request);
+        	if(DirectTarget != null)
+			{
+				((TestDomain.ITestEntity)DirectTarget).SimpleOneWay();
+			}	
+			var request = MessageFactory.New< ITestEntitySimpleOneWayRequest >();
+			ExecuteOneWayServiceOperation(request);
+            MessageFactory.Free(request);
         }
         [NetOperationDispatcher(RequestMessage = typeof(ITestEntitySimpleOneWayRequest), ReplyMessage = null)]
         public static async Task<Message> SimpleOneWay(IMessageFactory msgFactory, object target, Message input)
@@ -45,15 +54,20 @@ namespace Protocol.Generated
         }
         public async Task< TestDomain.ComplexData > Complex ( int requestId, TestDomain.ComplexData data, string name, System.Collections.Generic.List<TestDomain.ComplexData> datas )
         {
-            var request = Node.MessageFactory.New< ITestEntityComplexRequest >();
+        	if(DirectTarget != null)
+			{
+				var result = await ((TestDomain.ITestEntity)DirectTarget).Complex(requestId, data, name, datas);
+				return result;
+			}	
+			var request = MessageFactory.New< ITestEntityComplexRequest >();
             request.requestId=requestId;
             request.data=data;
             request.name=name;
             request.datas=datas;
-            Message reply = await Node.ExecuteServiceOperation(this, request);
+            Message reply = await ExecuteServiceOperation(request);
             var ret = ((ITestEntityComplexReply)reply).RetVal;
-            Node.MessageFactory.Free(reply);
-            Node.MessageFactory.Free(request);
+            MessageFactory.Free(reply);
+            MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(ITestEntityComplexRequest), ReplyMessage = typeof(ITestEntityComplexReply))]
@@ -92,6 +106,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -119,6 +134,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -142,6 +158,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.Unreliable; } }
+        public override LockType LockType { get { return LockType.None; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -204,6 +221,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.High; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
     [Export(typeof(Message))]
     [DataContract]
@@ -231,6 +249,7 @@ namespace Protocol.Generated
 
         public override MessagePriority Priority { get { return MessagePriority.High; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+        public override LockType LockType { get { return LockType.Full; } }
     }
 	
     public static class ComplexDataSerializer	

@@ -29,10 +29,9 @@ namespace Core.Tests
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestEntity))));
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(ITestEntityProxy))));
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>();
-            builder.RegisterType<ServiceRepository>().As<IServiceRepository>();
+            builder.RegisterType<ServicesRepository>().As<IServicesRepository>();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>();
             builder.RegisterType<RakPeerInterface>().As<INetProvider>();
-            builder.RegisterType<EntityClusterNode>().As<IEntityClusterNode>();
             builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>();
             container = builder.Build();
         }

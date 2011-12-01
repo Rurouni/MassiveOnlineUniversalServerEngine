@@ -117,15 +117,15 @@ namespace MOUSE.Core
                 if (msg is ServiceAccessRequest)
                 {
                     var requestMsg = (msg as ServiceAccessRequest);
-                    if (_handlersByNetContractId.ContainsKey(Node.Protocol.GetContractId(requestMsg.ServiceId)))
+                    if (_handlersByNetContractId.ContainsKey(requestMsg.ServiceKey.TypeId))
                         Channel.Send(new ServiceAccessReply(true, null));
                     else
                     {
-                        var serviceDesc = Node.Protocol.GetDescription(requestMsg.ServiceId);
+                        var serviceDesc = Node.Protocol.GetDescription(requestMsg.ServiceKey.TypeId);
                         if (serviceDesc == null || !serviceDesc.AllowExternalConnections)
                             Channel.Send(new ServiceAccessReply(false, null));
                         else
-                            Node.ProcessServiceAccess(this, requestMsg.ServiceId);
+                            Node.ProcessServiceAccess(this, requestMsg.ServiceKey);
                     }
                 }
                 else 
@@ -135,7 +135,7 @@ namespace MOUSE.Core
                     if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
                     {
                         object handler;
-                        if (_handlersByNetContractId.TryGetValue(Node.Protocol.GetContractId(serviceHeader.TargetServiceKey), out handler))
+                        if (_handlersByNetContractId.TryGetValue(serviceHeader.TargetServiceKey.TypeId, out handler))
                         {
                             Log.Debug("{0} - Dispatching {1} to {2}", operationHeader.RequestId, msg, handler);
                             if (msg.LockType == LockType.None)
@@ -196,7 +196,7 @@ namespace MOUSE.Core
             get { return _id; }
         }
 
-        public IServiceRepository Repository { get; private set; }
+        public IServicesRepository Repository { get; private set; }
         
         public IServiceProtocol Protocol { get; private set; }
 
@@ -206,7 +206,7 @@ namespace MOUSE.Core
         }
 
         public ServerNode(Func<INetChannel, ClientPeer> clientPeerFactory, INetProvider externalNetProvider, INetProvider internalNetProvider,
-            IMessageFactory factory, IServiceProtocol protocol, IServiceRepository repository)
+            IMessageFactory factory, IServiceProtocol protocol, IServicesRepository repository)
         {
             _id = GenerateUniqueId();
             Log = LogManager.GetLogger(ToString());
@@ -214,6 +214,8 @@ namespace MOUSE.Core
             Protocol = protocol;
             ExternalNet = new NetNode<ClientPeer>(externalNetProvider, factory, protocol, clientPeerFactory);
             //InternalNet = new NetNode<ClientNodePeer>(internalNetProvider, factory, protocol);
+
+            ExternalNet.Start();
         }
 
         public async Task<TNetContract> GetService<TNetContract>(uint serviceId = 0)
@@ -230,42 +232,34 @@ namespace MOUSE.Core
             return proxy;
         }
 
-        public void DispatchClientOperationToService(ulong serviceId, Message msg, ClientPeer clientPeer)
+        public void DispatchClientOperationToService(NodeServiceKey serviceKey, Message msg, ClientPeer clientPeer)
         {
-            NodeServiceContractDescription desc = Protocol.GetDescription(serviceId);
+            NodeServiceContractDescription desc = Protocol.GetDescription(serviceKey.TypeId);
             if (desc == null || !desc.AllowExternalConnections)
             {
-                Log.Debug("{0} sends operation to invalid or not visible serviceId:{1}", clientPeer, serviceId);
+                Log.Debug("{0} sends operation to invalid or not visible serviceId:{1}", clientPeer, serviceKey);
                 return;
             }
             NodeService service;
-            if (Repository.TryGet(serviceId, out service))
+            if (Repository.TryGet(serviceKey, out service))
                 service.Process(new OperationContext(this, msg, clientPeer));
             else
-                Log.Debug("{0} sends operation to non active serviceId:{1}", clientPeer, serviceId);
+                Log.Debug("{0} sends operation to non active serviceId:{1}", clientPeer, serviceKey);
         }
 
-        public void ProcessServiceAccess(ClientPeer peer, ulong serviceId)
+        public void ProcessServiceAccess(ClientPeer peer, NodeServiceKey serviceKey)
         {
-            NodeServiceContractDescription desc = Protocol.GetDescription(serviceId);
+            NodeServiceContractDescription desc = Protocol.GetDescription(serviceKey.TypeId);
             if(desc == null || !desc.AllowExternalConnections)
                 peer.Channel.Send(new ServiceAccessReply(false, null));
             else
             {
-                NodeDescription ownerNode = GetNodeForService(serviceId);
-                if(ownerNode != null)
-                    throw new NotImplementedException();
-
-                if (Repository.Contains(serviceId))
+                //TODO: add cluster support here
+                if (Repository.Contains(serviceKey))
                     peer.Channel.Send(new ServiceAccessReply(true, null));
                 else
                     peer.Channel.Send(new ServiceAccessReply(false, null));
             }
-        }
-
-        private NodeDescription GetNodeForService(ulong serviceId)
-        {
-            return null;
         }
 
         private ulong GenerateUniqueId()

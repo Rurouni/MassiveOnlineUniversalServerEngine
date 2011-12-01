@@ -74,13 +74,15 @@ namespace MOUSE.Core
     
     public class NodeServiceDescription
     {
-        public readonly NodeEntityAttribute Attribute;
+        public readonly NodeServiceAttribute Attribute;
         public readonly List<NodeServiceContractDescription> ImplementedContracts;
+        public readonly Type ServiceType;
 
-        public NodeServiceDescription(IEnumerable<NodeServiceContractDescription> contracts, NodeEntityAttribute attribute)
+        public NodeServiceDescription(Type serviceType, IEnumerable<NodeServiceContractDescription> contracts, NodeServiceAttribute attribute)
         {
             Attribute = attribute;
             ImplementedContracts = contracts.ToList();
+            ServiceType = serviceType;
         }
 
         public bool Persistant 
@@ -133,7 +135,19 @@ namespace MOUSE.Core
         }
     }
 
-    public abstract class NodeServiceProxy
+    public interface INodeServiceProxy
+    {
+        NodeServiceKey ServiceKey { get; }
+        INetPeer RemoteTarget { get; }
+        IMessageFactory MessageFactory { get; }
+        object DirectTarget { get; }
+        NodeServiceContractDescription Description { get; }
+        Task<Message> ExecuteServiceOperation(Message request);
+        void ExecuteOneWayServiceOperation(Message request);
+    
+    }
+
+    public abstract class NodeServiceProxy : INodeServiceProxy
     {
         private NodeServiceKey _serviceKey;
         private NodeServiceContractDescription _description;
@@ -141,7 +155,7 @@ namespace MOUSE.Core
         private INetPeer _remoteTarget;
         private object _directTarget;
 
-        internal void Init(NodeServiceKey serviceKey, NodeServiceContractDescription description, INetPeer remoteTarget, object directTarget = null)
+        public void Init(NodeServiceKey serviceKey, NodeServiceContractDescription description, INetPeer remoteTarget, object directTarget = null)
         {
             _serviceKey = serviceKey;
             _description = description;
@@ -158,6 +172,11 @@ namespace MOUSE.Core
         public INetPeer RemoteTarget
         {
             get { return _remoteTarget; }
+        }
+
+        public IMessageFactory MessageFactory
+        {
+            get { return _remoteTarget.MessageFactory; }
         }
 
         public object DirectTarget
@@ -385,6 +404,11 @@ namespace MOUSE.Core
         {
             w.Write(TypeId);
             w.Write(Id);
+        }
+
+        public override string ToString()
+        {
+            return string.Format("ServiceKey<TypeId: {0}, Id: {1}>", TypeId, Id);
         }
 
         //public static long ConvertToLong(NodeServiceKey key)

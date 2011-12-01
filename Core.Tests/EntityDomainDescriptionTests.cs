@@ -46,7 +46,7 @@ namespace Core.Tests
             NodeServiceContractDescription desc = domain.GetDescription(1996445736);
 
             desc.Should().NotBeNull();
-            desc.Connectionfull.Should().BeFalse();
+            desc.AllowExternalConnections.Should().BeFalse();
             desc.ContractType.Should().Be(typeof (ITestEntity));
             desc.ProxyType.Should().Be(typeof (ITestEntityProxy));
             desc.TypeId.Should().Be(1996445736);

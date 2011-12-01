@@ -19,6 +19,7 @@ namespace MOUSE.Core
 
         NodeServiceKey GetKey<TServiceContract>(uint serviceId = 0);
         uint GetContractId(Type contractType);
+        bool TryGetContractId(Type contractType, out uint typeId);
         Type GetContractType(uint serviceTypeId);
         NodeServiceContractDescription GetDescription(uint serviceTypeId);
     }
@@ -132,6 +133,11 @@ namespace MOUSE.Core
                 return typeId;
             else
                 throw new Exception("Unregistered entity cotract - " + contractType.FullName);
+        }
+
+        public bool TryGetContractId(Type contractType, out uint typeId)
+        {
+            return _serviceTypeIdByContractType.TryGetValue(contractType, out typeId);
         }
 
         public Type GetContractType(uint serviceTypeId)

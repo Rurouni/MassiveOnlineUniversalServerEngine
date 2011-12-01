@@ -6,8 +6,8 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Autofac;
-using Moq;
 using MOUSE.Core;
+using NSubstitute;
 using NUnit.Framework;
 using Protocol.Generated;
 using TestDomain;
@@ -27,8 +27,8 @@ namespace Core.Tests
             var builder = new ContainerBuilder();
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(TestEntity))));
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(ITestEntityProxy))));
-            builder.RegisterType<MOUSE.Core.ServiceProtocol>().As<IServiceProtocol>();
-            builder.RegisterType<MOUSE.Core.MessageFactory>().As<IMessageFactory>();
+            builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>();
+            builder.RegisterType<MessageFactory>().As<IMessageFactory>();
             container = builder.Build();
         }
 
@@ -37,7 +37,6 @@ namespace Core.Tests
         {
             #region Arrange
             var domain = container.Resolve<IServiceProtocol>();
-            var messageFactory = container.Resolve<IMessageFactory>();
             
             var output = new ComplexData(2, 3, "24", new List<string>{"T1","T2"}, new List<ComplexData>());
             var inputMsg = new ITestEntityComplexRequest();
@@ -45,30 +44,22 @@ namespace Core.Tests
             inputMsg.name = "Some";
             inputMsg.data = output;
             inputMsg.datas = null;
-
+            var tcs = new TaskCompletionSource<ComplexData>();
+            tcs.SetResult(output);
             
-            var node = new Mock<IEntityClusterNode>();
-            node.Setup(x => x.Protocol).Returns(domain);
-            node.Setup(x => x.MessageFactory).Returns(messageFactory);
-
             int calls = 0;
-            var testEntity = new Mock<ITestEntity>();
-            testEntity.Setup(x => x.Complex(inputMsg.requestId, inputMsg.data, inputMsg.name, inputMsg.datas))
-                .Returns(() =>
+            var testEntity = Substitute.For<ITestEntity>();
+            testEntity.Complex(inputMsg.requestId, inputMsg.data, inputMsg.name, inputMsg.datas)
+                .Returns(x=>
                         {
-                            var tcs = new TaskCompletionSource<ComplexData>();
-                            tcs.SetResult(output);
+                            calls++;
                             return tcs.Task;
-                        })
-                .Callback(()=>calls++);
+                        });
 
-            var operationContext = new OperationContext(node.Object, inputMsg, null);
-            var nodeEntity = testEntity.As<INodeService>();
-            nodeEntity.Setup(x=>x.Context).Returns(operationContext);
             #endregion
 
             //Act
-            Task<Message> ret = domain.Dispatch(nodeEntity.Object, inputMsg);
+            Task<Message> ret = domain.Dispatch(testEntity, inputMsg);
 
             //Assert
             ret.Should().NotBeNull();
@@ -84,34 +75,25 @@ namespace Core.Tests
         {
             #region Arrange
             var domain = container.Resolve<IServiceProtocol>();
-            var messageFactory = container.Resolve<IMessageFactory>();
-
-            var node = new Mock<IEntityClusterNode>();
-            node.Setup(x => x.Protocol).Returns(domain);
-            node.Setup(x => x.MessageFactory).Returns(messageFactory);
 
             var inputMsg = new ITestEntitySimpleRequest();
             inputMsg.requestId = 42;
             int output = 24;
-
+            var tcs = new TaskCompletionSource<int>();
+            tcs.SetResult(output);
             int calls = 0;
-            var testEntity = new Mock<ITestEntity>();
-            testEntity.Setup(x => x.Simple(inputMsg.requestId))
-                .Returns(()=>
-                    {
-                        var tcs = new TaskCompletionSource<int>();
-                        tcs.SetResult(output);
-                        return tcs.Task;
-                    })
-                .Callback(() => calls++);
+            var testEntity = Substitute.For<ITestEntity>();
+            testEntity.Simple(inputMsg.requestId)
+                .Returns(x =>
+                             {
+                                 calls++;
+                                 return tcs.Task;
+                             });
 
-            var operationContext = new OperationContext(node.Object, inputMsg, null);
-            var nodeEntity = testEntity.As<INodeService>();
-            nodeEntity.Setup(x => x.Context).Returns(operationContext);
             #endregion
 
             //Act
-            Task<Message> ret = domain.Dispatch(nodeEntity.Object, inputMsg);
+            Task<Message> ret = domain.Dispatch(testEntity, inputMsg);
 
             //Assert
             ret.Should().NotBeNull();

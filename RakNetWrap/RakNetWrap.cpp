@@ -19,8 +19,21 @@ using namespace RakNetWrapper;
 
 
 
+RakPeerInterface::RakPeerInterface(IPEndPoint^ listenEndpoint, unsigned short maxConnections)
+{
+	_endpoint = listenEndpoint;
+	_maxConnections = maxConnections;
+    _rakPeer = RakNet::RakPeerInterface::GetInstance();
+    _reader = gcnew NativeReader();
+    _buff = gcnew array<unsigned char>(1024*1024*10);
+    _buff[0] = (unsigned char)ID_USER_PACKET_ENUM;
+    _channels = gcnew Dictionary<int, RakChannel^>();
+}
+
 RakPeerInterface::RakPeerInterface()
 {
+	_endpoint = nullptr;
+	_maxConnections = 1000;
     _rakPeer = RakNet::RakPeerInterface::GetInstance();
     _reader = gcnew NativeReader();
     _buff = gcnew array<unsigned char>(1024*1024*10);
@@ -34,30 +47,49 @@ RakPeerInterface::~RakPeerInterface()
         RakNet::RakPeerInterface::DestroyInstance(_rakPeer);
 }
 
-bool RakPeerInterface::Startup(INetEventProcessor^ processor, IPEndPoint^ endpoint, int maxConnections)
+bool RakPeerInterface::Startup()
 {
-    _processor = processor;
     RakNet::SocketDescriptor sd;
-    if(endpoint != nullptr)
+    if(_endpoint != nullptr)
     {
-        char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(endpoint->Address->ToString());
+        char* str2 = (char*)(void*)Marshal::StringToHGlobalAnsi(_endpoint->Address->ToString());
         strncpy(sd.hostAddress, str2, sizeof(sd.hostAddress) - 1);
         sd.hostAddress[sizeof(sd.hostAddress) - 1] = '\0';
-        sd.port = (unsigned short)endpoint->Port;
+        sd.port = (unsigned short)_endpoint->Port;
         Marshal::FreeHGlobal((System::IntPtr)str2);
     }
     else
         sd.hostAddress[0] = '\0';
     
     //sd.socketFamily = AF_UNSPEC;
-    RakNet::StartupResult res = _rakPeer->Startup(maxConnections, &sd, 1, THREAD_PRIORITY_NORMAL);
-    _rakPeer->SetMaximumIncomingConnections(maxConnections);
-    _rakPeer->SetOccasionalPing(true);
-    _rakPeer->SetUnreliableTimeout(1000);
-    _rakPeer->SetTimeoutTime(10000, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
-    int retCode = res;
-    Console::WriteLine("NetInitialization code="+retCode);
+    RakNet::StartupResult res = _rakPeer->Startup(_maxConnections, &sd, 1, THREAD_PRIORITY_NORMAL);
+	if(res == RakNet::RAKNET_STARTED)
+	{
+		_rakPeer->SetMaximumIncomingConnections(_maxConnections);
+		_rakPeer->SetOccasionalPing(true);
+		_rakPeer->SetUnreliableTimeout(1000);
+		_rakPeer->SetTimeoutTime(10000, RakNet::UNASSIGNED_SYSTEM_ADDRESS);
+	
+		RakNet::SystemAddress addr = _rakPeer->GetMyBoundAddress();
+		String^ str = gcnew String(addr.ToString(false));
+		if(str == "UNASSIGNED_SYSTEM_ADDRESS")
+			str = "0.0.0.0";
+		_endpoint = gcnew IPEndPoint(IPAddress::Parse(str), addr.GetPort());
+	}
+	else
+	{
+		int retCode = res;
+		Console::WriteLine("NetInitialization code="+retCode);
+	}
+    
+    
     return res == RakNet::RAKNET_STARTED;
+}
+
+bool RakPeerInterface::Init(INetPeerFactory^ peerFactory)
+{
+	_peerFactory = peerFactory;
+	return Startup();
 }
 
 void RakPeerInterface::Connect(IPEndPoint^ endpoint)
@@ -139,19 +171,19 @@ bool RakPeerInterface::PumpEvents()
             _rakPeer->SetTimeoutTime(10000, np->systemAddress);//TODO : move to config
             channel = gcnew RakChannel(this, np->systemAddress);
             _channels->Add(channel->Id, channel);
-            _processor->OnNetConnect(channel);
+            channel->ChannelListener = _peerFactory->OnNetConnect(channel);
             break;
         case ID_CONNECTION_REQUEST_ACCEPTED:
              channel= gcnew RakChannel(this, np->systemAddress);
             _channels->Add(channel->Id, channel);
-            _processor->OnNetConnectionAccepted(channel);
+            channel->ChannelListener = _peerFactory->OnNetConnect(channel);
             break;
         case ID_CONNECTION_LOST:
         case ID_DISCONNECTION_NOTIFICATION:
             if(_channels->TryGetValue(np->systemAddress.systemIndex, channel))
             {
+				channel->ChannelListener->OnDisconnected();
                 _channels->Remove(channel->Id);
-                _processor->OnNetDisconnect(channel);
             }
             break;	
 
@@ -170,7 +202,7 @@ bool RakPeerInterface::PumpEvents()
             if(_channels->TryGetValue(np->systemAddress.systemIndex, channel))
             {
                 _reader->SetBuffer(_buff, 1);//skip rakNet control byte
-                _processor->OnNetData(channel, _reader);
+                channel->ChannelListener->OnNetData(_reader);
             }
             break;
     }

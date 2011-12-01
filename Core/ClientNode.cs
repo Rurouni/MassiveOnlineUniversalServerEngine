@@ -128,7 +128,7 @@ namespace MOUSE.Core
     public class ClientNode : NetNode<Client2ServerPeer>, IClientNode
     {
         private readonly Dictionary<uint, object> _handlersByNetContractId = new Dictionary<uint, object>();
-        private readonly Dictionary<ulong, NodeServiceProxy> _proxyCache = new Dictionary<ulong, NodeServiceProxy>();
+        private readonly Dictionary<NodeServiceKey, NodeServiceProxy> _proxyCache = new Dictionary<NodeServiceKey, NodeServiceProxy>();
 
         protected IPEndPoint ServerEndPoint;
         protected NetPeer ServerPeer;
@@ -144,6 +144,8 @@ namespace MOUSE.Core
                 Fiber = new ClientFiber(TaskScheduler.FromCurrentSynchronizationContext(), manualUpdate);
             else
                 Fiber = new ClientFiber(manualUpdate);
+
+            Start();
         }
 
         protected override void OnNodeUpdate()
@@ -154,11 +156,12 @@ namespace MOUSE.Core
 
         public async Task ConnectToServer(IPEndPoint endPoint)
         {
-            if (ServerPeer.Channel.EndPoint == endPoint)
-                return;
-
             if (ServerPeer != null)
+            {
+                if (ServerPeer.Channel.EndPoint == endPoint)
+                    return;
                 ServerPeer.Channel.Close();
+            }
 
             ServerEndPoint = endPoint;
             ServerPeer = (NetPeer)await Connect(endPoint).ConfigureAwait(false);
@@ -187,9 +190,8 @@ namespace MOUSE.Core
             var operationHeader = msg.GetHeader<OperationHeader>();
             if (serviceHeader != null && operationHeader.Type == OperationType.Request)
             {
-                uint serviceContractId = Protocol.GetContractId(serviceHeader.TargetServiceKey);
                 object handler;
-                if (_handlersByNetContractId.TryGetValue(serviceContractId, out handler))
+                if (_handlersByNetContractId.TryGetValue(serviceHeader.TargetServiceKey.TypeId, out handler))
                 {
                     //NOTE: doesnt support server->client request-reply, only one way notifications
                     Protocol.Dispatch(handler, msg);
@@ -209,11 +211,11 @@ namespace MOUSE.Core
                     throw new Exception("Client node must be explicitly connected or masterEndpoint specified in constructor");
             }
 
-            ulong fullId = Protocol.GetFullId<TNetContract>(serviceLocalId);
+            NodeServiceKey serviceKey = Protocol.GetKey<TNetContract>(serviceLocalId);
             NodeServiceProxy proxy;
-            if (!_proxyCache.TryGetValue(fullId, out proxy))
+            if (!_proxyCache.TryGetValue(serviceKey, out proxy))
             {
-                var reply = (ServiceAccessReply)await ServerPeer.ExecuteOperation(new ServiceAccessRequest(fullId)).ConfigureAwait(false);
+                var reply = (ServiceAccessReply)await ServerPeer.ExecuteOperation(new ServiceAccessRequest(serviceKey)).ConfigureAwait(false);
 
                 if (!reply.IsValid)
                     throw new Exception("Invalid Access");
@@ -225,9 +227,9 @@ namespace MOUSE.Core
                 else
                     serviceOwnerNode = ServerPeer;
 
-                proxy = Protocol.CreateProxy(fullId, serviceOwnerNode);
+                proxy = Protocol.CreateProxy(serviceKey, serviceOwnerNode);
                 await Fiber.ContinueOn().ConfigureAwait(false);
-                _proxyCache.Add(fullId, proxy);
+                _proxyCache.Add(serviceKey, proxy);
             }
 
             return (TNetContract)(object)proxy;
