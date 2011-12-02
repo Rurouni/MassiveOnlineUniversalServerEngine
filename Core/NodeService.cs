@@ -10,6 +10,18 @@ using NLog;
 
 namespace MOUSE.Core
 {
+    public class OperationContext
+    {
+        public readonly Message Message;
+        public readonly INetPeer Source;
+
+        public OperationContext(Message message, INetPeer source)
+        {
+            Message = message;
+            Source = source;
+        }
+    }
+
     public interface INodeService
     {
         OperationContext Context { get; set; }
@@ -20,7 +32,8 @@ namespace MOUSE.Core
     {
         NodeServiceDescription _description;
         protected Logger Log;
-        protected ServerFiber Fiber;
+        public ServerFiber<Message> Fiber;
+        protected ServerNode Node;
         private uint _id;
 
         public uint Id
@@ -35,39 +48,34 @@ namespace MOUSE.Core
         /// </summary>
         public OperationContext Context { get;set; }
 
-        public void Init(uint id, NodeServiceDescription desc)
+        public void Init(uint id, NodeServiceDescription desc, ServerNode node)
         {
             _id = id;
             _description = desc;
+            Node = node;
             Log = LogManager.GetLogger(string.Format("{0}<Id:{1}>", GetType().Name, id));
-            Fiber = new ServerFiber();
+            Fiber = new ServerFiber<Message>();
         }
 
         public NodeServiceDescription Description { get { return _description; } }
 
-        public void Process(OperationContext operationContext)
+        public Task<Message> ProcessMessage(OperationContext operationContext)
         {
-            Fiber.Process(() => DispatchAndReplyAsync(operationContext), operationContext.Message.LockType);
+            return Fiber.ProcessAndReturn(() => DispatchAndReturnAsync(operationContext), operationContext.Message.LockType);
         }
 
-        private async Task DispatchAndReplyAsync(OperationContext context)
+        private Task<Message> DispatchAndReturnAsync(OperationContext context)
         {
             try
             {
-                int requestId = context.Message.GetHeader<OperationHeader>().RequestId;
                 //TODO: research how to make this context propagate on async continuations
                 Context = context;
-                Message reply = await context.Node.Protocol.Dispatch(this, context.Message);
-                if (reply != null)
-                {
-                    reply.AttachHeader(new OperationHeader(requestId, OperationType.Reply));
-                    context.Source.Channel.Send(reply);
-                    Log.Debug("{0} - Sending back {1}", requestId, reply);
-                }
+                return Node.Protocol.Dispatch(this, context.Message);
             }
             catch (Exception ex)
             {
                 Log.Error(ex.ToString());
+                throw new Exception("Error on DispatchAndReturnAsync", ex);
             }
         }
     }
@@ -140,7 +148,7 @@ namespace MOUSE.Core
         NodeServiceKey ServiceKey { get; }
         INetPeer RemoteTarget { get; }
         IMessageFactory MessageFactory { get; }
-        object DirectTarget { get; }
+        NodeService DirectTarget { get; }
         NodeServiceContractDescription Description { get; }
         Task<Message> ExecuteServiceOperation(Message request);
         void ExecuteOneWayServiceOperation(Message request);
@@ -153,9 +161,9 @@ namespace MOUSE.Core
         private NodeServiceContractDescription _description;
         private ServiceHeader _serviceHeader;
         private INetPeer _remoteTarget;
-        private object _directTarget;
+        private NodeService _directTarget;
 
-        public void Init(NodeServiceKey serviceKey, NodeServiceContractDescription description, INetPeer remoteTarget, object directTarget = null)
+        public void Init(NodeServiceKey serviceKey, NodeServiceContractDescription description, INetPeer remoteTarget, NodeService directTarget = null)
         {
             _serviceKey = serviceKey;
             _description = description;
@@ -179,7 +187,7 @@ namespace MOUSE.Core
             get { return _remoteTarget.MessageFactory; }
         }
 
-        public object DirectTarget
+        public NodeService DirectTarget
         {
             get { return _directTarget; }
         }
@@ -192,13 +200,19 @@ namespace MOUSE.Core
         public Task<Message> ExecuteServiceOperation(Message request)
         {
             request.AttachHeader(_serviceHeader);
-            return RemoteTarget.ExecuteOperation(request);
+            if (DirectTarget != null)
+                return DirectTarget.ProcessMessage(new OperationContext(request, null));
+            else
+                return RemoteTarget.ExecuteOperation(request);
         }
 
         public void ExecuteOneWayServiceOperation(Message request)
         {
             request.AttachHeader(_serviceHeader);
-            RemoteTarget.Channel.Send(request);
+            if (DirectTarget != null)
+                DirectTarget.ProcessMessage(new OperationContext(request, null));
+            else
+                RemoteTarget.Channel.Send(request);
         }
     }
 

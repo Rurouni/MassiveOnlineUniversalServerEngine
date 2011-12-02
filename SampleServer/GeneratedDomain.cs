@@ -13,12 +13,7 @@ namespace Protocol.Generated
     {
         public async Task< SampleC2SProtocol.LoginResult > Login ( string name )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatLogin)DirectTarget).Login(name);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatLoginLoginRequest >();
+        	var request = MessageFactory.New< IChatLoginLoginRequest >();
             request.name=name;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatLoginLoginReply)reply).RetVal;
@@ -42,12 +37,7 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<SampleC2SProtocol.ChatRoomInfo> > GetRooms (  )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).GetRooms();
-				return result;
-			}	
-			var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
+        	var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceGetRoomsReply)reply).RetVal;
             MessageFactory.Free(reply);
@@ -65,12 +55,7 @@ namespace Protocol.Generated
         }
         public async Task< SampleC2SProtocol.CreateRoomResponse > JoinOrCreateRoom ( string roomName )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).JoinOrCreateRoom(roomName);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
+        	var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
             request.roomName=roomName;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceJoinOrCreateRoomReply)reply).RetVal;
@@ -89,12 +74,7 @@ namespace Protocol.Generated
         }
         public async Task< long > JoinRoom ( uint roomId )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).JoinRoom(roomId);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
+        	var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
             request.roomId=roomId;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceJoinRoomReply)reply).RetVal;
@@ -118,12 +98,7 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<string> > Join ( long ticket )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatRoomService)DirectTarget).Join(ticket);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
+        	var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
             request.ticket=ticket;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatRoomServiceJoinReply)reply).RetVal;
@@ -142,11 +117,7 @@ namespace Protocol.Generated
         }
         public void Say ( string message )
         {
-        	if(DirectTarget != null)
-			{
-				((SampleC2SProtocol.IChatRoomService)DirectTarget).Say(message);
-			}	
-			var request = MessageFactory.New< IChatRoomServiceSayRequest >();
+        	var request = MessageFactory.New< IChatRoomServiceSayRequest >();
             request.message=message;
 			ExecuteOneWayServiceOperation(request);
             MessageFactory.Free(request);
@@ -165,11 +136,7 @@ namespace Protocol.Generated
     {
         public void OnRoomMessage ( uint roomId, string message )
         {
-        	if(DirectTarget != null)
-			{
-				((SampleC2SProtocol.IChatRoomServiceCallback)DirectTarget).OnRoomMessage(roomId, message);
-			}	
-			var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
+        	var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
             request.roomId=roomId;
             request.message=message;
 			ExecuteOneWayServiceOperation(request);
@@ -189,12 +156,7 @@ namespace Protocol.Generated
     {
         public async Task< SampleS2SProtocol.ChatUserInfo > GetUser ( string name )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleS2SProtocol.IChatManager)DirectTarget).GetUser(name);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatManagerGetUserRequest >();
+        	var request = MessageFactory.New< IChatManagerGetUserRequest >();
             request.name=name;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatManagerGetUserReply)reply).RetVal;
@@ -213,12 +175,7 @@ namespace Protocol.Generated
         }
         public async Task< SampleS2SProtocol.ChatUserInfo > TryRegisterUser ( string name )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleS2SProtocol.IChatManager)DirectTarget).TryRegisterUser(name);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatManagerTryRegisterUserRequest >();
+        	var request = MessageFactory.New< IChatManagerTryRegisterUserRequest >();
             request.name=name;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatManagerTryRegisterUserReply)reply).RetVal;
@@ -237,11 +194,7 @@ namespace Protocol.Generated
         }
         public void UnregisterUser ( uint id )
         {
-        	if(DirectTarget != null)
-			{
-				((SampleS2SProtocol.IChatManager)DirectTarget).UnregisterUser(id);
-			}	
-			var request = MessageFactory.New< IChatManagerUnregisterUserRequest >();
+        	var request = MessageFactory.New< IChatManagerUnregisterUserRequest >();
             request.id=id;
 			ExecuteOneWayServiceOperation(request);
             MessageFactory.Free(request);
@@ -255,12 +208,7 @@ namespace Protocol.Generated
         }
         public async Task< System.Collections.Generic.List<SampleC2SProtocol.ChatRoomInfo> > GetRooms (  )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleS2SProtocol.IChatManager)DirectTarget).GetRooms();
-				return result;
-			}	
-			var request = MessageFactory.New< IChatManagerGetRoomsRequest >();
+        	var request = MessageFactory.New< IChatManagerGetRoomsRequest >();
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatManagerGetRoomsReply)reply).RetVal;
             MessageFactory.Free(reply);
@@ -278,12 +226,7 @@ namespace Protocol.Generated
         }
         public async Task< uint > GetOrCreateRoom ( string roomName )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleS2SProtocol.IChatManager)DirectTarget).GetOrCreateRoom(roomName);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatManagerGetOrCreateRoomRequest >();
+        	var request = MessageFactory.New< IChatManagerGetOrCreateRoomRequest >();
             request.roomName=roomName;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatManagerGetOrCreateRoomReply)reply).RetVal;
@@ -302,12 +245,7 @@ namespace Protocol.Generated
         }
         public async Task DeleteRoom ( uint roomId )
         {
-        	if(DirectTarget != null)
-			{
-				await ((SampleS2SProtocol.IChatManager)DirectTarget).DeleteRoom(roomId);
-				return;
-			}	
-			var request = MessageFactory.New< IChatManagerDeleteRoomRequest >();
+        	var request = MessageFactory.New< IChatManagerDeleteRoomRequest >();
             request.roomId=roomId;
             Message reply = await ExecuteServiceOperation(request);
             MessageFactory.Free(request);
@@ -327,12 +265,7 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<SampleS2SProtocol.ChatUserInfo> > GetUsersInside (  )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleS2SProtocol.IChatRoom)DirectTarget).GetUsersInside();
-				return result;
-			}	
-			var request = MessageFactory.New< IChatRoomGetUsersInsideRequest >();
+        	var request = MessageFactory.New< IChatRoomGetUsersInsideRequest >();
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatRoomGetUsersInsideReply)reply).RetVal;
             MessageFactory.Free(reply);
@@ -350,12 +283,7 @@ namespace Protocol.Generated
         }
         public async Task< long > AwaitUser ( SampleS2SProtocol.ChatUserInfo user )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleS2SProtocol.IChatRoom)DirectTarget).AwaitUser(user);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatRoomAwaitUserRequest >();
+        	var request = MessageFactory.New< IChatRoomAwaitUserRequest >();
             request.user=user;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatRoomAwaitUserReply)reply).RetVal;
@@ -374,12 +302,7 @@ namespace Protocol.Generated
         }
         public async Task RemoveUser ( uint userId )
         {
-        	if(DirectTarget != null)
-			{
-				await ((SampleS2SProtocol.IChatRoom)DirectTarget).RemoveUser(userId);
-				return;
-			}	
-			var request = MessageFactory.New< IChatRoomRemoveUserRequest >();
+        	var request = MessageFactory.New< IChatRoomRemoveUserRequest >();
             request.userId=userId;
             Message reply = await ExecuteServiceOperation(request);
             MessageFactory.Free(request);

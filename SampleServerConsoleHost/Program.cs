@@ -33,12 +33,10 @@ namespace SampleServerConsoleHost
             builder.RegisterType<ServicesRepository>().As<IServicesRepository>().SingleInstance();
             builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
-            builder.Register(c=> new RakPeerInterface(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1111), 10000)).As<INetProvider>().SingleInstance();
+            builder.Register(c=> new RakPeerInterface(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 12345), 10000))
+                .As<INetProvider>().SingleInstance();
             
-            builder.Register(c=> 
-                    new ServerNode(channel => new ChatClient(channel, c.Resolve<ServerNode>()), c.Resolve<INetProvider>(),
-                        null, c.Resolve<IMessageFactory>(), c.Resolve<IServiceProtocol>(), c.Resolve<IServicesRepository>()))
-                .As<ServerNode>().SingleInstance();
+            builder.RegisterType<ServerNode>().As<ServerNode>().SingleInstance();
 
             var container = builder.Build();
 

@@ -104,39 +104,7 @@ void WriteMethodDef(MethodInfo method)
 
 void WriteMethodBody(MethodInfo method, Type contractType)
 {	#>
-	if(DirectTarget != null)
-			{
-<#+var paramsText = new StringBuilder();
-    var paramArr = method.GetParameters();
-    for (int i = 0; i < paramArr.Length; i++)
-    {
-        if(i!=0)
-            paramsText.Append(", ");
-        paramsText.Append(paramArr[i].Name);
-    }
-
-    if (method.ReturnType == typeof(void))
-    { 
-#>
-				((<#= TypeToString(contractType) #>)DirectTarget).<#= method.Name + "(" + paramsText + ");" #>
-<#+ }
-    else if (!method.ReturnType.IsGenericType)
-    { 
-#>
-				await ((<#= TypeToString(contractType) #>)DirectTarget).<#= method.Name + "(" + paramsText + ");" #>
-				return;
-<#+		
-}
-    else
-    {
-#>
-				var result = await ((<#= TypeToString(contractType) #>)DirectTarget).<#= method.Name + "(" + paramsText + ");" #>
-				return result;
-<#+
-    }
-#>
-			}	
-			var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
+	var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
 <#+ foreach(var par in method.GetParameters())
     {	#>
             request.<#= par.Name +"="+ par.Name #>;

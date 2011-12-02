@@ -13,12 +13,7 @@ namespace Protocol.Generated
     {
         public async Task< SampleC2SProtocol.LoginResult > Login ( string name )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatLogin)DirectTarget).Login(name);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatLoginLoginRequest >();
+        	var request = MessageFactory.New< IChatLoginLoginRequest >();
             request.name=name;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatLoginLoginReply)reply).RetVal;
@@ -42,12 +37,7 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<SampleC2SProtocol.ChatRoomInfo> > GetRooms (  )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).GetRooms();
-				return result;
-			}	
-			var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
+        	var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceGetRoomsReply)reply).RetVal;
             MessageFactory.Free(reply);
@@ -65,12 +55,7 @@ namespace Protocol.Generated
         }
         public async Task< SampleC2SProtocol.CreateRoomResponse > JoinOrCreateRoom ( string roomName )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).JoinOrCreateRoom(roomName);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
+        	var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
             request.roomName=roomName;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceJoinOrCreateRoomReply)reply).RetVal;
@@ -89,12 +74,7 @@ namespace Protocol.Generated
         }
         public async Task< long > JoinRoom ( uint roomId )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatService)DirectTarget).JoinRoom(roomId);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
+        	var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
             request.roomId=roomId;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceJoinRoomReply)reply).RetVal;
@@ -118,12 +98,7 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<string> > Join ( long ticket )
         {
-        	if(DirectTarget != null)
-			{
-				var result = await ((SampleC2SProtocol.IChatRoomService)DirectTarget).Join(ticket);
-				return result;
-			}	
-			var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
+        	var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
             request.ticket=ticket;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatRoomServiceJoinReply)reply).RetVal;
@@ -142,11 +117,7 @@ namespace Protocol.Generated
         }
         public void Say ( string message )
         {
-        	if(DirectTarget != null)
-			{
-				((SampleC2SProtocol.IChatRoomService)DirectTarget).Say(message);
-			}	
-			var request = MessageFactory.New< IChatRoomServiceSayRequest >();
+        	var request = MessageFactory.New< IChatRoomServiceSayRequest >();
             request.message=message;
 			ExecuteOneWayServiceOperation(request);
             MessageFactory.Free(request);
@@ -165,11 +136,7 @@ namespace Protocol.Generated
     {
         public void OnRoomMessage ( uint roomId, string message )
         {
-        	if(DirectTarget != null)
-			{
-				((SampleC2SProtocol.IChatRoomServiceCallback)DirectTarget).OnRoomMessage(roomId, message);
-			}	
-			var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
+        	var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
             request.roomId=roomId;
             request.message=message;
 			ExecuteOneWayServiceOperation(request);

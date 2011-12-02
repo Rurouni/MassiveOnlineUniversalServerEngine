@@ -123,14 +123,24 @@ namespace MOUSE.Core
         {
             base.Serialize(writer);
             writer.Write(IsValid);
-            ServiceOwner.Serialize(writer);
+            if (ServiceOwner != null)
+            {
+                writer.Write(true);
+                ServiceOwner.Serialize(writer);
+            }
+            else
+                writer.Write(false);
+
+            
         }
 
         public override void Deserialize(NativeReader reader)
         {
             base.Deserialize(reader);
             IsValid = reader.ReadBoolean();
-            ServiceOwner = new NodeDescription(reader);
+            bool exist = reader.ReadBoolean();
+            if(exist)
+                ServiceOwner = new NodeDescription(reader);
         }
 
         private ServiceAccessReply()

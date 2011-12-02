@@ -49,22 +49,10 @@ namespace MOUSE.Core
         }
     }
 
-    public class OperationContext
-    {
-        public readonly Message Message;
-        public readonly ServerNode Node;
-        public readonly INetPeer Source;
-
-        public OperationContext(ServerNode node, Message message, INetPeer source)
-        {
-            Node = node;
-            Message = message;
-            Source = source;
-        }
-    }
-    
     public interface INetPeer : INetChannelListener
     {
+        void Init(INetChannel channel, INetNode<INetPeer> owner);
+
         INetChannel Channel {get;}
 
         IObservable<INetPeer> DisconnectedEvent { get; }
@@ -98,27 +86,32 @@ namespace MOUSE.Core
         
     }
 
+    /// <summary>
+    /// All fields should be initialized only in Init
+    /// </summary>
     public class NetPeer : INetPeer
     {
         private const int ExpirationTimeout = 30;
 
         public Logger Log;
         public INetChannel Channel { get; private set; }
-        private readonly Subject<INetPeer> _onDisconnectedSubject = new Subject<INetPeer>();
-        private readonly Subject<Message> _onMessageSubject = new Subject<Message>();
+        private Subject<INetPeer> _onDisconnectedSubject;
+        private Subject<Message> _onMessageSubject;
         public INetNode<INetPeer> Owner { get; private set; }
 
         private int _requestId = 0;
-        protected readonly ConcurrentDictionary<int, PendingOperation> PendingOperationsByRequestId =
-            new ConcurrentDictionary<int, PendingOperation>();
-        private readonly ConcurrentDictionary<NodeServiceKey, NodeServiceProxy> _proxyCache =
-            new ConcurrentDictionary<NodeServiceKey, NodeServiceProxy>();
+        protected ConcurrentDictionary<int, PendingOperation> PendingOperationsByRequestId;
+        private ConcurrentDictionary<NodeServiceKey, NodeServiceProxy> _proxyCache;
 
-        public NetPeer(INetChannel channel, INetNode<INetPeer> owner)
+        public virtual void Init(INetChannel channel, INetNode<INetPeer> owner)
         {
             Channel = channel;
             Owner = owner;
-            Log = LogManager.GetLogger(ToString());//intended
+            Log = LogManager.GetLogger(ToString());
+            _onMessageSubject = new Subject<Message>();
+            _onDisconnectedSubject = new Subject<INetPeer>();
+            PendingOperationsByRequestId = new ConcurrentDictionary<int, PendingOperation>();
+            _proxyCache = new ConcurrentDictionary<NodeServiceKey, NodeServiceProxy>();
         }
 
         void INetChannelListener.OnDisconnected()
@@ -187,7 +180,6 @@ namespace MOUSE.Core
                     throw new Exception("Ids for requests should generate monotonicaly and never duplicate");
                 continuation.TCS.SetException(new Exception(continuation + " has Expired in " + ExpirationTimeout));
             });
-            expiration.Start();
             return continuation.TCS.Task;
         }
 
@@ -239,8 +231,6 @@ namespace MOUSE.Core
         private int _updateLoopRunning = 0;
         private Thread _updateThread;
 
-        private Func<INetChannel, TNetPeer> _peerFactory;
-                        
         protected int RequestId = 0;
         
         public IMessageFactory MessageFactory { get; set; }
@@ -248,7 +238,6 @@ namespace MOUSE.Core
         public IServiceProtocol Protocol { get; set; }
 
         public NetNode(INetProvider net, IMessageFactory msgFactory, IServiceProtocol protocol,
-            Func<INetChannel, TNetPeer> peerFactory = null,
             bool manualUpdate = false)
         {
             Net = net;
@@ -256,13 +245,11 @@ namespace MOUSE.Core
             Protocol = protocol;
 
             _manualUpdate = manualUpdate;
-            _peerFactory = peerFactory;
-
-            Log = LogManager.GetLogger(ToString());
         }
 
         public virtual void Start()
         {
+            Log = LogManager.GetLogger(ToString());
             if (!Net.Init(this))
                 throw new Exception("Net layer can't initialize");
 
@@ -348,9 +335,9 @@ namespace MOUSE.Core
 
         public virtual TNetPeer CreatePeer(INetChannel channel)
         {
-            if (_peerFactory != null)
-                return _peerFactory(channel);
-            else throw new Exception("_peerFactory is not initialized neither overriden");
+            var peer = (TNetPeer) FormatterServices.GetUninitializedObject(typeof (TNetPeer));
+            peer.Init(channel, (INetNode<INetPeer>)this);
+            return peer;
         }
 
 

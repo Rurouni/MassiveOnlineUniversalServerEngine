@@ -24,8 +24,10 @@ namespace SampleServer
         private ChatUserInfo _user;
         uint _roomId;
 
-        public ChatClient(INetChannel channel, ServerNode node) : base(channel, node)
+        public override void Init(INetChannel channel, INetNode<INetPeer> owner)
         {
+            base.Init(channel, owner);
+
             SetHandler<IChatLogin>(this);
             DisconnectedEvent.Subscribe(OnDisconnectAsync);
         }

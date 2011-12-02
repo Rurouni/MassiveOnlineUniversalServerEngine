@@ -16,7 +16,7 @@ namespace MOUSE.Core
 {
     public interface IServicesRepository
     {
-        Task<NodeService> Activate(NodeServiceKey serviceKey);
+        Task<NodeService> Activate(ServerNode node, NodeServiceKey serviceKey);
         void Deactivate(NodeService service);
         bool TryGet(NodeServiceKey serviceKey, out NodeService service);
         bool Contains(NodeServiceKey serviceKey);
@@ -72,7 +72,7 @@ namespace MOUSE.Core
             return desc;
         }
 
-        public async Task<NodeService> Activate(NodeServiceKey serviceKey)
+        public async Task<NodeService> Activate(ServerNode node, NodeServiceKey serviceKey)
         {
             Contract.Requires(serviceKey != null);
             Contract.Ensures(Contract.Result<NodeService>() != null);
@@ -90,7 +90,7 @@ namespace MOUSE.Core
             if (desc.Persistant)
                 newService = await Storage.Get(serviceKey);
             if (newService == null)
-                newService = CreateNew(serviceKey);
+                newService = CreateNew(node, serviceKey);
 
             return GetOrAdd(serviceKey, newService);
         }
@@ -121,14 +121,14 @@ namespace MOUSE.Core
             }
         }
 
-        protected NodeService CreateNew(NodeServiceKey serviceKey)
+        protected NodeService CreateNew(ServerNode node, NodeServiceKey serviceKey)
         {
             Log.Debug("Creating service with {0}", serviceKey);
 
             NodeServiceDescription desc = GetDescription(serviceKey.TypeId);
 
             var entity = (NodeService)FormatterServices.GetUninitializedObject(desc.ServiceType);
-            entity.Init(serviceKey.Id, desc);
+            entity.Init(serviceKey.Id, desc, node);
             return entity;
         }
 

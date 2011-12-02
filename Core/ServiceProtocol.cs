@@ -15,7 +15,7 @@ namespace MOUSE.Core
     public interface IServiceProtocol
     {
         Task<Message> Dispatch(object target, Message msg);
-        NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, INetPeer remoteTarget, object directTaget = null);
+        NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, INetPeer remoteTarget, NodeService directTaget = null);
 
         NodeServiceKey GetKey<TServiceContract>(uint serviceId = 0);
         uint GetContractId(Type contractType);
@@ -102,7 +102,7 @@ namespace MOUSE.Core
             
         }
 
-        public NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, INetPeer remoteTarget, object directTaget = null)
+        public NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, INetPeer remoteTarget, NodeService directTaget = null)
         {
             NodeServiceProxy proxy;
             NodeServiceContractDescription desc;

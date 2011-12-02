@@ -106,13 +106,8 @@ namespace MOUSE.Core
         }
     }
 
-    public class Client2ServerPeer : NetPeer
+    public class ServerPeer : NetPeer
     {
-        public Client2ServerPeer(INetChannel channel, INetNode<INetPeer> owner)
-            : base(channel, owner)
-        {
-        }
-
         public async override Task<Message> ExecuteOperation(Message input)
         {
             Message msg = await base.ExecuteOperation(input);
@@ -125,7 +120,7 @@ namespace MOUSE.Core
     /// <summary>
     /// uses internal Fiber to receive all continuations and process messages to achieve thread-safety and provide manual update loop(if needed)
     /// </summary>
-    public class ClientNode : NetNode<Client2ServerPeer>, IClientNode
+    public class ClientNode : NetNode<ServerPeer>, IClientNode
     {
         private readonly Dictionary<uint, object> _handlersByNetContractId = new Dictionary<uint, object>();
         private readonly Dictionary<NodeServiceKey, NodeServiceProxy> _proxyCache = new Dictionary<NodeServiceKey, NodeServiceProxy>();
@@ -137,7 +132,7 @@ namespace MOUSE.Core
         
         public ClientNode(INetProvider net, IMessageFactory msgFactory, IServiceProtocol protocol,
             bool manualUpdate = false, IPEndPoint serverEndpoint = null)
-            : base(net, msgFactory, protocol, null, manualUpdate)
+            : base(net, msgFactory, protocol, manualUpdate)
         {
             ServerEndPoint = serverEndpoint;
             if (SynchronizationContext.Current != null)
@@ -167,9 +162,9 @@ namespace MOUSE.Core
             ServerPeer = (NetPeer)await Connect(endPoint).ConfigureAwait(false);
         }
 
-        public override Client2ServerPeer CreatePeer(INetChannel channel)
+        public override ServerPeer CreatePeer(INetChannel channel)
         {
-            var peer = new Client2ServerPeer(channel, this);
+            var peer = base.CreatePeer(channel);
             peer.MessageEvent.Subscribe((msg)=> Fiber.Process(() => OnMessage(msg)));
             return peer;
         }
