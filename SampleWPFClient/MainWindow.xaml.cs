@@ -53,6 +53,10 @@ namespace SampleWPFClient
 
             _node = container.Resolve<IClientNode>();
             _node.SetHandler<IChatRoomServiceCallback>(this);
+            _node.Start();
+
+            Closing += (sender, e) => _node.Stop();
+
         }
 
         private async Task UpdateRooms()
@@ -83,9 +87,8 @@ namespace SampleWPFClient
             var loginService = await _node.GetService<IChatLogin>();
             LoginResult result = await loginService.Login(txtUserName.Text);
             if (result != LoginResult.Ok)
-            {
                 MessageBox.Show("Cant Login " + result);
-            }
+
             _chatServiceProxy = await _node.GetService<IChatService>();
             UpdateRooms();
         }
@@ -94,12 +97,41 @@ namespace SampleWPFClient
         {
             var room = (ChatRoomInfo)cbChatRooms.SelectedItem;
 
-            long ticket = await _chatServiceProxy.JoinRoom(room.Id);
-            _chatRoomServiceProxy = await _node.GetService<IChatRoomService>(room.Id);
-            List<string> history = await _chatRoomServiceProxy.Join(ticket);
-            txtChat.Clear();
-            foreach (var msg in history)
-                txtChat.AppendText(msg + "\n");
+            try
+            {
+                long ticket = await _chatServiceProxy.JoinRoom(room.Id);
+                _chatRoomServiceProxy = await _node.GetService<IChatRoomService>(room.Id);
+                List<string> history = await _chatRoomServiceProxy.Join(ticket);
+                txtChat.Clear();
+                foreach (var msg in history)
+                    txtChat.AppendText(msg + "\n");
+            }
+            catch (InvalidInput iex)
+            {
+                MessageBox.Show(((JoinRoomInvalidRetCode)iex.ErrorCode).ToString());
+            }
+            
         }
+
+        private async void btnJoin_Click(object sender, RoutedEventArgs e)
+        {
+            CreateRoomResponse response = await _chatServiceProxy.JoinOrCreateRoom(cbChatRooms.Text);
+            _chatRoomServiceProxy = await _node.GetService<IChatRoomService>(response.RoomId);
+            var content = await _chatRoomServiceProxy.Join(response.Ticket);
+            txtChat.Clear();
+            foreach (var msg in content)
+                txtChat.AppendText(msg + "\n");
+            UpdateRooms();
+        }
+
+        private void btnSend_Click(object sender, RoutedEventArgs e)
+        {
+            if(txtMyMessage.Text.Trim() != "")
+            {
+                _chatRoomServiceProxy.Say(txtMyMessage.Text);
+                txtMyMessage.Text = "";
+            }
+        }
+        
     }
 }

@@ -28,11 +28,11 @@ namespace MOUSE.Core
         NodeServiceDescription Description { get; }
     }
 
-    public class NodeService : INodeService
+    public class NodeService : INodeService, IServiceOperationDispatcher
     {
         NodeServiceDescription _description;
         protected Logger Log;
-        public ServerFiber<Message> Fiber;
+        public ServerFiber Fiber;
         protected ServerNode Node;
         private uint _id;
 
@@ -54,7 +54,12 @@ namespace MOUSE.Core
             _description = desc;
             Node = node;
             Log = LogManager.GetLogger(string.Format("{0}<Id:{1}>", GetType().Name, id));
-            Fiber = new ServerFiber<Message>();
+            Fiber = new ServerFiber();
+            OnCreated();
+        }
+
+        public virtual void OnCreated()
+        {
         }
 
         public NodeServiceDescription Description { get { return _description; } }
@@ -77,6 +82,16 @@ namespace MOUSE.Core
                 Log.Error(ex.ToString());
                 throw new Exception("Error on DispatchAndReturnAsync", ex);
             }
+        }
+
+        Task<Message> IServiceOperationDispatcher.ExecuteServiceOperation(Message request)
+        {
+            return ProcessMessage(new OperationContext(request, null));
+        }
+
+        void IServiceOperationDispatcher.ExecuteOneWayServiceOperation(Message request)
+        {
+            Fiber.Process(() => DispatchAndReturnAsync(new OperationContext(request, null)), request.LockType);
         }
     }
     
@@ -146,13 +161,18 @@ namespace MOUSE.Core
     public interface INodeServiceProxy
     {
         NodeServiceKey ServiceKey { get; }
-        INetPeer RemoteTarget { get; }
         IMessageFactory MessageFactory { get; }
-        NodeService DirectTarget { get; }
+        IServiceOperationDispatcher Target { get; }
         NodeServiceContractDescription Description { get; }
         Task<Message> ExecuteServiceOperation(Message request);
         void ExecuteOneWayServiceOperation(Message request);
     
+    }
+
+    public interface IServiceOperationDispatcher
+    {
+        Task<Message> ExecuteServiceOperation(Message request);
+        void ExecuteOneWayServiceOperation(Message request);
     }
 
     public abstract class NodeServiceProxy : INodeServiceProxy
@@ -160,16 +180,16 @@ namespace MOUSE.Core
         private NodeServiceKey _serviceKey;
         private NodeServiceContractDescription _description;
         private ServiceHeader _serviceHeader;
-        private INetPeer _remoteTarget;
-        private NodeService _directTarget;
-
-        public void Init(NodeServiceKey serviceKey, NodeServiceContractDescription description, INetPeer remoteTarget, NodeService directTarget = null)
+        private IMessageFactory _messageFactory;
+        private IServiceOperationDispatcher _target;
+        
+        public void Init(NodeServiceKey serviceKey, NodeServiceContractDescription description, IMessageFactory messageFactory, IServiceOperationDispatcher target)
         {
             _serviceKey = serviceKey;
             _description = description;
             _serviceHeader = new ServiceHeader(serviceKey);
-            _remoteTarget = remoteTarget;
-            _directTarget = directTarget;
+            _messageFactory = messageFactory;
+            _target = target;
         }
 
         public NodeServiceKey ServiceKey
@@ -177,19 +197,14 @@ namespace MOUSE.Core
             get { return _serviceKey; }
         }
 
-        public INetPeer RemoteTarget
-        {
-            get { return _remoteTarget; }
-        }
-
         public IMessageFactory MessageFactory
         {
-            get { return _remoteTarget.MessageFactory; }
+            get { return _messageFactory; }
         }
 
-        public NodeService DirectTarget
+        public IServiceOperationDispatcher Target
         {
-            get { return _directTarget; }
+            get { return _target; }
         }
 
         public NodeServiceContractDescription Description
@@ -200,19 +215,13 @@ namespace MOUSE.Core
         public Task<Message> ExecuteServiceOperation(Message request)
         {
             request.AttachHeader(_serviceHeader);
-            if (DirectTarget != null)
-                return DirectTarget.ProcessMessage(new OperationContext(request, null));
-            else
-                return RemoteTarget.ExecuteOperation(request);
+            return _target.ExecuteServiceOperation(request);
         }
 
         public void ExecuteOneWayServiceOperation(Message request)
         {
             request.AttachHeader(_serviceHeader);
-            if (DirectTarget != null)
-                DirectTarget.ProcessMessage(new OperationContext(request, null));
-            else
-                RemoteTarget.Channel.Send(request);
+            _target.ExecuteOneWayServiceOperation(request);
         }
     }
 

@@ -86,7 +86,7 @@ bool RakPeerInterface::Startup()
     return res == RakNet::RAKNET_STARTED;
 }
 
-bool RakPeerInterface::Init(INetPeerFactory^ peerFactory)
+bool RakPeerInterface::Init(INetChannelConsumer^ peerFactory)
 {
 	_peerFactory = peerFactory;
 	return Startup();

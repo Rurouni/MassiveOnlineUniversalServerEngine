@@ -12,14 +12,14 @@ namespace PhotonClientWrap
     {
         PhotonPeer _photon;
         Dictionary<byte, object> _dict = new Dictionary<byte, object>();
-        INetPeerFactory _processor;
+        INetChannelConsumer _processor;
         NativeReader _reader = new NativeReader();
 
         public PhotonNetClient()
         {           
         }
 
-        public bool Startup(INetPeerFactory processor, IPEndPoint listenEndpoint, int maxConnections)
+        public bool Startup(INetChannelConsumer processor, IPEndPoint listenEndpoint, int maxConnections)
         {
             _processor = processor;
             _photon = new PhotonPeer(this);

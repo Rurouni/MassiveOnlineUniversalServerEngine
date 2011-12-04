@@ -35,17 +35,17 @@ namespace RakNetWrapper
         NativeReader^ _reader;
         array<unsigned char>^ _buff;
         Dictionary<int, RakChannel^ >^ _channels;
-        INetPeerFactory^ _peerFactory;
-		IPEndPoint^ _endpoint;
-		unsigned short _maxConnections;
+        INetChannelConsumer^ _peerFactory;
+        IPEndPoint^ _endpoint;
+        unsigned short _maxConnections;
 
     public:
         RakPeerInterface(IPEndPoint^ listenEndpoint, unsigned short maxConnections);
-		RakPeerInterface();
+        RakPeerInterface();
         ~RakPeerInterface();
 
-        virtual bool Init(INetPeerFactory^ peerFactory);
-		bool Startup();
+        virtual bool Init(INetChannelConsumer^ peerFactory);
+        bool Startup();
 
         virtual void Connect(IPEndPoint^ endpoint);
         void CloseConnection(int netId);
@@ -83,7 +83,7 @@ namespace RakNetWrapper
         IPEndPoint^ _ipEndPoint;
         RakPeerInterface^ _rakPeer;
     public:
-		INetChannelListener^ ChannelListener;
+        INetChannelListener^ ChannelListener;
 
         RakChannel(RakPeerInterface^ rakPeer, RakNet::SystemAddress& addr)
         {

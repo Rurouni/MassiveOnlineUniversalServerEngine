@@ -12,7 +12,7 @@ namespace SampleC2SProtocol
     [NetContract]
     public interface IChatLogin
     {
-        [NetOperation(Lock = LockType.Full)]
+        [NetOperation]
         Task<LoginResult> Login(string name);
     }
 
@@ -78,14 +78,17 @@ namespace SampleC2SProtocol
         [DataMember]
         public string Name;
 
-        public ChatRoomInfo()
-        {
-        }
+        public ChatRoomInfo(){}
 
         public ChatRoomInfo(uint id, string name)
         {
             Id = id;
             Name = name;
+        }
+
+        public override string ToString()
+        {
+            return Name;
         }
     }
 

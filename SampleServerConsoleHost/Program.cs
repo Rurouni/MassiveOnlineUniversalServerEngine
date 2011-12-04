@@ -40,12 +40,14 @@ namespace SampleServerConsoleHost
 
             var container = builder.Build();
 
-            ServerNode node = container.Resolve<ServerNode>();
-
+            var node = container.Resolve<ServerNode>();
+            node.Start();
             Console.WriteLine("Press q to quit");
             while (Console.ReadKey().KeyChar !='q')
             {
             }
+
+            node.Stop();
             
         }
     }

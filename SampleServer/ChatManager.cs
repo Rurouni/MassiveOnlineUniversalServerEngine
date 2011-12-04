@@ -14,11 +14,20 @@ namespace SampleServer
     [NodeService(AutoCreate = true, Persistant = false)]
     public class ChatManager : NodeService, IChatManager
     {
-        private uint _userCounter = 0;
-        private uint _roomCounter = 0;
-        private readonly Dictionary<string, ChatUserInfo> _usersByName = new Dictionary<string, ChatUserInfo>();
-        private readonly Dictionary<uint, ChatUserInfo> _usersById = new Dictionary<uint, ChatUserInfo>();
-        private readonly List<ChatRoomInfo> _rooms = new List<ChatRoomInfo>();
+        private uint _userCounter;
+        private uint _roomCounter;
+        private Dictionary<string, ChatUserInfo> _usersByName;
+        private Dictionary<uint, ChatUserInfo> _usersById;
+        private List<ChatRoomInfo> _rooms;
+
+        public override void OnCreated()
+        {
+            _usersByName = new Dictionary<string, ChatUserInfo>();
+            _usersById = new Dictionary<uint, ChatUserInfo>();
+            _rooms = new List<ChatRoomInfo>();
+            _userCounter = 1;
+            _roomCounter = 1;
+        }
 
         public async Task<ChatUserInfo> GetUser(string name)
         {
@@ -61,6 +70,7 @@ namespace SampleServer
             {
                 room = new ChatRoomInfo(_roomCounter++, roomName);
                 _rooms.Add(room);
+                Log.Info("New ChatRoom<Id:{0}, Name:{1}> is created", room.Id, room.Name);
             }
             return room.Id;
         }

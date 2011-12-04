@@ -16,7 +16,7 @@ namespace PhotonAdapter
 {
     public class NodePhotonApplication : ApplicationBase, INetProvider
     {
-        private INetNode _node;
+        private INode _node;
 
         ConcurrentDictionary<uint, ClientPeer> _clientPeers = new ConcurrentDictionary<uint, ClientPeer>();
 
@@ -28,12 +28,12 @@ namespace PhotonAdapter
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>();
             builder.RegisterType<ServicesRepository>().As<IServicesRepository>();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>();
-            builder.RegisterType<EntityClusterNode>().As<INetNode>();
+            builder.RegisterType<EntityClusterNode>().As<INode>();
             builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>();
             builder.RegisterInstance(this).As<INetProvider>;
 
             var container = builder.Build();
-            _node = container.Resolve<INetNode>();
+            _node = container.Resolve<INode>();
 
             _node.Start(false);
 
@@ -49,21 +49,21 @@ namespace PhotonAdapter
         {
                 var photonPeer = new ClientPeer(this, initRequest.Protocol, initRequest.PhotonPeer, (uint)initRequest.ConnectionId);
                 _clientPeers.Add(photonPeer.NetId, photonPeer);
-                ((INetPeerFactory)_node).OnNetConnect(photonPeer.NetId);
+                ((INetChannelConsumer)_node).OnNetConnect(photonPeer.NetId);
                 return photonPeer;
         }
 
         public void OnClientPeerDisconnected(ClientPeer photonPeer)
         {
             _clientPeers.Remove(photonPeer.NetId);
-            ((INetPeerFactory)_node).OnNetDisconnect(photonPeer.NetId);
+            ((INetChannelConsumer)_node).OnNetDisconnect(photonPeer.NetId);
         }
 
         public void OnClientPeerOperationRequest(ClientPeer clientPeer, OperationRequest operationRequest, SendParameters sendParameters)
         {
             NativeReader reader = new NativeReader();
             reader.SetBuffer((byte[])operationRequest.Parameters[0], 0);
-            ((INetPeerFactory)_node).OnNetData(clientPeer.NetId, reader);
+            ((INetChannelConsumer)_node).OnNetData(clientPeer.NetId, reader);
         }
 
         #region INetPeer
@@ -83,7 +83,7 @@ namespace PhotonAdapter
             _clientPeers[netIndex].Disconnect();
         }
 
-        public bool ProcessNetEvent(INetPeerFactory processor)
+        public bool ProcessNetEvent(INetChannelConsumer processor)
         {
             return false;
         }

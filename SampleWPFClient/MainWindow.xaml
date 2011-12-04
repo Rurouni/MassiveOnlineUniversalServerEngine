@@ -7,10 +7,12 @@
             <ComboBoxItem Content="127.0.0.1:12345" />
         </ComboBox>
         <Button Content="Connect" Height="23" Margin="220,12,0,0" Name="btnConnect" VerticalAlignment="Top" HorizontalAlignment="Left" Width="74" Click="btnConnect_Click" />
-        <TextBox Margin="16,0,12,12" Name="txtChat" Height="37" VerticalAlignment="Bottom" />
-        <TextBox Margin="16,70,12,55" Name="txtMyMessage" />
-        <ComboBox Height="23" HorizontalAlignment="Left" Margin="16,41,0,0" Name="cbChatRooms" VerticalAlignment="Top" Width="198" IsEditable="True" SelectionChanged="cbChatRooms_SelectionChanged" IsReadOnly="True" />
-        <TextBox Height="23" HorizontalAlignment="Left" Margin="371,41,0,0" Name="txtUserName" VerticalAlignment="Top" Width="120" Text="" />
-        <Label Content="Name:" Height="23" HorizontalAlignment="Right" Margin="0,41,138,0" Name="label1" VerticalAlignment="Top" />
+        <TextBox Margin="16,0,12,74" Name="txtChat" Height="166" VerticalAlignment="Bottom" />
+        <TextBox Margin="16,243,67,12" Name="txtMyMessage" />
+        <ComboBox Height="23" HorizontalAlignment="Left" Margin="16,41,0,0" Name="cbChatRooms" VerticalAlignment="Top" Width="198" IsEditable="True" SelectionChanged="cbChatRooms_SelectionChanged" IsReadOnly="False" />
+        <TextBox Height="23" HorizontalAlignment="Left" Margin="371,13,0,0" Name="txtUserName" VerticalAlignment="Top" Width="120" Text="" />
+        <Label Content="Name:" Height="23" HorizontalAlignment="Left" Margin="321,13,0,0" Name="label1" VerticalAlignment="Top" />
+        <Button Content="Join" Height="23" HorizontalAlignment="Left" Margin="220,42,0,0" Name="btnJoin" VerticalAlignment="Top" Width="75" Click="btnJoin_Click" />
+        <Button Content="Send" Height="56" HorizontalAlignment="Left" Margin="442,243,0,0" Name="btnSend" VerticalAlignment="Top" Width="49" Click="btnSend_Click" />
     </Grid>
 </Window>

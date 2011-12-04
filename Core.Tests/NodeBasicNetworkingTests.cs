@@ -101,8 +101,8 @@ namespace Core.Tests
         public void NodeShouldBeAbleToSendAndReceiveMessages()
         {
             var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            var node1 = container.Resolve<INetNode>();
-            var node2 = container.Resolve<INetNode>();
+            var node1 = container.Resolve<INode>();
+            var node2 = container.Resolve<INode>();
 
             node1.Start(true, endpoint);
             node2.Start(true);
@@ -111,7 +111,7 @@ namespace Core.Tests
             NetPeer node2ProxyInNode1 = null;
             Message msg = null;
             NetPeer senderNode = null;
-            INetNode receiverNode = null;
+            INode receiverNode = null;
 
             node1.NodeConnectedEvent.Subscribe((proxy) =>
             {
@@ -178,8 +178,8 @@ namespace Core.Tests
         public void ShouldImmediatelyReturnSameProxyIfAlreadyConnected()
         {
             var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            var node1 = container.Resolve<INetNode>();
-            var node2 = container.Resolve<INetNode>();
+            var node1 = container.Resolve<INode>();
+            var node2 = container.Resolve<INode>();
 
             node1.Start(true, endpoint);
             node2.Start(true);
@@ -219,8 +219,8 @@ namespace Core.Tests
         public void ShouldNotifyOnDisconnect()
         {
             var endpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5679);
-            var node1 = container.Resolve<INetNode>();
-            var node2 = container.Resolve<INetNode>();
+            var node1 = container.Resolve<INode>();
+            var node2 = container.Resolve<INode>();
 
             node1.Start(true, endpoint);
             node2.Start(true);

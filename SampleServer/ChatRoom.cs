@@ -15,10 +15,18 @@ namespace SampleServer
     public class ChatRoom : NodeService, IChatRoom, IChatRoomService
     {
         private long _ticketCounter = 0;
-        readonly Dictionary<uint, ChatRoomClient> _usersById = new Dictionary<uint, ChatRoomClient>();
-        readonly Dictionary<uint, ChatRoomClient> _usersByChannelId = new Dictionary<uint, ChatRoomClient>();
-        readonly Dictionary<long, ChatUserInfo> _awaitingUsers = new Dictionary<long, ChatUserInfo>();
-        private readonly List<string> _messages = new List<string>();
+        private Dictionary<uint, ChatRoomClient> _usersById;
+        private Dictionary<uint, ChatRoomClient> _usersByChannelId;
+        private Dictionary<long, ChatUserInfo> _awaitingUsers;
+        private List<string> _messages;
+
+        public override void OnCreated()
+        {
+            _usersById = new Dictionary<uint, ChatRoomClient>();
+            _usersByChannelId = new Dictionary<uint, ChatRoomClient>();
+            _awaitingUsers = new Dictionary<long, ChatUserInfo>();
+            _messages = new List<string>();
+        }
         
         public async Task<List<ChatUserInfo>> GetUsersInside()
         {
@@ -43,7 +51,9 @@ namespace SampleServer
         {
             ChatRoomClient client;
             if (_usersById.TryGetValue(userId, out client))
-                client.Peer.Channel.Close();
+            {
+                OnUserDisconnected(client.Peer);
+            }
         }
 
         private void OnUserDisconnected(INetPeer peer)
@@ -51,6 +61,7 @@ namespace SampleServer
             ChatRoomClient client;
             if (_usersByChannelId.TryGetValue(peer.Channel.Id, out client))
             {
+                client.DisconnectionSubscription.Dispose();
                 _usersById.Remove(client.Info.Id);
                 _usersByChannelId.Remove(client.Peer.Channel.Id);
                 _messages.Add(client.Info.Name + " has disconnected");
@@ -67,9 +78,14 @@ namespace SampleServer
                 _usersById.Add(info.Id, client);
                 _usersByChannelId.Add(client.Peer.Channel.Id, client);
 
-                Context.Source.DisconnectedEvent.Subscribe(OnUserDisconnected);
-
-                _messages.Add(client.Info.Name + " has connected");
+                client.DisconnectionSubscription = Context.Source.DisconnectedEvent.Subscribe(OnUserDisconnected);
+                string connectMsg = client.Info.Name + " has connected";
+                _messages.Add(connectMsg);
+                foreach (var otherClient in _usersByChannelId.Values)
+                {
+                    var callback = otherClient.Peer.As<IChatRoomServiceCallback>();
+                    callback.OnRoomMessage(Id, connectMsg);
+                }
                 return _messages;
             }
             throw new InvalidInput(JoinRoomInvalidRetCode.ClientNotAwaited);
@@ -98,6 +114,7 @@ namespace SampleServer
     {
         public readonly INetPeer Peer;
         public readonly ChatUserInfo Info;
+        public IDisposable DisconnectionSubscription;
 
         public ChatRoomClient(INetPeer peer, ChatUserInfo info)
         {

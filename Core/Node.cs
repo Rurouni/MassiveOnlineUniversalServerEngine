@@ -51,7 +51,7 @@ namespace MOUSE.Core
 
     public interface INetPeer : INetChannelListener
     {
-        void Init(INetChannel channel, INetNode<INetPeer> owner);
+        void Init(INetChannel channel, INode node);
 
         INetChannel Channel {get;}
 
@@ -63,17 +63,22 @@ namespace MOUSE.Core
         Task<Message> ExecuteOperation(Message input);
         T As<T>();
     }
-    /// <summary>
-    /// Different peers could simultaniously receive events, so implementation should be aware of this
-    /// </summary>
-    public interface INetNode<out TNetPeer>
-        where TNetPeer : INetPeer
+
+    public interface INode
     {
         IMessageFactory MessageFactory { get; }
         IServiceProtocol Protocol { get; }
 
         void Start();
         void Stop();
+    }
+
+    /// <summary>
+    /// Different peers could simultaniously receive events, so implementation should be aware of this
+    /// </summary>
+    public interface INetNode<out TNetPeer> : INode
+        where TNetPeer : INetPeer
+    {
         /// <summary>
         /// should be called only for manually updated Nodes
         /// </summary>
@@ -89,24 +94,24 @@ namespace MOUSE.Core
     /// <summary>
     /// All fields should be initialized only in Init
     /// </summary>
-    public class NetPeer : INetPeer
+    public class NetPeer : INetPeer, IServiceOperationDispatcher
     {
-        private const int ExpirationTimeout = 30;
+        private const int ExpirationTimeout = 120;
 
         public Logger Log;
         public INetChannel Channel { get; private set; }
         private Subject<INetPeer> _onDisconnectedSubject;
         private Subject<Message> _onMessageSubject;
-        public INetNode<INetPeer> Owner { get; private set; }
+        public INode Node { get; private set; }
 
         private int _requestId = 0;
         protected ConcurrentDictionary<int, PendingOperation> PendingOperationsByRequestId;
         private ConcurrentDictionary<NodeServiceKey, NodeServiceProxy> _proxyCache;
 
-        public virtual void Init(INetChannel channel, INetNode<INetPeer> owner)
+        public virtual void Init(INetChannel channel, INode node)
         {
             Channel = channel;
-            Owner = owner;
+            Node = node;
             Log = LogManager.GetLogger(ToString());
             _onMessageSubject = new Subject<Message>();
             _onDisconnectedSubject = new Subject<INetPeer>();
@@ -122,7 +127,7 @@ namespace MOUSE.Core
 
         void INetChannelListener.OnNetData(NativeReader reader)
         {
-            Message msg = Owner.MessageFactory.Deserialize(reader);
+            Message msg = Node.MessageFactory.Deserialize(reader);
             var operationHeader = msg.GetHeader<OperationHeader>();
             if (operationHeader != null && operationHeader.Type == OperationType.Reply)
             {
@@ -159,7 +164,7 @@ namespace MOUSE.Core
 
         public IMessageFactory MessageFactory
         {
-            get { return Owner.MessageFactory; }
+            get { return Node.MessageFactory; }
         }
 
         public virtual Task<Message> ExecuteOperation(Message input)
@@ -176,22 +181,21 @@ namespace MOUSE.Core
             expiration.ContinueWith((_) =>
             {
                 PendingOperation dummy;
-                if (!PendingOperationsByRequestId.TryRemove(continuation.RequestId, out dummy))
-                    throw new Exception("Ids for requests should generate monotonicaly and never duplicate");
-                continuation.TCS.SetException(new Exception(continuation + " has Expired in " + ExpirationTimeout));
+                if (PendingOperationsByRequestId.TryRemove(continuation.RequestId, out dummy))
+                    continuation.TCS.SetException(new Exception(string.Format("ExecuteOperation<{0}, {1}> has Expired after {2} sec",requestId, input, ExpirationTimeout)));
             });
             return continuation.TCS.Task;
         }
 
         public virtual T As<T>()
         {
-            NodeServiceKey serviceKey = Owner.Protocol.GetKey<T>();
+            NodeServiceKey serviceKey = Node.Protocol.GetKey<T>();
             return (T)(object)_proxyCache.GetOrAdd(serviceKey, createProxy);
         }
 
         private NodeServiceProxy createProxy(NodeServiceKey serviceKey)
         {
-            return Owner.Protocol.CreateProxy(serviceKey, this);
+            return Node.Protocol.CreateProxy(serviceKey, MessageFactory, this);
         }
 
         public IObservable<INetPeer> DisconnectedEvent
@@ -208,12 +212,22 @@ namespace MOUSE.Core
         {
             return string.Format("NodeProxy<NetId:{0}, Endpoint:{1}>", Channel.Id, Channel.EndPoint);
         }
+
+        Task<Message> IServiceOperationDispatcher.ExecuteServiceOperation(Message request)
+        {
+            return ExecuteOperation(request);
+        }
+
+        void IServiceOperationDispatcher.ExecuteOneWayServiceOperation(Message request)
+        {
+            Channel.Send(request);
+        }
     }
 
     /// <summary>
     /// is thread safe
     /// </summary>
-    public class NetNode<TNetPeer> : INetNode<TNetPeer>, INetPeerFactory
+    public class NetNode<TNetPeer> : INetNode<TNetPeer>, INetChannelConsumer
         where TNetPeer : INetPeer
     {
         private const int MaxMessagesPerTick = 100000;
@@ -237,12 +251,21 @@ namespace MOUSE.Core
         public INetProvider Net { get; set; }
         public IServiceProtocol Protocol { get; set; }
 
+        protected Func<TNetPeer> PeerFactory;
+
         public NetNode(INetProvider net, IMessageFactory msgFactory, IServiceProtocol protocol,
-            bool manualUpdate = false)
+            bool manualUpdate = false, Func<TNetPeer> peerFactory = null)
         {
             Net = net;
             MessageFactory = msgFactory;
             Protocol = protocol;
+
+            if (peerFactory != null)
+                PeerFactory = peerFactory;
+            else
+            {
+                PeerFactory = () => (TNetPeer)FormatterServices.GetUninitializedObject(typeof(TNetPeer));
+            }
 
             _manualUpdate = manualUpdate;
         }
@@ -295,7 +318,7 @@ namespace MOUSE.Core
             Log.Info("UpdateLoop stopped");
         }
 
-        INetChannelListener INetPeerFactory.OnNetConnect(INetChannel channel)
+        INetChannelListener INetChannelConsumer.OnNetConnect(INetChannel channel)
         {
             Log.Info("NetId:{0} has connected", channel.Id);
             TNetPeer peer = CreatePeer(channel);
@@ -335,7 +358,7 @@ namespace MOUSE.Core
 
         public virtual TNetPeer CreatePeer(INetChannel channel)
         {
-            var peer = (TNetPeer) FormatterServices.GetUninitializedObject(typeof (TNetPeer));
+            var peer = PeerFactory();
             peer.Init(channel, (INetNode<INetPeer>)this);
             return peer;
         }

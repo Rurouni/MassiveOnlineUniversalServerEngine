@@ -31,7 +31,7 @@ namespace Core.Tests
             builder.RegisterType<ServicesRepository>().As<IServicesRepository>();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>();
             builder.RegisterType<RakPeerInterface>().As<INetProvider>();
-            builder.RegisterType<EntityClusterNode>().As<INetNode>();
+            builder.RegisterType<EntityClusterNode>().As<INode>();
             builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>();
             container = builder.Build();
         }
@@ -39,7 +39,7 @@ namespace Core.Tests
         [Test]
         public void OperationOnLocallyAvailableEntityShouldGoWithoutNetwork()
         {
-            var node = container.Resolve<INetNode>();
+            var node = container.Resolve<INode>();
             node.Start(true);
             //ITestEntity entity = node.Create<ITestEntity>(42);
             var proxy = node.Get<ITestEntity>(42);

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive.Subjects;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,19 +15,17 @@ using NLog;
 
 namespace MOUSE.Core
 {
-    public class ServerFiber<TRetType>
+    public class ServerFiber
     {
         protected class Issue
         {
-            public Func<Task<TRetType>> Func;
+            public Func<Task> Func;
             public LockType Lock;
-            public TaskCompletionSource<TRetType> Cont;
 
-            public Issue(Func<Task<TRetType>> func, LockType @lock, TaskCompletionSource<TRetType> cont)
+            public Issue(Func<Task> func, LockType @lock)
             {
                 Func = func;
                 Lock = @lock;
-                Cont = cont;
             }
         }
 
@@ -38,29 +37,20 @@ namespace MOUSE.Core
         public ServerFiber()
         {
             _issueQueue = new ActionBlock<Issue>((Func<Issue, Task>)ProcessIssue);
+            CreateQueues();
         }
 
         private void CreateQueues()
         {
-            _readLockedQueue = new ActionBlock<Issue>((Func<Issue, Task>)ProcessLockedIssue,
-                new ExecutionDataflowBlockOptions { TaskScheduler = _schedulerPair.ConcurrentScheduler });
-            _writeLockedQueue = new ActionBlock<Issue>((Func<Issue, Task>)ProcessLockedIssue,
+            _readLockedQueue = new ActionBlock<Issue>((Func<Issue, Task>)ProcessFunc,
+                new ExecutionDataflowBlockOptions { TaskScheduler = _schedulerPair.ConcurrentScheduler, MaxDegreeOfParallelism = 10});
+            _writeLockedQueue = new ActionBlock<Issue>((Func<Issue, Task>)ProcessFunc,
                 new ExecutionDataflowBlockOptions { TaskScheduler = _schedulerPair.ExclusiveScheduler });
         }
 
-        private async Task ProcessLockedIssue(Issue issue)
+        private async Task ProcessFunc(Issue issue)
         {
-            try
-            {
-                var result = await issue.Func();
-                if (issue.Cont != null)
-                    issue.Cont.SetResult(result);
-            }
-            catch (Exception ex)
-            {
-                if (issue.Cont != null)
-                    issue.Cont.TrySetException(ex);
-            }
+            await issue.Func();
         }
 
         private async Task ProcessIssue(Issue issue)
@@ -77,51 +67,75 @@ namespace MOUSE.Core
                     _writeLockedQueue.Post(issue);
                     break;
                 case LockType.Full:
-                    _readLockedQueue.Complete();
-                    _writeLockedQueue.Complete();
-                    await _readLockedQueue.Completion;
-                    await _writeLockedQueue.Completion;
-                    await ProcessLockedIssue(issue);
-                    CreateQueues();
+                    if (_readLockedQueue.InputCount > 0)
+                    {
+                        _readLockedQueue.Complete();
+                        await _readLockedQueue.Completion;
+                        _readLockedQueue = new ActionBlock<Issue>((Func<Issue, Task>)ProcessFunc,
+                            new ExecutionDataflowBlockOptions { TaskScheduler = _schedulerPair.ConcurrentScheduler });
+                    }
+                    if (_writeLockedQueue.InputCount > 0)
+                    {
+                        _writeLockedQueue.Complete();
+                        await _writeLockedQueue.Completion;
+                        _writeLockedQueue = new ActionBlock<Issue>((Func<Issue, Task>)ProcessFunc,
+                            new ExecutionDataflowBlockOptions { TaskScheduler = _schedulerPair.ExclusiveScheduler });
+                    }
+                    
+                    await ProcessFunc(issue);
                     break;
             }
         }
 
-        public void Process(Func<Task<TRetType>> func, LockType lockType)
+        public void Process(Func<Task> func, LockType lockType)
         {
-            _issueQueue.Post(new Issue(func, lockType, null));
+            _issueQueue.Post(new Issue(func, lockType));
         }
 
-        public Task<TRetType> ProcessAndReturn(Func<Task<TRetType>> func, LockType lockType)
+        public Task<TRetType> ProcessAndReturn<TRetType>(Func<Task<TRetType>> func, LockType lockType)
         {
             var tcs = new TaskCompletionSource<TRetType>();
-            _issueQueue.Post(new Issue(func, lockType, tcs));
+            Func<Task> wrapFunc = async () =>
+                {
+                    try
+                    {
+                        var result = await func();
+                        tcs.SetResult(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.SetException(ex);
+                    }
+                };
+            _issueQueue.Post(new Issue(wrapFunc, lockType));
             return tcs.Task;
         }
     }
 
-    /// <summary>
-    /// assumes sequential events flow from NetPeer
-    /// </summary>
     public class ClientPeer : NetPeer
     {
         private ConcurrentDictionary<uint, object> _handlersByNetContractId;
         
-        private ServerFiber<object> _fiber;
-        public ServerFiber<object> Fiber
+        private ServerFiber _fiber;
+        public ServerFiber Fiber
         {
             get { return _fiber; }
         }
 
-        public ServerNode<ClientPeer> Node;
+        public new IServerNode Node;
 
-        public override void Init(INetChannel channel, INetNode<INetPeer> owner)
+        public sealed override void Init(INetChannel channel, INode node)
         {
-            base.Init(channel, owner);
+            base.Init(channel, node);
 
-            _fiber = new ServerFiber<object>();
+            _fiber = new ServerFiber();
             MessageEvent.Subscribe(OnClientMessage);
             _handlersByNetContractId = new ConcurrentDictionary<uint, object>();
+            OnCreated();
+        }
+
+        public virtual void OnCreated()
+        {
         }
 
         protected void SetHandler<TNetContract>(TNetContract implementer)
@@ -137,6 +151,7 @@ namespace MOUSE.Core
 
         private void OnClientMessage(Message msg)
         {
+            Log.Debug("Received " + msg);
             try
             {
                 if (msg is ServiceAccessRequest)
@@ -158,26 +173,32 @@ namespace MOUSE.Core
                             Channel.Send(reply);
                         }
                         else
-                            Node.ProcessServiceAccess(this, requestMsg.ServiceKey);
+                            Node.ProcessServiceAccess(this, requestMsg);
                     }
                 }
                 else 
                 {
                     var serviceHeader = msg.GetHeader<ServiceHeader>();
-                    var operationHeader = msg.GetHeader<OperationHeader>();
-                    if (operationHeader != null && operationHeader.Type == OperationType.Request && serviceHeader != null)
+                    if (serviceHeader != null)
                     {
                         object handler;
                         if (_handlersByNetContractId.TryGetValue(serviceHeader.TargetServiceKey.TypeId, out handler))
                         {
-                            Log.Debug("{0} - Dispatching {1} to {2}", operationHeader.RequestId, msg, handler);
+                            Log.Debug("Dispatching {0} to client", msg);
                             if (msg.LockType == LockType.None)
-                                DispatchAndReplyAsync(handler, operationHeader.RequestId, msg);
+                                DispatchAndReplyAsync(handler, msg);
                             else
-                                Fiber.Process(() => DispatchAndReplyAsync(handler, operationHeader.RequestId, msg), msg.LockType);
+                                Fiber.Process(() => DispatchAndReplyAsync(handler, msg), msg.LockType);
                         }
                         else
+                        {
+                            Log.Debug("Dispatching {0} to service", msg);
                             Node.DispatchClientOperationToService(serviceHeader.TargetServiceKey, msg, this);
+                        }
+                    }
+                    else
+                    {
+                        Log.Warn("Received unprocessable {0}", msg);
                     }
                 }
             }
@@ -188,44 +209,67 @@ namespace MOUSE.Core
             }
         }
 
-        private async Task<object> DispatchAndReplyAsync(object handler, int requestId, Message msg)
+        private async Task DispatchAndReplyAsync(object handler, Message msg)
         {
+            OperationHeader operationHeader = msg.GetHeader<OperationHeader>();
             try
             {
-                Message reply = await Node.Protocol.Dispatch(handler, msg);
-                if (reply != null)
+                if (operationHeader != null)
                 {
-                    reply.AttachHeader(new OperationHeader(requestId, OperationType.Reply));
+                    if(operationHeader.Type != OperationType.Request)
+                    {
+                        Log.Error("Received malformed service operation {0}", msg);
+                        return;
+                    }
+
+                    Message reply = await Node.Protocol.Dispatch(handler, msg);
+                    reply.AttachHeader(new OperationHeader(operationHeader.RequestId, OperationType.Reply));
                     Channel.Send(reply);
-                    Log.Debug("{0} - Sending back {1}", requestId, reply);
+                    Log.Debug("Sending back {0}", reply);
+                }
+                else
+                {
+                    Node.Protocol.DispatchOneWay(handler, msg);
                 }
             }
             catch (InvalidInput iex)
             {
-                Log.Info(iex.ToString());
-                var invalidReply = new InvalidOperation(iex.ErrorCode, iex.Message);
-                invalidReply.AttachHeader(new OperationHeader(requestId, OperationType.Reply));
-                Channel.Send(invalidReply);
+                if (operationHeader != null)
+                {
+                    Log.Info(iex.Message);
+                    var invalidReply = new InvalidOperation(iex.ErrorCode, iex.Message);
+                    invalidReply.AttachHeader(new OperationHeader(operationHeader.RequestId, OperationType.Reply));
+                    Channel.Send(invalidReply);
+                }
+                else
+                {
+                    Log.Warn("Dont use invalid input in oneWay operations, it wont be delivered anyway");
+                }
             }
             catch (Exception ex)
             {
                 Log.ErrorException(string.Format("Error on processing {0} in {1}", msg, this), ex);
-                
             }
-            return null;
         }
     }
 
 
-    public class ServerNode<TExternalClient> where TExternalClient : ClientPeer
+    public interface IServerNode : INode
+    {
+        Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0);
+        void ProcessServiceAccess(ClientPeer peer, ServiceAccessRequest request);
+        void DispatchClientOperationToService(NodeServiceKey serviceKey, Message msg, ClientPeer clientPeer);
+    }
+
+    public class ServerNode : IServerNode
     {
         private readonly ulong _id; 
         public readonly Logger Log;
         private readonly ConcurrentDictionary<NodeServiceKey, NodeServiceProxy> _proxyCache = new ConcurrentDictionary<NodeServiceKey, NodeServiceProxy>();
         //protected readonly Dictionary<ulong, NetPeer> _connectedNodesByNodeId = new Dictionary<ulong, NetPeer>();
 
-        public readonly INetNode<TExternalClient> ExternalNet;
-        //protected INetNode<ClientNodePeer> InternalNet;
+        public readonly INetNode<ClientPeer> ExternalNet;
+        //protected INetNode<ServerNodePeer> InternalNet;
 
         private readonly Random _random = new Random();
         protected Random Rnd
@@ -241,47 +285,56 @@ namespace MOUSE.Core
         public IServicesRepository Repository { get; private set; }
         
         public IServiceProtocol Protocol { get; private set; }
-
+        
         public IMessageFactory MessageFactory
         {
             get { return ExternalNet.MessageFactory; }
         }
 
         public ServerNode(Func<INetChannel, ClientPeer> clientPeerFactory, INetProvider externalNetProvider, INetProvider internalNetProvider,
-            IMessageFactory factory, IServiceProtocol protocol, IServicesRepository repository)
+            IMessageFactory factory, IServiceProtocol protocol, IServicesRepository repository, ClientPeer clientPeerPrototype)
         {
             _id = GenerateUniqueId();
             Log = LogManager.GetLogger(ToString());
             Repository = repository;
             Protocol = protocol;
-            ExternalNet = new NetNode<TExternalClient>(externalNetProvider, factory, protocol);
+            Type clientPeerType = clientPeerPrototype.GetType();
+            ExternalNet = new NetNode<ClientPeer>(externalNetProvider, factory, protocol,
+                peerFactory: () =>
+                             {
+                                 var peer = (ClientPeer)FormatterServices.GetUninitializedObject(clientPeerType);
+                                 peer.Node = this;
+                                 return peer;
+                             });
             //InternalNet = new NetNode<ClientNodePeer>(internalNetProvider, factory, protocol);
-            ExternalNet.PeerConnectedEvent.Subscribe(peer => peer.Node = (ServerNode<ClientPeer>)this);
-            ExternalNet.Start();
         }
 
         public async Task<TNetContract> GetService<TNetContract>(uint serviceId = 0)
         {
             NodeServiceKey serviceKey = Protocol.GetKey<TNetContract>(serviceId);
-            return (TNetContract)(object)_proxyCache.GetOrAdd(serviceKey, createProxy);
-        }
+            NodeServiceProxy proxy;
+            
+            if (_proxyCache.TryGetValue(serviceKey, out proxy))
+                return (TNetContract)(object)proxy;
 
-        private NodeServiceProxy createProxy(NodeServiceKey serviceKey)
-        {
             NodeService service;
-            Repository.TryGet(serviceKey, out service);
-            var proxy = Protocol.CreateProxy(serviceKey, null, service);
-            return proxy;
+            if(!Repository.TryGet(serviceKey, out service))
+            {
+                service = await Repository.Activate(this, serviceKey);
+            }
+            return (TNetContract)(object)_proxyCache.GetOrAdd(serviceKey,
+                (sk) => Protocol.CreateProxy(sk, MessageFactory, service));
         }
 
         public async void DispatchClientOperationToService(NodeServiceKey serviceKey, Message msg, ClientPeer clientPeer)
         {
             try
             {
+                Log.Debug("Dispatching {0} from {1} {2}", msg, clientPeer, serviceKey);
                 NodeServiceContractDescription desc = Protocol.GetDescription(serviceKey.TypeId);
                 if (desc == null || !desc.AllowExternalConnections)
                 {
-                    Log.Debug("{0} sends operation to invalid or not visible serviceId:{1}", clientPeer, serviceKey);
+                    Log.Debug("Dispatching {0} from {1} {2} : service is invalid or not visible", msg, clientPeer, serviceKey);
                     return;
                 }
 
@@ -294,11 +347,11 @@ namespace MOUSE.Core
                         int requestId = msg.GetHeader<OperationHeader>().RequestId;
                         reply.AttachHeader(new OperationHeader(requestId, OperationType.Reply));
                         clientPeer.Channel.Send(reply);
-                        Log.Debug("{0} - Sending back {1}", requestId, reply);
+                        Log.Debug("Dispatched {0} from {1} {2} : sending back reply {3}", msg, clientPeer, serviceKey, reply);
                     }
                 }
                 else
-                    Log.Debug("{0} sends operation to non active serviceId:{1}", clientPeer, serviceKey);
+                    Log.Debug("Dispatching {0} from {1} {2} : Non active service", msg, clientPeer, serviceKey);
             }
             catch (InvalidInput iex)
             {
@@ -310,23 +363,33 @@ namespace MOUSE.Core
             }
             catch (Exception ex)
             {
-                Log.ErrorException(string.Format("Error on processing {0} from {1}", msg, clientPeer), ex);
+                Log.ErrorException(string.Format("Error on Dispatching {0} from {1} to {2}", msg, clientPeer, serviceKey), ex);
             }
         }
 
-        public void ProcessServiceAccess(ClientPeer peer, NodeServiceKey serviceKey)
+        public void ProcessServiceAccess(ClientPeer peer, ServiceAccessRequest request)
         {
-            NodeServiceContractDescription desc = Protocol.GetDescription(serviceKey.TypeId);
-            if(desc == null || !desc.AllowExternalConnections)
-                peer.Channel.Send(new ServiceAccessReply(false, null));
+            Log.Debug("{0} is accessing service {1}", peer, request.ServiceKey);
+            NodeServiceContractDescription desc = Protocol.GetDescription(request.ServiceKey.TypeId);
+            bool allowed = false;
+            NodeDescription connectTo = null;
+            if (desc == null || !desc.AllowExternalConnections)
+            {
+                Log.Debug("{0} can't access service {1}", peer, request.ServiceKey);
+            }
             else
             {
                 //TODO: add cluster support here
-                if (Repository.Contains(serviceKey))
-                    peer.Channel.Send(new ServiceAccessReply(true, null));
-                else
-                    peer.Channel.Send(new ServiceAccessReply(false, null));
+                if (Repository.Contains(request.ServiceKey))
+                {
+                    allowed = true;
+                    Log.Debug("{0} can access service {1}", peer, request.ServiceKey);
+                }
             }
+
+            var reply = new ServiceAccessReply(allowed, connectTo);
+            reply.AttachHeader(new OperationHeader(request.GetHeader<OperationHeader>().RequestId, OperationType.Reply));
+            peer.Channel.Send(reply);
         }
 
         private ulong GenerateUniqueId()
@@ -337,6 +400,16 @@ namespace MOUSE.Core
         public override string ToString()
         {
             return string.Format("ServerNode<Id:{0}>", _id);
+        }
+
+        public void Start()
+        {
+            ExternalNet.Start();
+        }
+
+        public void Stop()
+        {
+            ExternalNet.Stop();
         }
 
         //protected override void OnNodeMessage(NetPeer source, Message msg)

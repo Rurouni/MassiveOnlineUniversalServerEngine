@@ -29,10 +29,12 @@ namespace MOUSE.Core
             get { return LockType.Full; }
         }
 
-        public void AttachHeader(MessageHeader header)
+        public void AttachHeader<THeader>(THeader header) where THeader : MessageHeader
         {
             if (_headers == null)
                 _headers = new List<MessageHeader>();
+            
+            RemoveHeader<THeader>();
             _headers.Add(header);
         }
 
@@ -51,6 +53,15 @@ namespace MOUSE.Core
 
             _headers.RemoveAll(x => x is THeader);
         }
+
+        public void ClearHeaders()
+        {
+            if (_headers == null)
+                return;
+
+            _headers.Clear();
+        }
+
         NativeWriter _writer;
         public NativeWriter GetSerialized()
         {
@@ -83,6 +94,11 @@ namespace MOUSE.Core
                     count--;
                 }
             }
+        }
+
+        public override string ToString()
+        {
+            return "Message<" + GetType().Name + ">";
         }
     }
 }

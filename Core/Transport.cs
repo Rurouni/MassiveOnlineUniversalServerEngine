@@ -8,14 +8,14 @@ namespace MOUSE.Core
 {
     public interface INetProvider
     {
-        bool Init(INetPeerFactory factory);
+        bool Init(INetChannelConsumer factory);
         void Shutdown();
         void Connect(IPEndPoint target);
         bool PumpEvents();
         IPEndPoint EndPoint{get;}
     }
 
-    public interface INetPeerFactory
+    public interface INetChannelConsumer
     {
         INetChannelListener OnNetConnect(INetChannel channel);
     }

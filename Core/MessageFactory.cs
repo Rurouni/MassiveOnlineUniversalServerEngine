@@ -19,6 +19,7 @@ namespace MOUSE.Core
         Message Deserialize(NativeReader reader);
     }
 
+    //TODO: rework headers sp they also could be pooled
     public class MessageFactory : IMessageFactory
     {
         Logger Log = LogManager.GetCurrentClassLogger();
@@ -62,12 +63,14 @@ namespace MOUSE.Core
             {
                 msg = (Message)FormatterServices.GetUninitializedObject(type);
                 pool.Push(msg);
+                Log.Debug("Created new {0} in pool", msg, type.Name);
                 return msg;
             }
         }
 
         public void Free(Message msg)
         {
+            msg.ClearHeaders();
             _messagePoolByMsgId[msg.Id].Push(msg);
         }
 

@@ -15,7 +15,8 @@ namespace MOUSE.Core
     public interface IServiceProtocol
     {
         Task<Message> Dispatch(object target, Message msg);
-        NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, INetPeer remoteTarget, NodeService directTaget = null);
+        void DispatchOneWay(object target, Message msg);
+        NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, IMessageFactory messageFactory, IServiceOperationDispatcher dispatcher);
 
         NodeServiceKey GetKey<TServiceContract>(uint serviceId = 0);
         uint GetContractId(Type contractType);
@@ -99,17 +100,26 @@ namespace MOUSE.Core
                 tcs.SetResult(new InvalidOperation((ushort)BasicErrorCode.DispatcherNotFound, "Dispatcher not found for MsgId:"+msg.Id));
                 return tcs.Task;
             }
-            
         }
 
-        public NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, INetPeer remoteTarget, NodeService directTaget = null)
+        public void DispatchOneWay(object service, Message msg)
+        {
+            Contract.Requires(service != null);
+            Contract.Requires(msg != null);
+
+            Func<IMessageFactory, object, Message, Task<Message>> dispatch;
+            if (_dispatcherByMsgId.TryGetValue(msg.Id, out dispatch))
+                dispatch(_messageFactory, service, msg);
+        }
+
+        public NodeServiceProxy CreateProxy(NodeServiceKey serviceKey, IMessageFactory messageFactory, IServiceOperationDispatcher dispatcher)
         {
             NodeServiceProxy proxy;
             NodeServiceContractDescription desc;
             if (_descByTypeId.TryGetValue(serviceKey.TypeId, out desc))
             {
                 proxy = (NodeServiceProxy)FormatterServices.GetUninitializedObject(desc.ProxyType);
-                proxy.Init(serviceKey, desc, remoteTarget, directTaget);
+                proxy.Init(serviceKey, desc, messageFactory, dispatcher);
             }
             else
                 throw new Exception("Unregistered entity typeId - " + serviceKey.TypeId);

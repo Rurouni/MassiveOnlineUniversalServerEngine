@@ -19,8 +19,6 @@ namespace MOUSE.Core
         Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0);
         void SetHandler<TNetContract>(TNetContract implementer);
         IObservable<IClientNode> DisconnectedEvent { get; }
-        void Start();
-        void Stop();
     }
 
 
@@ -108,12 +106,22 @@ namespace MOUSE.Core
         }
     }
 
+<<<<<<< HEAD
+    public class Client2ServerPeer : NetPeer
+    {
+        public Client2ServerPeer(INetChannel channel, INetNode<INetPeer> owner)
+            : base(channel, owner)
+        {
+        }
+
+=======
     public class ServerPeer : NetPeer
     {
+>>>>>>> 96b46131f5a0b191cd44bda6ca15b7a1dd6d259d
         public async override Task<Message> ExecuteOperation(Message input)
         {
             Message msg = await base.ExecuteOperation(input);
-            await ((ClientNode)Node).Fiber.ContinueOn().ConfigureAwait(false);
+            await ((ClientNode)Owner).Fiber.ContinueOn().ConfigureAwait(false);
             return msg;
         }
 
@@ -122,7 +130,11 @@ namespace MOUSE.Core
     /// <summary>
     /// uses internal Fiber to receive all continuations and process messages to achieve thread-safety and provide manual update loop(if needed)
     /// </summary>
+<<<<<<< HEAD
+    public class ClientNode : NetNode<Client2ServerPeer>, IClientNode
+=======
     public class ClientNode : NetNode<ServerPeer>, IClientNode
+>>>>>>> 96b46131f5a0b191cd44bda6ca15b7a1dd6d259d
     {
         private readonly Dictionary<uint, object> _handlersByNetContractId = new Dictionary<uint, object>();
         private readonly Dictionary<NodeServiceKey, NodeServiceProxy> _proxyCache = new Dictionary<NodeServiceKey, NodeServiceProxy>();
@@ -141,6 +153,8 @@ namespace MOUSE.Core
                 Fiber = new ClientFiber(TaskScheduler.FromCurrentSynchronizationContext(), manualUpdate);
             else
                 Fiber = new ClientFiber(manualUpdate);
+
+            Start();
         }
 
         protected override void OnNodeUpdate()
@@ -162,9 +176,15 @@ namespace MOUSE.Core
             ServerPeer = (NetPeer)await Connect(endPoint).ConfigureAwait(false);
         }
 
+<<<<<<< HEAD
+        public override Client2ServerPeer CreatePeer(INetChannel channel)
+        {
+            var peer = new Client2ServerPeer(channel, this);
+=======
         public override ServerPeer CreatePeer(INetChannel channel)
         {
             var peer = base.CreatePeer(channel);
+>>>>>>> 96b46131f5a0b191cd44bda6ca15b7a1dd6d259d
             peer.MessageEvent.Subscribe((msg)=> Fiber.Process(() => OnMessage(msg)));
             return peer;
         }
@@ -182,16 +202,19 @@ namespace MOUSE.Core
         protected void OnMessage(Message msg)
         {
             var serviceHeader = msg.GetHeader<ServiceHeader>();
-            if (serviceHeader != null)
+            var operationHeader = msg.GetHeader<OperationHeader>();
+            if (serviceHeader != null && operationHeader.Type == OperationType.Request)
             {
+<<<<<<< HEAD
+                uint serviceContractId = Protocol.GetContractId(serviceHeader.TargetServiceKey);
+=======
+>>>>>>> 96b46131f5a0b191cd44bda6ca15b7a1dd6d259d
                 object handler;
                 if (_handlersByNetContractId.TryGetValue(serviceHeader.TargetServiceKey.TypeId, out handler))
                 {
                     //NOTE: doesnt support server->client request-reply, only one way notifications
                     Protocol.Dispatch(handler, msg);
                 }
-                else
-                    Log.Warn("Handler for {0} is unregistered", msg);
             }
         }
 
@@ -223,13 +246,13 @@ namespace MOUSE.Core
                 else
                     serviceOwnerNode = ServerPeer;
 
+<<<<<<< HEAD
+                proxy = Protocol.CreateProxy(fullId, serviceOwnerNode);
+=======
+                proxy = Protocol.CreateProxy(serviceKey, serviceOwnerNode);
+>>>>>>> 96b46131f5a0b191cd44bda6ca15b7a1dd6d259d
                 await Fiber.ContinueOn().ConfigureAwait(false);
-
-                if (!_proxyCache.TryGetValue(serviceKey, out proxy))
-                {
-                    proxy = Protocol.CreateProxy(serviceKey, MessageFactory, serviceOwnerNode);
-                    _proxyCache.Add(serviceKey, proxy);
-                }
+                _proxyCache.Add(serviceKey, proxy);
             }
 
             return (TNetContract)(object)proxy;
