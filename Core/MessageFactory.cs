@@ -81,7 +81,8 @@ namespace MOUSE.Core
             Type type;
             if(!_typeByMsgId.TryGetValue(msgId, out type))
                 throw new Exception(string.Format("MessageId:{0} is not registered", msgId));
-            Message msg = New(msgId, type);
+            //Message msg = New(msgId, type);
+            Message msg = (Message)FormatterServices.GetUninitializedObject(type);
             msg.Deserialize(reader);
             return msg;
         }

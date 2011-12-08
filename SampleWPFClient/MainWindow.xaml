@@ -1,18 +1,23 @@
 ﻿<Window x:Class="SampleWPFClient.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MainWindow" Height="350" Width="525">
+        Title="MainWindow" Height="371" Width="593">
     <Grid>
-        <ComboBox Height="23" HorizontalAlignment="Left" Margin="16,12,0,0" Name="cbConnection" VerticalAlignment="Top" Width="198" IsEditable="True">
-            <ComboBoxItem Content="127.0.0.1:12345" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="65*" />
+            <RowDefinition Height="190*" />
+            <RowDefinition Height="77*" />
+        </Grid.RowDefinitions>
+        <ComboBox Height="23" HorizontalAlignment="Left" Margin="16,12,0,0" Name="cbConnection" VerticalAlignment="Top" Width="198" IsEditable="True" SelectedIndex="0">
+            <ComboBoxItem Content="127.0.0.1:5055" />
         </ComboBox>
         <Button Content="Connect" Height="23" Margin="220,12,0,0" Name="btnConnect" VerticalAlignment="Top" HorizontalAlignment="Left" Width="74" Click="btnConnect_Click" />
-        <TextBox Margin="16,0,12,74" Name="txtChat" Height="166" VerticalAlignment="Bottom" />
-        <TextBox Margin="16,243,67,12" Name="txtMyMessage" />
+        <TextBox Name="txtChat" Grid.Row="1" ScrollViewer.CanContentScroll="True" ScrollViewer.VerticalScrollBarVisibility="Auto"   IsReadOnly="True" TextWrapping="Wrap" AllowDrop="False" Margin="16,4,12,6" />
+        <TextBox Name="txtMyMessage" Grid.Row="2" Margin="16,4,67,12" />
         <ComboBox Height="23" HorizontalAlignment="Left" Margin="16,41,0,0" Name="cbChatRooms" VerticalAlignment="Top" Width="198" IsEditable="True" SelectionChanged="cbChatRooms_SelectionChanged" IsReadOnly="False" />
         <TextBox Height="23" HorizontalAlignment="Left" Margin="371,13,0,0" Name="txtUserName" VerticalAlignment="Top" Width="120" Text="" />
         <Label Content="Name:" Height="23" HorizontalAlignment="Left" Margin="321,13,0,0" Name="label1" VerticalAlignment="Top" />
         <Button Content="Join" Height="23" HorizontalAlignment="Left" Margin="220,42,0,0" Name="btnJoin" VerticalAlignment="Top" Width="75" Click="btnJoin_Click" />
-        <Button Content="Send" Height="56" HorizontalAlignment="Left" Margin="442,243,0,0" Name="btnSend" VerticalAlignment="Top" Width="49" Click="btnSend_Click" />
+        <Button Content="Send" Height="56" Margin="0,0,12,12" Name="btnSend" VerticalAlignment="Bottom" Click="btnSend_Click" HorizontalAlignment="Right" Width="49" Grid.Row="2" />
     </Grid>
 </Window>

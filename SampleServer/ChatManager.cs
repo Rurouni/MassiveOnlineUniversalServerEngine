@@ -20,6 +20,7 @@ namespace SampleServer
         private Dictionary<uint, ChatUserInfo> _usersById;
         private List<ChatRoomInfo> _rooms;
 
+
         public override void OnCreated()
         {
             _usersByName = new Dictionary<string, ChatUserInfo>();

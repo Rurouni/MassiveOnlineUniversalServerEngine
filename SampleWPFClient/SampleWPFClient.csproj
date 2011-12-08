@@ -51,6 +51,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Autofac.Mef.2.5.2.830\lib\NET40\Autofac.Integration.Mef.dll</HintPath>
     </Reference>
+    <Reference Include="Photon3DotNet">
+      <HintPath>..\External\Photon\Photon3DotNet.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Data" />
@@ -128,9 +131,9 @@
       <Project>{CC2D2C8B-6B03-4585-A421-58B796A69780}</Project>
       <Name>Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\RakNetWrap\RakNetWrap.vcxproj">
-      <Project>{5ADEBAC7-5010-4ED4-9CA7-3192F2D86FA8}</Project>
-      <Name>RakNetWrap</Name>
+    <ProjectReference Include="..\PhotonClientWrap\PhotonClientWrap.csproj">
+      <Project>{5F8F8AA0-C2D2-403A-9D68-B56A5C1D2F32}</Project>
+      <Name>PhotonClientWrap</Name>
     </ProjectReference>
     <ProjectReference Include="..\SampleProtocol\SampleC2SProtocol.csproj">
       <Project>{5300823F-C8CB-48AB-990B-C764A9879D93}</Project>

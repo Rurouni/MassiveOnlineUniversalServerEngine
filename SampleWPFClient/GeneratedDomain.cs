@@ -13,12 +13,13 @@ namespace Protocol.Generated
     {
         public async Task< SampleC2SProtocol.LoginResult > Login ( string name )
         {
-        	var request = MessageFactory.New< IChatLoginLoginRequest >();
+        	//var request = MessageFactory.New< IChatLoginLoginRequest >();
+	var request = new IChatLoginLoginRequest();
             request.name=name;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatLoginLoginReply)reply).RetVal;
-            MessageFactory.Free(reply);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(reply);
+            //MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatLoginLoginRequest), ReplyMessage = typeof(IChatLoginLoginReply))]
@@ -26,7 +27,8 @@ namespace Protocol.Generated
         {
             var msg = (IChatLoginLoginRequest)input;
             var retVal = await ((SampleC2SProtocol.IChatLogin)target).Login(msg.name);
-            var retMsg = msgFactory.New<IChatLoginLoginReply>();
+            //var retMsg = msgFactory.New<IChatLoginLoginReply>();
+			var retMsg = new IChatLoginLoginReply();
             retMsg.RetVal = retVal;
             return retMsg;
         }
@@ -37,11 +39,12 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<SampleC2SProtocol.ChatRoomInfo> > GetRooms (  )
         {
-        	var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
+        	//var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
+	var request = new IChatServiceGetRoomsRequest();
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceGetRoomsReply)reply).RetVal;
-            MessageFactory.Free(reply);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(reply);
+            //MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatServiceGetRoomsRequest), ReplyMessage = typeof(IChatServiceGetRoomsReply))]
@@ -49,18 +52,20 @@ namespace Protocol.Generated
         {
             var msg = (IChatServiceGetRoomsRequest)input;
             var retVal = await ((SampleC2SProtocol.IChatService)target).GetRooms();
-            var retMsg = msgFactory.New<IChatServiceGetRoomsReply>();
+            //var retMsg = msgFactory.New<IChatServiceGetRoomsReply>();
+			var retMsg = new IChatServiceGetRoomsReply();
             retMsg.RetVal = retVal;
             return retMsg;
         }
         public async Task< SampleC2SProtocol.CreateRoomResponse > JoinOrCreateRoom ( string roomName )
         {
-        	var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
+        	//var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
+	var request = new IChatServiceJoinOrCreateRoomRequest();
             request.roomName=roomName;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceJoinOrCreateRoomReply)reply).RetVal;
-            MessageFactory.Free(reply);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(reply);
+            //MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatServiceJoinOrCreateRoomRequest), ReplyMessage = typeof(IChatServiceJoinOrCreateRoomReply))]
@@ -68,18 +73,20 @@ namespace Protocol.Generated
         {
             var msg = (IChatServiceJoinOrCreateRoomRequest)input;
             var retVal = await ((SampleC2SProtocol.IChatService)target).JoinOrCreateRoom(msg.roomName);
-            var retMsg = msgFactory.New<IChatServiceJoinOrCreateRoomReply>();
+            //var retMsg = msgFactory.New<IChatServiceJoinOrCreateRoomReply>();
+			var retMsg = new IChatServiceJoinOrCreateRoomReply();
             retMsg.RetVal = retVal;
             return retMsg;
         }
         public async Task< long > JoinRoom ( uint roomId )
         {
-        	var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
+        	//var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
+	var request = new IChatServiceJoinRoomRequest();
             request.roomId=roomId;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatServiceJoinRoomReply)reply).RetVal;
-            MessageFactory.Free(reply);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(reply);
+            //MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatServiceJoinRoomRequest), ReplyMessage = typeof(IChatServiceJoinRoomReply))]
@@ -87,7 +94,8 @@ namespace Protocol.Generated
         {
             var msg = (IChatServiceJoinRoomRequest)input;
             var retVal = await ((SampleC2SProtocol.IChatService)target).JoinRoom(msg.roomId);
-            var retMsg = msgFactory.New<IChatServiceJoinRoomReply>();
+            //var retMsg = msgFactory.New<IChatServiceJoinRoomReply>();
+			var retMsg = new IChatServiceJoinRoomReply();
             retMsg.RetVal = retVal;
             return retMsg;
         }
@@ -98,12 +106,13 @@ namespace Protocol.Generated
     {
         public async Task< System.Collections.Generic.List<string> > Join ( long ticket )
         {
-        	var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
+        	//var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
+	var request = new IChatRoomServiceJoinRequest();
             request.ticket=ticket;
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((IChatRoomServiceJoinReply)reply).RetVal;
-            MessageFactory.Free(reply);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(reply);
+            //MessageFactory.Free(request);
             return ret;
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceJoinRequest), ReplyMessage = typeof(IChatRoomServiceJoinReply))]
@@ -111,16 +120,18 @@ namespace Protocol.Generated
         {
             var msg = (IChatRoomServiceJoinRequest)input;
             var retVal = await ((SampleC2SProtocol.IChatRoomService)target).Join(msg.ticket);
-            var retMsg = msgFactory.New<IChatRoomServiceJoinReply>();
+            //var retMsg = msgFactory.New<IChatRoomServiceJoinReply>();
+			var retMsg = new IChatRoomServiceJoinReply();
             retMsg.RetVal = retVal;
             return retMsg;
         }
         public void Say ( string message )
         {
-        	var request = MessageFactory.New< IChatRoomServiceSayRequest >();
+        	//var request = MessageFactory.New< IChatRoomServiceSayRequest >();
+	var request = new IChatRoomServiceSayRequest();
             request.message=message;
 			ExecuteOneWayServiceOperation(request);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(request);
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceSayRequest), ReplyMessage = null)]
         public static async Task<Message> Say(IMessageFactory msgFactory, object target, Message input)
@@ -136,11 +147,12 @@ namespace Protocol.Generated
     {
         public void OnRoomMessage ( uint roomId, string message )
         {
-        	var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
+        	//var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
+	var request = new IChatRoomServiceCallbackOnRoomMessageRequest();
             request.roomId=roomId;
             request.message=message;
 			ExecuteOneWayServiceOperation(request);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(request);
         }
         [NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceCallbackOnRoomMessageRequest), ReplyMessage = null)]
         public static async Task<Message> OnRoomMessage(IMessageFactory msgFactory, object target, Message input)

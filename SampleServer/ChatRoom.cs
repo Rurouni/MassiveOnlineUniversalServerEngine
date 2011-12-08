@@ -64,7 +64,10 @@ namespace SampleServer
                 client.DisconnectionSubscription.Dispose();
                 _usersById.Remove(client.Info.Id);
                 _usersByChannelId.Remove(client.Peer.Channel.Id);
-                _messages.Add(client.Info.Name + " has disconnected");
+                string disconnectMsg = client.Info.Name + " has disconnected";
+                _messages.Add(disconnectMsg);
+
+                SendToAll(disconnectMsg);
             }
         }
         
@@ -81,14 +84,20 @@ namespace SampleServer
                 client.DisconnectionSubscription = Context.Source.DisconnectedEvent.Subscribe(OnUserDisconnected);
                 string connectMsg = client.Info.Name + " has connected";
                 _messages.Add(connectMsg);
-                foreach (var otherClient in _usersByChannelId.Values)
-                {
-                    var callback = otherClient.Peer.As<IChatRoomServiceCallback>();
-                    callback.OnRoomMessage(Id, connectMsg);
-                }
+
+                SendToAll(connectMsg);
                 return _messages;
             }
             throw new InvalidInput(JoinRoomInvalidRetCode.ClientNotAwaited);
+        }
+
+        private void SendToAll(string msg)
+        {
+            foreach (var client in _usersByChannelId.Values)
+            {
+                var callback = client.Peer.As<IChatRoomServiceCallback>();
+                callback.OnRoomMessage(Id, msg);
+            }
         }
 
         public void Say(string message)
@@ -98,11 +107,7 @@ namespace SampleServer
             {
                 string fullMsg = client.Info.Name + " : " + message;
                 _messages.Add(fullMsg);
-                foreach (var otherClient in _usersByChannelId.Values)
-                {
-                    var callback = otherClient.Peer.As<IChatRoomServiceCallback>();
-                    callback.OnRoomMessage(Id, fullMsg);
-                }
+                SendToAll(fullMsg);
             }
             else
                 Log.Warn("Say from unconnected peer - " + Context.Source);

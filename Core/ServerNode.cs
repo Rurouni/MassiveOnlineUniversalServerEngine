@@ -112,7 +112,7 @@ namespace MOUSE.Core
         }
     }
 
-    public class ClientPeer : NetPeer
+    public class C2SPeer : NetPeer
     {
         private ConcurrentDictionary<uint, object> _handlersByNetContractId;
         
@@ -253,12 +253,92 @@ namespace MOUSE.Core
         }
     }
 
+    public class S2SPeer : NetPeer
+    {
+        public new IServerNode Node;
+
+        public sealed override void Init(INetChannel channel, INode node)
+        {
+            base.Init(channel, node);
+
+            MessageEvent.Subscribe(OnServerMessage);
+        }
+
+        private void OnServerMessage(Message msg)
+        {
+            Log.Debug("Received " + msg);
+            try
+            {
+                var serviceHeader = msg.GetHeader<ServiceHeader>();
+                if (serviceHeader != null)
+                {
+                    Log.Debug("Dispatching {0} to service", msg);
+                    Node.DispatchServerOperationToService(serviceHeader.TargetServiceKey, msg, this);
+                }
+                else
+                {
+                    Log.Warn("Received unprocessable {0}", msg);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex.ToString);
+                Channel.Close();
+            }
+        }
+
+        private async Task DispatchAndReplyAsync(object handler, Message msg)
+        {
+            OperationHeader operationHeader = msg.GetHeader<OperationHeader>();
+            try
+            {
+                if (operationHeader != null)
+                {
+                    if (operationHeader.Type != OperationType.Request)
+                    {
+                        Log.Error("Received malformed service operation {0}", msg);
+                        return;
+                    }
+
+                    Message reply = await Node.Protocol.Dispatch(handler, msg);
+                    reply.AttachHeader(new OperationHeader(operationHeader.RequestId, OperationType.Reply));
+                    Channel.Send(reply);
+                    Log.Debug("Sending back {0}", reply);
+                }
+                else
+                {
+                    Node.Protocol.DispatchOneWay(handler, msg);
+                }
+            }
+            catch (InvalidInput iex)
+            {
+                if (operationHeader != null)
+                {
+                    Log.Info(iex.Message);
+                    var invalidReply = new InvalidOperation(iex.ErrorCode, iex.Message);
+                    invalidReply.AttachHeader(new OperationHeader(operationHeader.RequestId, OperationType.Reply));
+                    Channel.Send(invalidReply);
+                }
+                else
+                {
+                    Log.Warn("Dont use invalid input in oneWay operations, it wont be delivered anyway");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorException(string.Format("Error on processing {0} in {1}", msg, this), ex);
+            }
+        }
+    }
 
     public interface IServerNode : INode
     {
         Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0);
-        void ProcessServiceAccess(ClientPeer peer, ServiceAccessRequest request);
-        void DispatchClientOperationToService(NodeServiceKey serviceKey, Message msg, ClientPeer clientPeer);
+        void ProcessServiceAccess(C2SPeer peer, ServiceAccessRequest request);
+        void DispatchClientOperationToService(NodeServiceKey serviceKey, Message msg, C2SPeer clientPeer);
+        void DispatchServerOperationToService(NodeServiceKey targetServiceKey, Message msg, S2SPeer serverPeer);
+        INetNode<C2SPeer> ExternalNet { get; }
+        INetNode<S2SPeer> InternalNet { get; }
     }
 
     public class ServerNode : IServerNode
@@ -268,8 +348,8 @@ namespace MOUSE.Core
         private readonly ConcurrentDictionary<NodeServiceKey, NodeServiceProxy> _proxyCache = new ConcurrentDictionary<NodeServiceKey, NodeServiceProxy>();
         //protected readonly Dictionary<ulong, NetPeer> _connectedNodesByNodeId = new Dictionary<ulong, NetPeer>();
 
-        public readonly INetNode<ClientPeer> ExternalNet;
-        //protected INetNode<ServerNodePeer> InternalNet;
+        public INetNode<C2SPeer> ExternalNet { get; set; }
+        public INetNode<S2SPeer> InternalNet { get; set; }
 
         private readonly Random _random = new Random();
         protected Random Rnd
@@ -291,22 +371,22 @@ namespace MOUSE.Core
             get { return ExternalNet.MessageFactory; }
         }
 
-        public ServerNode(Func<INetChannel, ClientPeer> clientPeerFactory, INetProvider externalNetProvider, INetProvider internalNetProvider,
-            IMessageFactory factory, IServiceProtocol protocol, IServicesRepository repository, ClientPeer clientPeerPrototype)
+        public ServerNode(INetProvider externalNetProvider, INetProvider internalNetProvider,
+            IMessageFactory factory, IServiceProtocol protocol, IServicesRepository repository, C2SPeer clientPeerPrototype)
         {
             _id = GenerateUniqueId();
             Log = LogManager.GetLogger(ToString());
             Repository = repository;
             Protocol = protocol;
             Type clientPeerType = clientPeerPrototype.GetType();
-            ExternalNet = new NetNode<ClientPeer>(externalNetProvider, factory, protocol,
+            ExternalNet = new NetNode<C2SPeer>(externalNetProvider, factory, protocol,
                 peerFactory: () =>
                              {
-                                 var peer = (ClientPeer)FormatterServices.GetUninitializedObject(clientPeerType);
+                                 var peer = (C2SPeer)FormatterServices.GetUninitializedObject(clientPeerType);
                                  peer.Node = this;
                                  return peer;
                              });
-            //InternalNet = new NetNode<ClientNodePeer>(internalNetProvider, factory, protocol);
+            InternalNet = new NetNode<S2SPeer>(internalNetProvider, factory, protocol);
         }
 
         public async Task<TNetContract> GetService<TNetContract>(uint serviceId = 0)
@@ -326,7 +406,7 @@ namespace MOUSE.Core
                 (sk) => Protocol.CreateProxy(sk, MessageFactory, service));
         }
 
-        public async void DispatchClientOperationToService(NodeServiceKey serviceKey, Message msg, ClientPeer clientPeer)
+        public async void DispatchClientOperationToService(NodeServiceKey serviceKey, Message msg, C2SPeer clientPeer)
         {
             try
             {
@@ -367,7 +447,43 @@ namespace MOUSE.Core
             }
         }
 
-        public void ProcessServiceAccess(ClientPeer peer, ServiceAccessRequest request)
+        public async void DispatchServerOperationToService(NodeServiceKey serviceKey, Message msg, S2SPeer serverPeer)
+        {
+            try
+            {
+                Log.Debug("Dispatching {0} from {1} {2}", msg, serverPeer, serviceKey);
+                NodeServiceContractDescription desc = Protocol.GetDescription(serviceKey.TypeId);
+                
+                NodeService service;
+                if (Repository.TryGet(serviceKey, out service))
+                {
+                    Message reply = await service.ProcessMessage(new OperationContext(msg, serverPeer));
+                    if (reply != null)
+                    {
+                        int requestId = msg.GetHeader<OperationHeader>().RequestId;
+                        reply.AttachHeader(new OperationHeader(requestId, OperationType.Reply));
+                        serverPeer.Channel.Send(reply);
+                        Log.Debug("Dispatched {0} from {1} {2} : sending back reply {3}", msg, serverPeer, serviceKey, reply);
+                    }
+                }
+                else
+                    Log.Debug("Dispatching {0} from {1} {2} : Non active service", msg, serverPeer, serviceKey);
+            }
+            catch (InvalidInput iex)
+            {
+                Log.Info(iex.ToString());
+                var invalidReply = new InvalidOperation(iex.ErrorCode, iex.Message);
+                int requestId = msg.GetHeader<OperationHeader>().RequestId;
+                invalidReply.AttachHeader(new OperationHeader(requestId, OperationType.Reply));
+                serverPeer.Channel.Send(invalidReply);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorException(string.Format("Error on Dispatching {0} from {1} to {2}", msg, serverPeer, serviceKey), ex);
+            }
+        }
+
+        public void ProcessServiceAccess(C2SPeer peer, ServiceAccessRequest request)
         {
             Log.Debug("{0} is accessing service {1}", peer, request.ServiceKey);
             NodeServiceContractDescription desc = Protocol.GetDescription(request.ServiceKey.TypeId);

@@ -104,7 +104,8 @@ void WriteMethodDef(MethodInfo method)
 
 void WriteMethodBody(MethodInfo method, Type contractType)
 {	#>
-	var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
+	//var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
+	var request = new <#= contractType.Name + method.Name + "Request" #>();
 <#+ foreach(var par in method.GetParameters())
     {	#>
             request.<#= par.Name +"="+ par.Name #>;
@@ -113,20 +114,20 @@ void WriteMethodBody(MethodInfo method, Type contractType)
     if(method.ReturnType == typeof(void))
     {	#>
 			ExecuteOneWayServiceOperation(request);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(request);
 <#+ }
     else if(!method.ReturnType.IsGenericType)
     {	#>
             Message reply = await ExecuteServiceOperation(request);
-            MessageFactory.Free(request);
-			MessageFactory.Free(reply);
+            //MessageFactory.Free(request);
+			//MessageFactory.Free(reply);
 <#+ }
     else
     {	#>
             Message reply = await ExecuteServiceOperation(request);
             var ret = ((<#= contractType.Name + method.Name + "Reply" #>)reply).RetVal;
-            MessageFactory.Free(reply);
-            MessageFactory.Free(request);
+            //MessageFactory.Free(reply);
+            //MessageFactory.Free(request);
             return ret;
 <#+ }
 }
@@ -152,12 +153,14 @@ void WriteDispatcherBody(MethodInfo method, Type contractType)
     else if(!method.ReturnType.IsGenericType)
     {	#>
             await ((<#= contractType.FullName #>)target).<#= method.Name #>(<#= paramsText #>);
-            return msgFactory.New<<#= contractType.Name + method.Name+ "Reply" #>>();
+            //return msgFactory.New<<#= contractType.Name + method.Name+ "Reply" #>>();
+			return new <#= contractType.Name + method.Name+ "Reply" #>();
 <#+ }
     else
     {	#>
             var retVal = await ((<#= contractType.FullName #>)target).<#= method.Name #>(<#= paramsText #>);
-            var retMsg = msgFactory.New<<#= contractType.Name + method.Name+ "Reply" #>>();
+            //var retMsg = msgFactory.New<<#= contractType.Name + method.Name+ "Reply" #>>();
+			var retMsg = new <#= contractType.Name + method.Name+ "Reply" #>();
             retMsg.RetVal = retVal;
             return retMsg;
 <#+ }

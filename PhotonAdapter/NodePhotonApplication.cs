@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.Composition.Hosting;
 using System.Linq;
+using System.Net;
 using System.Text;
 using Photon.SocketServer;
 using MOUSE.Core;
@@ -14,30 +15,16 @@ using PhotonHostRuntimeInterfaces;
 
 namespace PhotonAdapter
 {
-    public class NodePhotonApplication : ApplicationBase, INetProvider
+    public abstract class PhotonServerHostApplication : ApplicationBase, INetProvider
     {
-        private INode _node;
+        private IServerNode _node;
 
-        ConcurrentDictionary<uint, ClientPeer> _clientPeers = new ConcurrentDictionary<uint, ClientPeer>();
+        protected abstract IServerNode CreateNode();
 
         protected override void Setup()
         {
-            var builder = new ContainerBuilder();
-
-            builder.RegisterComposablePartCatalog(new DirectoryCatalog(""));
-            builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>();
-            builder.RegisterType<ServicesRepository>().As<IServicesRepository>();
-            builder.RegisterType<MessageFactory>().As<IMessageFactory>();
-            builder.RegisterType<EntityClusterNode>().As<INode>();
-            builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>();
-            builder.RegisterInstance(this).As<INetProvider>;
-
-            var container = builder.Build();
-            _node = container.Resolve<INode>();
-
-            _node.Start(false);
-
-
+            _node = CreateNode();
+            _node.Start();
         }
 
         protected override void TearDown()
@@ -47,87 +34,184 @@ namespace PhotonAdapter
 
         protected override PeerBase CreatePeer(InitRequest initRequest)
         {
-                var photonPeer = new ClientPeer(this, initRequest.Protocol, initRequest.PhotonPeer, (uint)initRequest.ConnectionId);
-                _clientPeers.Add(photonPeer.NetId, photonPeer);
-                ((INetChannelConsumer)_node).OnNetConnect(photonPeer.NetId);
-                return photonPeer;
+            var photonPeer = new PhotonClientPeer(initRequest);
+            photonPeer.ChannelListener = ((INetChannelConsumer)_node.ExternalNet).OnNetConnect(photonPeer);
+            var localEndpoint = new IPEndPoint(IPAddress.Parse(initRequest.LocalIP), initRequest.LocalPort);
+            Console.WriteLine("New client peer on "+localEndpoint);
+            return photonPeer;
         }
 
-        public void OnClientPeerDisconnected(ClientPeer photonPeer)
+        protected override ServerPeerBase CreateServerPeer(InitResponse initResponse, object state)
         {
-            _clientPeers.Remove(photonPeer.NetId);
-            ((INetChannelConsumer)_node).OnNetDisconnect(photonPeer.NetId);
+            var photonPeer = new PhotonServerPeer(initResponse);
+            photonPeer.ChannelListener = ((INetChannelConsumer)_node.InternalNet).OnNetConnect(photonPeer);
+            var localEndpoint = new IPEndPoint(IPAddress.Parse(initResponse.LocalIP), initResponse.LocalPort);
+            Console.WriteLine("New server peer on " + localEndpoint);
+            return photonPeer;
         }
 
-        public void OnClientPeerOperationRequest(ClientPeer clientPeer, OperationRequest operationRequest, SendParameters sendParameters)
+        #region INetProvider
+        public bool Init(INetChannelConsumer factory)
         {
-            NativeReader reader = new NativeReader();
-            reader.SetBuffer((byte[])operationRequest.Parameters[0], 0);
-            ((INetChannelConsumer)_node).OnNetData(clientPeer.NetId, reader);
+            return true;
         }
-
-        #region INetPeer
-        public bool Startup(System.Net.IPEndPoint listenEndpoint, int maxConnections)
-        { }
 
         public void Shutdown()
         { }
 
-        public void Connect(System.Net.IPEndPoint target)
+        public void Connect(IPEndPoint target)
         {
-            _photonApp.ConnectToServer(target, "MOUSE", null);
+            ConnectToServer(target, "MOUSE", null);
         }
 
-        public void CloseConnection(int netIndex)
+        public bool PumpEvents()
         {
-            _clientPeers[netIndex].Disconnect();
+            return true;
         }
 
-        public bool ProcessNetEvent(INetChannelConsumer processor)
+        public IPEndPoint EndPoint
         {
-            return false;
+            get
+            {
+                return new IPEndPoint(Dns.GetHostAddresses(Dns.GetHostName())[0], 0);
+            }
         }
 
-        public void Send(int netId, byte[] buff, int length, MessagePriority messagePriority, MessageReliability messageReliability)
-        {
-            throw new NotImplementedException();
-        }
-
-        public System.Net.IPEndPoint GetEndPointOf(int netId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public System.Net.IPEndPoint EndPoint
-        {
-            get { return null; }
-        }
         #endregion
-
-        
     }
 
-    public class ClientPeer : PeerBase
+    public class PhotonClientPeer : PeerBase, INetChannel
     {
         public readonly uint NetId;
-        public readonly NodePhotonApplication _app;
+        public INetChannelListener ChannelListener;
+        private IPEndPoint _endPoint;
         
 
-        public ClientPeer(NodePhotonApplication app, IRpcProtocol protocol, IPhotonPeer unmanagedPeer, uint netId)
-            : base(protocol, unmanagedPeer)
+
+        public PhotonClientPeer(InitRequest initRequest)
+            : base(initRequest.Protocol, initRequest.PhotonPeer)
         {
-            NetId = netId;
-            _app = app;
+            NetId = (uint)initRequest.ConnectionId;
+            _endPoint = new IPEndPoint(IPAddress.Parse(initRequest.RemoteIP), initRequest.RemotePort);
+            
         }
 
         protected override void OnDisconnect()
         {
-            _app.OnClientPeerDisconnected(this);
+            ChannelListener.OnDisconnected();
         }
 
         protected override void OnOperationRequest(OperationRequest operationRequest, SendParameters sendParameters)
         {
-            _app.OnClientPeerOperationRequest(this, operationRequest, sendParameters);
+            var reader = new NativeReader();
+            reader.SetBuffer((byte[])operationRequest.Parameters[0], 0);
+            ChannelListener.OnNetData(reader);
+        }
+
+        public uint Id
+        {
+            get { return NetId; }
+        }
+
+        public IPEndPoint EndPoint
+        {
+            get { return _endPoint; }
+        }
+
+        public void Send(Message msg)
+        {
+            NativeWriter writer = msg.GetSerialized();
+            var arr = new byte[writer.Position];
+            Array.Copy(writer.Buff, arr, writer.Position); //TODO:need workaround
+            var data = new Dictionary<byte, object>();
+            data[0] = arr;
+            
+            bool isReliable = msg.Reliability == MessageReliability.Reliable || msg.Reliability == MessageReliability.ReliableOrdered;
+
+            var response = new OperationResponse(42);
+            response.Parameters = data;
+            var sendParam = new SendParameters();
+            sendParam.Unreliable = !isReliable;
+
+            SendOperationResponse(response, sendParam);
+        }
+
+        public void Close()
+        {
+            Disconnect();
+        }
+    }
+
+    public class PhotonServerPeer : ServerPeerBase, INetChannel
+    {
+        public readonly uint NetId;
+        public INetChannelListener ChannelListener;
+        private readonly IPEndPoint _endPoint;
+        readonly OperationResponse _response = new OperationResponse(42);
+
+
+        public PhotonServerPeer(InitResponse initResponse)
+            : base(initResponse.Protocol, initResponse.PhotonPeer)
+        {
+            NetId = (uint)initResponse.ConnectionId;
+            _endPoint = new IPEndPoint(IPAddress.Parse(initResponse.RemoteIP), initResponse.RemotePort);
+        }
+
+        protected override void OnDisconnect()
+        {
+            ChannelListener.OnDisconnected();
+        }
+
+        protected override void OnOperationRequest(OperationRequest operationRequest, SendParameters sendParameters)
+        {
+            var reader = new NativeReader();
+            reader.SetBuffer((byte[])operationRequest.Parameters[0], 0);
+            ChannelListener.OnNetData(reader);
+        }
+
+        public uint Id
+        {
+            get { return NetId; }
+        }
+
+        public IPEndPoint EndPoint
+        {
+            get { return _endPoint; }
+        }
+
+        public void Send(Message msg)
+        {
+            NativeWriter writer = msg.GetSerialized();
+            var arr = new byte[writer.Position];
+            Array.Copy(writer.Buff, arr, writer.Position); //TODO:need workaround
+            var data = new Dictionary<byte, object>();
+            data[0] = arr;
+
+            bool isReliable = msg.Reliability == MessageReliability.Reliable || msg.Reliability == MessageReliability.ReliableOrdered;
+            _response.Parameters[0] = arr;
+            var sendParam = new SendParameters();
+            sendParam.Unreliable = !isReliable;
+
+            SendOperationResponse(_response, sendParam);
+        }
+
+        public void Close()
+        {
+            Disconnect();
+        }
+
+        protected override void OnEvent(IEventData eventData, SendParameters sendParameters)
+        {
+            var reader = new NativeReader();
+            reader.SetBuffer((byte[])eventData.Parameters[0], 0);
+            ChannelListener.OnNetData(reader);
+        }
+
+        protected override void OnOperationResponse(OperationResponse operationResponse, SendParameters sendParameters)
+        {
+            var reader = new NativeReader();
+            reader.SetBuffer((byte[])operationResponse.Parameters[0], 0);
+            ChannelListener.OnNetData(reader);
         }
     }
 }

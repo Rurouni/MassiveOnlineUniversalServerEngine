@@ -20,20 +20,19 @@ namespace SampleServerConsoleHost
         static void Main(string[] args)
         {
             var builder = new ContainerBuilder();
-            //register core messages
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INetPeer))));
-            //register c2s messages
+            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INode))));
+            //register c2s contracts
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(IChatLogin))));
-            //register s2s messages
+            //register s2s contracts
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(IChatManager))));
-            //register services
+            //register services and generated messages
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(ChatClient))));
             
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
             builder.RegisterType<ServicesRepository>().As<IServicesRepository>().SingleInstance();
             builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
-            builder.Register(c=> new RakPeerInterface(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 12345), 10000))
+            builder.Register(c=> new RakPeerInterface(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5055), 10000))
                 .As<INetProvider>().SingleInstance();
             
             builder.RegisterType<ServerNode>().As<ServerNode>().SingleInstance();

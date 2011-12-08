@@ -14,7 +14,7 @@ using System.Windows.Shapes;
 using System.Net;
 using Autofac.Integration.Mef;
 using MOUSE.Core;
-using RakNetWrapper;
+using PhotonClientWrap;
 using SampleC2SProtocol;
 using System.Threading.Tasks;
 using Autofac;
@@ -47,9 +47,10 @@ namespace SampleWPFClient
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INetPeer))));
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
-            builder.RegisterType<RakPeerInterface>().As<INetProvider>().SingleInstance();
+            builder.Register(c => new PhotonNetClient("MouseChat")).As<INetProvider>().SingleInstance();
             builder.RegisterType<ClientNode>().As<IClientNode>().SingleInstance();
             var container = builder.Build();
+            btnJoin.IsEnabled = false;
 
             _node = container.Resolve<IClientNode>();
             _node.SetHandler<IChatRoomServiceCallback>(this);
@@ -69,7 +70,7 @@ namespace SampleWPFClient
 
         private void OnMainChannelDisconnect()
         {
-            Application.Current.Shutdown();
+            MessageBox.Show("Main Channel has disconnected, you need to reconnect again");
         }
 
         public void OnRoomMessage(uint roomId, string message)
@@ -79,6 +80,7 @@ namespace SampleWPFClient
 
         private async void btnConnect_Click(object sender, RoutedEventArgs e)
         {
+            btnJoin.IsEnabled = false;
             string[] addrAndPort = cbConnection.Text.Split(':');
 
             await _node.ConnectToServer(new IPEndPoint(IPAddress.Parse(addrAndPort[0]), int.Parse(addrAndPort[1])));
@@ -91,6 +93,7 @@ namespace SampleWPFClient
 
             _chatServiceProxy = await _node.GetService<IChatService>();
             UpdateRooms();
+            btnJoin.IsEnabled = true;
         }
 
         private async void cbChatRooms_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -132,6 +135,6 @@ namespace SampleWPFClient
                 txtMyMessage.Text = "";
             }
         }
-        
+       
     }
 }

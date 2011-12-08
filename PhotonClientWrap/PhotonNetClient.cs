@@ -10,18 +10,22 @@ namespace PhotonClientWrap
 {
     public class PhotonNetClient : INetProvider, IPhotonPeerListener, INetChannel
     {
-        PhotonPeer _photon;
-        Dictionary<byte, object> _dict = new Dictionary<byte, object>();
-        INetChannelConsumer _processor;
-        NativeReader _reader = new NativeReader();
+        private PhotonPeer _photon;
+        private INetChannelConsumer _channelFactory;
+        private INetChannelListener _channelListener;
+        private NativeReader _reader = new NativeReader();
+        private string _applicationName;
+        private IPEndPoint _serverEndPoint;
+        
 
-        public PhotonNetClient()
-        {           
+        public PhotonNetClient(string applicationName)
+        {
+            _applicationName = applicationName;
         }
 
-        public bool Startup(INetChannelConsumer processor, IPEndPoint listenEndpoint, int maxConnections)
+        public bool Init(INetChannelConsumer factory)
         {
-            _processor = processor;
+            _channelFactory = factory;
             _photon = new PhotonPeer(this);
             return true;
         }
@@ -34,7 +38,12 @@ namespace PhotonClientWrap
 
         public void Connect(IPEndPoint target)
         {
-            _photon.Connect(target.ToString(), "MOUSE");
+            _serverEndPoint = target;
+            bool connected = _photon.Connect(target.ToString(), _applicationName);
+            if(!connected)
+                throw new Exception("Photon Client can't connect to " + target);
+            //if(connected)
+            //    _channelListener = _channelFactory.OnNetConnect(this);
         }
 
         public bool PumpEvents()
@@ -59,24 +68,27 @@ namespace PhotonClientWrap
         void IPhotonPeerListener.OnEvent(EventData eventData)
         {
             _reader.SetBuffer((byte[])eventData.Parameters[0], 0);
-            _processor.OnNetData(this, _reader);
+            _channelListener.OnNetData(_reader);
         }
 
         void IPhotonPeerListener.OnOperationResponse(OperationResponse operationResponse)
         {
             _reader.SetBuffer((byte[])operationResponse.Parameters[0], 0);
-            _processor.OnNetData(this, _reader);
+            _channelListener.OnNetData(_reader);
         }
 
         void IPhotonPeerListener.OnStatusChanged(StatusCode statusCode)
         {
+            
             switch (statusCode)
             {
                 case StatusCode.Connect:
-                    _processor.OnNetConnectionAccepted(this);
+                    _channelListener = _channelFactory.OnNetConnect(this);
                     break;
                 case StatusCode.Disconnect:
-                    _processor.OnNetDisconnect(this);
+                    if (_channelListener != null)
+                        _channelListener.OnDisconnected();
+                    
                     break;
                 default:
                     break;
@@ -90,7 +102,7 @@ namespace PhotonClientWrap
 
         IPEndPoint INetChannel.EndPoint
         {
-            get { return new IPEndPoint(Dns.GetHostAddresses(Dns.GetHostName())[0], 0); }
+            get { return _serverEndPoint; }
         }
 
         void INetChannel.Send(Message msg)
@@ -98,9 +110,11 @@ namespace PhotonClientWrap
             NativeWriter writer = msg.GetSerialized();
             var arr = new byte[writer.Position];
             Array.Copy(writer.Buff, arr, writer.Position);
-            _dict[0] = arr;
+
+            var data = new Dictionary<byte, object>();
+            data[0] = arr;
             bool isReliable = msg.Reliability == MessageReliability.Reliable || msg.Reliability == MessageReliability.ReliableOrdered;
-            _photon.OpCustom(42, _dict, isReliable);
+            _photon.OpCustom(42, data, isReliable);
         }
 
         void INetChannel.Close()
