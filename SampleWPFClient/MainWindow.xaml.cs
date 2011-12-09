@@ -43,19 +43,24 @@ namespace SampleWPFClient
             cbChatRooms.ItemsSource = _rooms;
 
             var builder = new ContainerBuilder();
+            //register chat messages and proxies as MEF parts
             builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetExecutingAssembly()));
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INetPeer))));
+            //register core messages as MEF parts
+            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INode))));
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
             builder.Register(c => new PhotonNetClient("MouseChat")).As<INetProvider>().SingleInstance();
-            builder.RegisterType<ClientNode>().As<IClientNode>().SingleInstance();
+            builder.RegisterType<ClientNode>().As<IClientNode>();
             var container = builder.Build();
-            btnJoin.IsEnabled = false;
-
+            
             _node = container.Resolve<IClientNode>();
+            //set callback handlers
             _node.SetHandler<IChatRoomServiceCallback>(this);
+            _node.DisconnectedEvent.Subscribe((_) => OnMainChannelDisconnect());
+            //start node thread and init network
             _node.Start();
 
+            btnJoin.IsEnabled = false;
             Closing += (sender, e) => _node.Stop();
 
         }
@@ -84,7 +89,6 @@ namespace SampleWPFClient
             string[] addrAndPort = cbConnection.Text.Split(':');
 
             await _node.ConnectToServer(new IPEndPoint(IPAddress.Parse(addrAndPort[0]), int.Parse(addrAndPort[1])));
-            _node.DisconnectedEvent.Subscribe((_)=> OnMainChannelDisconnect());
 
             var loginService = await _node.GetService<IChatLogin>();
             LoginResult result = await loginService.Login(txtUserName.Text);
