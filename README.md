@@ -118,6 +118,7 @@ catch (InvalidInput iex)
 }
 ```
 it shows 2 important things:
+
 + here `await _node.GetService<IChatRoomService>(room.Id);` we get proxy to service with id `room.Id`. If we dont provide any id when getting proxy it gets proxy to service with 0 id. It like singleton service.
 + try-catch(InvalidInput) is used to process expected Incorrect Results, when server code throws InvalidInput exception it is rethrown on client, all other exceptions aren't rethrown
 
