@@ -33,7 +33,7 @@ the more you partition your logic into different services more possibilities are
 		+ WriteReentrant : sequential processing in thread pool(doesnt protect from state changes during async wait)
 		+ Full : no other operations would be processed until this one finishes (including all async cont)
 + All messages, proxies and dispatchers are generated using t4 for maximum performance
-+ Currently supports Photon and RakNet as transport engines
++ Currently supports Photon and RakNet as transport engines (binaries are not included in the project, only wrappers)
 
 ##Roadmap
 1. **Basic networking** - done
