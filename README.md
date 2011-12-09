@@ -33,6 +33,7 @@ the more you partition your logic into different services more possibilities are
 		+ WriteReentrant : sequential processing in thread pool(doesnt protect from state changes during async wait)
 		+ Full : no other operations would be processed until this one finishes (including all async cont)
 + All messages, proxies and dispatchers are generated using t4 for maximum performance
++ Currently supports Photon and RakNet as transport engines
 
 ##Roadmap
 1. **Basic networking** - done
@@ -190,6 +191,8 @@ callback.OnRoomMessage(Id, msg);
 
 Other stuff looks similar to client code, everywhere you can get proxy to other services using Node.GetService<TNetContract>(id)
 and use this proxy to invoke RPC
+
+## License - Mit
 
 
 
