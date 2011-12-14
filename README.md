@@ -133,17 +133,17 @@ First and minimum that you should have is C2SPeer inheritor ChatClient - it will
 public class ChatClient : C2SPeer, IChatLogin, IChatService
 {
 	ClientState _state;
-        private ChatUserInfo _user;
-        uint _roomId;
+	private ChatUserInfo _user;
+	uint _roomId;
 
-        public override void OnCreated()
-        {
-            Log = LogManager.GetLogger(string.Format("ChatClient<NetId:{0}>", Channel.Id));
-            SetHandler<IChatLogin>(this);
-            DisconnectedEvent.Subscribe(OnDisconnectAsync);
-            Log.Info("connected");
-        }
-        ...
+	public override void OnCreated()
+	{
+		Log = LogManager.GetLogger(string.Format("ChatClient<NetId:{0}>", Channel.Id));
+		SetHandler<IChatLogin>(this);
+		DisconnectedEvent.Subscribe(OnDisconnectAsync);
+		Log.Info("connected");
+	}
+	...
 ```
 all initialization should be in `OnCreated()` method because neither constructor nor initializers will be called.
 C2SPeer could also enable/disable or delegate processing of various net contracts using `SetHandler<TNetContract>(obj);`
@@ -177,6 +177,7 @@ public class ChatManager : NodeService, IChatManager
 ```
 
 You can see that here, as in C2SPeer, all initializations should also happen only in OnCreated method.
+
 The Last one is `ChatRoom` it's mostly like ChatManager, exept the fact that Id of service here really makes sense because 
 it's also the Id of the room. Also this service has externally visible net contract `IChatRoomService`
 and saves all C2SPeers joined this room into internal dictionaries as `ChatRoomClient`
