@@ -33,6 +33,7 @@ the more you partition your logic into different services more possibilities are
 		+ WriteReentrant : sequential processing in thread pool(doesnt protect from state changes during async wait)
 		+ Full : no other operations would be processed until this one finishes (including all async cont)
 + All messages, proxies and dispatchers are generated using t4 for maximum performance
++ Currently supports Photon and RakNet as transport engines (binaries are not included in the project, only wrappers)
 
 ##Roadmap
 1. **Basic networking** - done
@@ -132,17 +133,17 @@ First and minimum that you should have is C2SPeer inheritor ChatClient - it will
 public class ChatClient : C2SPeer, IChatLogin, IChatService
 {
 	ClientState _state;
-        private ChatUserInfo _user;
-        uint _roomId;
+	private ChatUserInfo _user;
+	uint _roomId;
 
-        public override void OnCreated()
-        {
-            Log = LogManager.GetLogger(string.Format("ChatClient<NetId:{0}>", Channel.Id));
-            SetHandler<IChatLogin>(this);
-            DisconnectedEvent.Subscribe(OnDisconnectAsync);
-            Log.Info("connected");
-        }
-        ...
+	public override void OnCreated()
+	{
+		Log = LogManager.GetLogger(string.Format("ChatClient<NetId:{0}>", Channel.Id));
+		SetHandler<IChatLogin>(this);
+		DisconnectedEvent.Subscribe(OnDisconnectAsync);
+		Log.Info("connected");
+	}
+	...
 ```
 all initialization should be in `OnCreated()` method because neither constructor nor initializers will be called.
 C2SPeer could also enable/disable or delegate processing of various net contracts using `SetHandler<TNetContract>(obj);`
@@ -176,6 +177,7 @@ public class ChatManager : NodeService, IChatManager
 ```
 
 You can see that here, as in C2SPeer, all initializations should also happen only in OnCreated method.
+
 The Last one is `ChatRoom` it's mostly like ChatManager, exept the fact that Id of service here really makes sense because 
 it's also the Id of the room. Also this service has externally visible net contract `IChatRoomService`
 and saves all C2SPeers joined this room into internal dictionaries as `ChatRoomClient`
@@ -190,6 +192,8 @@ callback.OnRoomMessage(Id, msg);
 
 Other stuff looks similar to client code, everywhere you can get proxy to other services using Node.GetService<TNetContract>(id)
 and use this proxy to invoke RPC
+
+## License - Mit
 
 
 
