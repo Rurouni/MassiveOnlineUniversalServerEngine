@@ -166,11 +166,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CompiledTestDomain\CompiledTestDomain.csproj">
-      <Project>{07B2425C-CA59-4089-BD62-BD138BB8779C}</Project>
-      <Name>CompiledTestDomain</Name>
-      <EmbedInteropTypes>False</EmbedInteropTypes>
-    </ProjectReference>
     <ProjectReference Include="..\Core\Core.csproj">
       <Project>{CC2D2C8B-6B03-4585-A421-58B796A69780}</Project>
       <Name>Core</Name>

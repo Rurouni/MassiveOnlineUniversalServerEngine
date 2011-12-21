@@ -135,7 +135,7 @@
       <Project>{5F8F8AA0-C2D2-403A-9D68-B56A5C1D2F32}</Project>
       <Name>PhotonClientWrap</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SampleProtocol\SampleC2SProtocol.csproj">
+    <ProjectReference Include="..\SampleC2SProtocol\SampleC2SProtocol.csproj">
       <Project>{5300823F-C8CB-48AB-990B-C764A9879D93}</Project>
       <Name>SampleC2SProtocol</Name>
     </ProjectReference>
