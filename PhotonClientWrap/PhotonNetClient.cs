@@ -5,6 +5,7 @@ using System.Text;
 using MOUSE.Core;
 using ExitGames.Client.Photon;
 using System.Net;
+using System.IO;
 
 namespace PhotonClientWrap
 {
@@ -13,7 +14,6 @@ namespace PhotonClientWrap
         private PhotonPeer _photon;
         private INetChannelConsumer _channelFactory;
         private INetChannelListener _channelListener;
-        private NativeReader _reader = new NativeReader();
         private string _applicationName;
         private IPEndPoint _serverEndPoint;
         
@@ -26,7 +26,7 @@ namespace PhotonClientWrap
         public bool Init(INetChannelConsumer factory)
         {
             _channelFactory = factory;
-            _photon = new PhotonPeer(this);
+            _photon = new PhotonPeer(this, ConnectionProtocol.Udp);
             return true;
         }
 
@@ -56,6 +56,7 @@ namespace PhotonClientWrap
         {
             get 
             {
+                //TODO: won't work with multiple NICs
                 return new IPEndPoint(Dns.GetHostAddresses(Dns.GetHostName())[0], 0);
             }
         }
@@ -67,14 +68,16 @@ namespace PhotonClientWrap
 
         void IPhotonPeerListener.OnEvent(EventData eventData)
         {
-            _reader.SetBuffer((byte[])eventData.Parameters[0], 0);
-            _channelListener.OnNetData(_reader);
+            //TODO: pool this later
+            BinaryReader reader = new BinaryReader(new MemoryStream((byte[])eventData.Parameters[0]));
+            _channelListener.OnNetData(reader);
         }
 
         void IPhotonPeerListener.OnOperationResponse(OperationResponse operationResponse)
         {
-            _reader.SetBuffer((byte[])operationResponse.Parameters[0], 0);
-            _channelListener.OnNetData(_reader);
+            //TODO: pool this later
+            BinaryReader reader = new BinaryReader(new MemoryStream((byte[])operationResponse.Parameters[0]));
+            _channelListener.OnNetData(reader);
         }
 
         void IPhotonPeerListener.OnStatusChanged(StatusCode statusCode)
@@ -107,14 +110,16 @@ namespace PhotonClientWrap
 
         void INetChannel.Send(Message msg)
         {
-            NativeWriter writer = msg.GetSerialized();
-            var arr = new byte[writer.Position];
-            Array.Copy(writer.Buff, arr, writer.Position);
+            MemoryStream stream = new MemoryStream();
+            BinaryWriter writer = new BinaryWriter(stream);
+            msg.Serialize(writer);
+            var arr = new byte[stream.Position];
+            Array.Copy(stream.GetBuffer(), arr, stream.Position);
 
             var data = new Dictionary<byte, object>();
             data[0] = arr;
             bool isReliable = msg.Reliability == MessageReliability.Reliable || msg.Reliability == MessageReliability.ReliableOrdered;
-            _photon.OpCustom(42, data, isReliable);
+            _photon.OpCustom(42, data, isReliable); //Photon does not allow to send raw messages so send dummy operation instead
         }
 
         void INetChannel.Close()

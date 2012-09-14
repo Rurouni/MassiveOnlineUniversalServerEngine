@@ -23,13 +23,25 @@ namespace MOUSE.Core
         public MessageReliability Reliability { get; set; }
         public LockType Lock { get; set; }
 
+
         public Type InvalidRetCode { get; set; }
 
         public NetOperationAttribute()
         {
             Priority = MessagePriority.Medium;
             Reliability = MessageReliability.ReliableOrdered;
-            Lock = LockType.Full;
+            Lock = LockType.Write;
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class NetOperationHandlerAttribute : Attribute
+    {
+        public LockType Lock { get; set; }
+
+        public NetOperationHandlerAttribute()
+        {
+            Lock = LockType.Write;
         }
     }
 
@@ -38,6 +50,7 @@ namespace MOUSE.Core
     {
         public bool Persistant { get; set; }
         public bool AutoCreate { get; set; }
+        
 
         public NodeServiceAttribute()
         {

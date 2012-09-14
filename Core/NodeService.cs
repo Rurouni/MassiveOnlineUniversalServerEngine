@@ -35,6 +35,7 @@ namespace MOUSE.Core
         public ServerFiber Fiber;
         protected ServerNode Node;
         private uint _id;
+        private Dictionary<uint, NetContractHandler> _handlers; 
 
         public uint Id
         {
@@ -55,6 +56,11 @@ namespace MOUSE.Core
             Node = node;
             Log = LogManager.GetLogger(string.Format("{0}<Id:{1}>", GetType().Name, id));
             Fiber = new ServerFiber();
+            _handlers = new Dictionary<uint, NetContractHandler>(); 
+            foreach (NodeServiceContractDescription implementedContract in desc.ImplementedContracts)
+            {
+                _handlers.Add(implementedContract.TypeId, new NetContractHandler(node.Protocol, implementedContract.TypeId, this));
+            }
             OnCreated();
         }
 
@@ -66,7 +72,10 @@ namespace MOUSE.Core
 
         public Task<Message> ProcessMessage(OperationContext operationContext)
         {
-            return Fiber.ProcessAndReturn(() => DispatchAndReturnAsync(operationContext), operationContext.Message.LockType);
+            var serviceHeader = operationContext.Message.GetHeader<ServiceHeader>();
+            LockType lockType =
+                _handlers[serviceHeader.TargetServiceKey.TypeId].GetLockTypeForOperation(operationContext.Message);
+            return Fiber.ProcessAndReturn(() => DispatchAndReturnAsync(operationContext), lockType);
         }
 
         private Task<Message> DispatchAndReturnAsync(OperationContext context)
@@ -91,7 +100,10 @@ namespace MOUSE.Core
 
         void IServiceOperationDispatcher.ExecuteOneWayServiceOperation(Message request)
         {
-            Fiber.Process(() => DispatchAndReturnAsync(new OperationContext(request, null)), request.LockType);
+            var serviceHeader = request.GetHeader<ServiceHeader>();
+            LockType lockType =
+                _handlers[serviceHeader.TargetServiceKey.TypeId].GetLockTypeForOperation(request);
+            Fiber.Process(() => DispatchAndReturnAsync(new OperationContext(request, null)), lockType);
         }
     }
     
@@ -158,72 +170,13 @@ namespace MOUSE.Core
         }
     }
 
-    public interface INodeServiceProxy
-    {
-        NodeServiceKey ServiceKey { get; }
-        IMessageFactory MessageFactory { get; }
-        IServiceOperationDispatcher Target { get; }
-        NodeServiceContractDescription Description { get; }
-        Task<Message> ExecuteServiceOperation(Message request);
-        void ExecuteOneWayServiceOperation(Message request);
     
-    }
-
     public interface IServiceOperationDispatcher
     {
         Task<Message> ExecuteServiceOperation(Message request);
         void ExecuteOneWayServiceOperation(Message request);
     }
 
-    public abstract class NodeServiceProxy : INodeServiceProxy
-    {
-        private NodeServiceKey _serviceKey;
-        private NodeServiceContractDescription _description;
-        private ServiceHeader _serviceHeader;
-        private IMessageFactory _messageFactory;
-        private IServiceOperationDispatcher _target;
-        
-        public void Init(NodeServiceKey serviceKey, NodeServiceContractDescription description, IMessageFactory messageFactory, IServiceOperationDispatcher target)
-        {
-            _serviceKey = serviceKey;
-            _description = description;
-            _serviceHeader = new ServiceHeader(serviceKey);
-            _messageFactory = messageFactory;
-            _target = target;
-        }
-
-        public NodeServiceKey ServiceKey
-        {
-            get { return _serviceKey; }
-        }
-
-        public IMessageFactory MessageFactory
-        {
-            get { return _messageFactory; }
-        }
-
-        public IServiceOperationDispatcher Target
-        {
-            get { return _target; }
-        }
-
-        public NodeServiceContractDescription Description
-        {
-            get { return _description; }
-        }
-
-        public Task<Message> ExecuteServiceOperation(Message request)
-        {
-            request.AttachHeader(_serviceHeader);
-            return _target.ExecuteServiceOperation(request);
-        }
-
-        public void ExecuteOneWayServiceOperation(Message request)
-        {
-            request.AttachHeader(_serviceHeader);
-            _target.ExecuteOneWayServiceOperation(request);
-        }
-    }
 
 
 
@@ -394,85 +347,4 @@ namespace MOUSE.Core
     //        return Type.Name;
     //    }
     //}
-
-    public class NodeServiceKey
-    {
-        public readonly uint TypeId;
-        public readonly uint Id;
-
-        public NodeServiceKey(uint typeId, uint id)
-        {
-            TypeId = typeId;
-            Id = id;
-        }
-
-        public NodeServiceKey(NativeReader r)
-        {
-            TypeId = r.ReadUInt32();
-            Id = r.ReadUInt32();
-        }
-
-        public override bool Equals(object obj)
-        {
-            var key = (NodeServiceKey)obj;
-            return TypeId.Equals(key.TypeId) && Id.Equals(key.Id);
-        }
-
-        public override int GetHashCode()
-        {
-            return (int)(TypeId ^ Id);
-        }
-
-        public void Serialize(NativeWriter w)
-        {
-            w.Write(TypeId);
-            w.Write(Id);
-        }
-
-        public override string ToString()
-        {
-            return string.Format("ServiceKey<TypeId: {0}, Id: {1}>", TypeId, Id);
-        }
-
-        //public static long ConvertToLong(NodeServiceKey key)
-        //{
-        //    return key.Id ^ ((long)key.TypeId << 32);
-        //}
-
-        //public static long ConvertToLong(uint id, uint typeId)
-        //{
-        //    return id ^ ((long)type << 32);
-        //}
-
-        //public static implicit operator long(NodeServiceKey key)
-        //{
-        //    return ConvertToLong(key);
-        //}
-
-        //public static implicit operator NodeServiceKey(long fullId)
-        //{
-        //    return ConvertFromLong(fullId);
-        //}
-
-        //public static NodeServiceKey ConvertFromLong(long key)
-        //{
-        //    return new NodeServiceKey((uint)key >> 32, (uint)(key & 0xffffffff));
-        //}
-    }
-
-    public static class NodeServiceKeySerializer
-    {
-        public static void Serialize(NodeServiceKey x, NativeWriter w)
-        {
-            w.Write(x.TypeId);
-            w.Write(x.Id);
-        }
-
-        public static NodeServiceKey Deserialize(NativeReader r)
-        {
-            uint typeId = r.ReadUInt32();
-            uint id = r.ReadUInt32();
-            return new NodeServiceKey(typeId, id);
-        }
-    }
 }

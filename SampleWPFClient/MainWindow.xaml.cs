@@ -12,16 +12,18 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Net;
-using Autofac.Integration.Mef;
 using MOUSE.Core;
 using PhotonClientWrap;
-using SampleC2SProtocol;
 using System.Threading.Tasks;
 using Autofac;
 using System.ComponentModel.Composition.Hosting;
 using System.Collections.ObjectModel;
 using Protocol.Generated;
 using System.Reflection;
+using System.Reactive.Linq;
+using System.Reactive.Threading;
+using RakNetWrapper;
+using System.Reactive.Concurrency;
 
 namespace SampleWPFClient
 {
@@ -31,9 +33,12 @@ namespace SampleWPFClient
     public partial class MainWindow : Window, IChatRoomServiceCallback
     {
         IClientNode _node;
+        IServerPeer _mainChannel;
+        IServerPeer _chatChannel;
+        IDisposable _chatChannelDisconnectionSubscription;
         IChatService _chatServiceProxy;
         IChatRoomService _chatRoomServiceProxy;
-        ObservableCollection<ChatRoomInfo> _rooms = new ObservableCollection<ChatRoomInfo>();
+        ObservableCollection<ChatRoomModel> _rooms = new ObservableCollection<ChatRoomModel>();
 
         public MainWindow()
         {
@@ -43,20 +48,30 @@ namespace SampleWPFClient
             cbChatRooms.ItemsSource = _rooms;
 
             var builder = new ContainerBuilder();
-            //register chat messages and proxies as MEF parts
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetExecutingAssembly()));
-            //register core messages as MEF parts
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INode))));
+
+            //register core messages
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(EmptyMessage)))
+                .Where(x => x.IsAssignableTo<Message>() && x != typeof(Message))
+                .As<Message>();
+
+            //register domain messages
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+                .Where(x => x.IsAssignableTo<Message>() && x != typeof(Message))
+                .As<Message>();
+
+            //register domain service definitions and proxies
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+                .Where(x => x.IsAssignableTo<NodeServiceProxy>() && x != typeof(NodeServiceProxy))
+                .As<NodeServiceProxy>();
+
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
-            builder.Register(c => new PhotonNetClient("MouseChat")).As<INetProvider>().SingleInstance();
+            //builder.Register(c => new PhotonNetClient("MouseChat")).As<INetProvider>().SingleInstance();
+            builder.RegisterType<RakPeerInterface>().As<INetProvider>().SingleInstance();
             builder.RegisterType<ClientNode>().As<IClientNode>();
             var container = builder.Build();
             
             _node = container.Resolve<IClientNode>();
-            //set callback handlers
-            _node.SetHandler<IChatRoomServiceCallback>(this);
-            _node.DisconnectedEvent.Subscribe((_) => OnMainChannelDisconnect());
             //start node thread and init network
             _node.Start();
 
@@ -65,17 +80,19 @@ namespace SampleWPFClient
 
         }
 
-        private async Task UpdateRooms()
+        private async void UpdateRooms()
         {
             _rooms.Clear();
             List<ChatRoomInfo> rooms = await _chatServiceProxy.GetRooms();
             foreach (var room in rooms)
-                _rooms.Add(room);
+                _rooms.Add(new ChatRoomModel(room.Id,room.Name));
         }
 
-        private void OnMainChannelDisconnect()
+        private async void OnMainChannelDisconnect()
         {
-            MessageBox.Show("Main Channel has disconnected, you need to reconnect again");
+            SetStatus("Disconnected");
+            MessageBox.Show("Connection lost - reconnecting");
+            Connect();
         }
 
         public void OnRoomMessage(uint roomId, string message)
@@ -83,52 +100,111 @@ namespace SampleWPFClient
             txtChat.AppendText(message +"\n");
         }
 
-        private async void btnConnect_Click(object sender, RoutedEventArgs e)
+        private async void Connect()
         {
-            btnJoin.IsEnabled = false;
-            string[] addrAndPort = cbConnection.Text.Split(':');
-
-            await _node.ConnectToServer(new IPEndPoint(IPAddress.Parse(addrAndPort[0]), int.Parse(addrAndPort[1])));
-
-            var loginService = await _node.GetService<IChatLogin>();
-            LoginResult result = await loginService.Login(txtUserName.Text);
-            if (result != LoginResult.Ok)
-                MessageBox.Show("Cant Login " + result);
-
-            _chatServiceProxy = await _node.GetService<IChatService>();
-            UpdateRooms();
-            btnJoin.IsEnabled = true;
-        }
-
-        private async void cbChatRooms_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            var room = (ChatRoomInfo)cbChatRooms.SelectedItem;
-
             try
             {
-                long ticket = await _chatServiceProxy.JoinRoom(room.Id);
-                _chatRoomServiceProxy = await _node.GetService<IChatRoomService>(room.Id);
-                List<string> history = await _chatRoomServiceProxy.Join(ticket);
-                txtChat.Clear();
-                foreach (var msg in history)
-                    txtChat.AppendText(msg + "\n");
+                btnJoin.IsEnabled = false;
+                string[] connectionPool = cbConnection.Text.Split(';');
+
+                SetStatus("Connecting");
+
+                bool connected = await ConnectToFirstWorking(connectionPool.Select(connectionString =>
+                    {
+                        string[] addrAndPort = connectionString.Split(':');
+                        return new IPEndPoint(IPAddress.Parse(addrAndPort[0]), int.Parse(addrAndPort[1]));
+                    }).ToList());
+
+                if (connected)
+                {
+                    _mainChannel.DisconnectedEvent
+                        .ObserveOn(new DispatcherScheduler(Dispatcher))
+                        .Subscribe((_) => OnMainChannelDisconnect());
+
+                    var loginService = await _mainChannel.GetService<IChatLogin>();
+                    LoginResult result = await loginService.Login(txtUserName.Text);
+
+                    if (result != LoginResult.Ok)
+                    {
+                        MessageBox.Show("Cant Login " + result);
+                        SetStatus("Disconnected");
+                    }
+                    else
+                    {
+                        _chatServiceProxy = await _mainChannel.GetService<IChatService>();
+                        UpdateRooms();
+                        SetStatus("Connected");
+                        btnJoin.IsEnabled = true;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Can't connect to any server");
+                    SetStatus("Disconnected");
+                }
             }
-            catch (InvalidInput iex)
+            catch (Exception ex)
             {
-                MessageBox.Show(((JoinRoomInvalidRetCode)iex.ErrorCode).ToString());
+                MessageBox.Show(ex.ToString());
             }
-            
+        }
+
+        private void btnConnect_Click(object sender, RoutedEventArgs e)
+        {
+            Connect();
+        }
+
+        private async Task<bool> ConnectToFirstWorking(List<IPEndPoint> endpoints)
+        {
+            bool connected = false;
+            while (!connected && endpoints.Count > 0)
+            {
+                IPEndPoint endpoint = null;
+                try
+                {
+                    endpoint = endpoints.Last();
+                    _mainChannel = await _node.ConnectToServer(endpoint);
+                    connected = true;
+                }
+                catch (Exception)
+                {
+                    endpoints.RemoveAt(endpoints.Count - 1);
+                    MessageBox.Show("Can't connect to " + endpoint);
+                }
+            }
+
+            return connected;
         }
 
         private async void btnJoin_Click(object sender, RoutedEventArgs e)
         {
-            CreateRoomResponse response = await _chatServiceProxy.JoinOrCreateRoom(cbChatRooms.Text);
-            _chatRoomServiceProxy = await _node.GetService<IChatRoomService>(response.RoomId);
-            var content = await _chatRoomServiceProxy.Join(response.Ticket);
-            txtChat.Clear();
-            foreach (var msg in content)
-                txtChat.AppendText(msg + "\n");
-            UpdateRooms();
+            try
+            {
+                if (_chatRoomServiceProxy != null)
+                {
+                    _chatRoomServiceProxy.Leave();
+                }
+                JoinRoomResponse response = await _chatServiceProxy.JoinOrCreateRoom(cbChatRooms.Text);
+                if (_chatChannelDisconnectionSubscription != null)
+                {
+                    _chatChannelDisconnectionSubscription.Dispose();
+                }
+                _chatChannel = await _node.ConnectToServer(response.ServerEndpoint);
+                _chatRoomServiceProxy = await _chatChannel.GetService<IChatRoomService>(response.RoomId);
+                _chatChannel.SetHandler<IChatRoomServiceCallback>(this);
+                _chatChannelDisconnectionSubscription = 
+                    _chatChannel.DisconnectedEvent.Subscribe((_) => MessageBox.Show("Disconnected from chat room, try connect again"));
+                var content = await _chatRoomServiceProxy.Join(response.Ticket);
+                txtChat.Clear();
+                foreach (var msg in content)
+                    txtChat.AppendText(msg + "\n");
+                UpdateRooms();
+
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(exception.Message);
+            }
         }
 
         private void btnSend_Click(object sender, RoutedEventArgs e)
@@ -139,6 +215,27 @@ namespace SampleWPFClient
                 txtMyMessage.Text = "";
             }
         }
-       
+
+        private void SetStatus(string text)
+        {
+            lblStatus.Content = text;
+        }
+    }
+
+    public class ChatRoomModel
+    {
+        public uint Id;
+        public String Name;
+
+        public ChatRoomModel(uint id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
+
+        public override string ToString()
+        {
+            return Name;
+        }
     }
 }

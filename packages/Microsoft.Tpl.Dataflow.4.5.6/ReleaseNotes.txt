@@ -1,0 +1,5 @@
+Changes in 4.5.7.0
+
+- Updated version information to .NET 4.5 RTM
+- Added symbol package
+- Updated branding to say "Windows Store Apps" instead of "Metro style apps"

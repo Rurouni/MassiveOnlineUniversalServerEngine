@@ -12,6 +12,7 @@ using Autofac.Integration.Mef;
 using System.Reflection;
 using Photon.SocketServer.ServerToServer;
 using PhotonHostRuntimeInterfaces;
+using System.IO;
 
 namespace PhotonAdapter
 {
@@ -29,7 +30,8 @@ namespace PhotonAdapter
 
         protected override void TearDown()
         {
-            _node.Stop();
+            if(_node != null)
+                _node.Stop();
         }
 
         protected override PeerBase CreatePeer(InitRequest initRequest)
@@ -103,8 +105,7 @@ namespace PhotonAdapter
 
         protected override void OnOperationRequest(OperationRequest operationRequest, SendParameters sendParameters)
         {
-            var reader = new NativeReader();
-            reader.SetBuffer((byte[])operationRequest.Parameters[0], 0);
+            var reader = new BinaryReader(new MemoryStream((byte[])operationRequest.Parameters[0]));
             ChannelListener.OnNetData(reader);
         }
 
@@ -120,11 +121,8 @@ namespace PhotonAdapter
 
         public void Send(Message msg)
         {
-            NativeWriter writer = msg.GetSerialized();
-            var arr = new byte[writer.Position];
-            Array.Copy(writer.Buff, arr, writer.Position); //TODO:need workaround
             var data = new Dictionary<byte, object>();
-            data[0] = arr;
+            data[0] = msg.GetSerialized();
             
             bool isReliable = msg.Reliability == MessageReliability.Reliable || msg.Reliability == MessageReliability.ReliableOrdered;
 
@@ -164,8 +162,7 @@ namespace PhotonAdapter
 
         protected override void OnOperationRequest(OperationRequest operationRequest, SendParameters sendParameters)
         {
-            var reader = new NativeReader();
-            reader.SetBuffer((byte[])operationRequest.Parameters[0], 0);
+            var reader = new BinaryReader(new MemoryStream((byte[])operationRequest.Parameters[0]));
             ChannelListener.OnNetData(reader);
         }
 
@@ -181,7 +178,7 @@ namespace PhotonAdapter
 
         public void Send(Message msg)
         {
-            NativeWriter writer = msg.GetSerialized();
+            BinaryWriter writer = msg.GetSerialized();
             var arr = new byte[writer.Position];
             Array.Copy(writer.Buff, arr, writer.Position); //TODO:need workaround
             var data = new Dictionary<byte, object>();
@@ -202,15 +199,13 @@ namespace PhotonAdapter
 
         protected override void OnEvent(IEventData eventData, SendParameters sendParameters)
         {
-            var reader = new NativeReader();
-            reader.SetBuffer((byte[])eventData.Parameters[0], 0);
+            var reader = new BinaryReader(new MemoryStream((byte[])eventData.Parameters[0]));
             ChannelListener.OnNetData(reader);
         }
 
         protected override void OnOperationResponse(OperationResponse operationResponse, SendParameters sendParameters)
         {
-            var reader = new NativeReader();
-            reader.SetBuffer((byte[])operationResponse.Parameters[0], 0);
+            var reader = new BinaryReader(new MemoryStream((byte[])operationResponse.Parameters[0]));
             ChannelListener.OnNetData(reader);
         }
     }

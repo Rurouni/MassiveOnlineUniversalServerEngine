@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using System.Linq;
 using System.Net;
 using System.Reactive.Subjects;
@@ -14,6 +13,8 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System.Collections.Concurrent;
 using System.Threading.Tasks.Dataflow;
+using System.IO;
+using System.Diagnostics;
 
 namespace MOUSE.Core
 {
@@ -88,6 +89,8 @@ namespace MOUSE.Core
 
         IObservable<TNetPeer> PeerConnectedEvent { get; }
         IObservable<TNetPeer> PeerDisconnectedEvent { get; }
+
+        IPEndPoint Endpoint { get; }
         
     }
 
@@ -96,7 +99,7 @@ namespace MOUSE.Core
     /// </summary>
     public class NetPeer : INetPeer, IServiceOperationDispatcher
     {
-        private const int ExpirationTimeout = 120;
+        private const int ExpirationTimeout = 30;
 
         public Logger Log;
         public INetChannel Channel { get; private set; }
@@ -125,7 +128,7 @@ namespace MOUSE.Core
             _onDisconnectedSubject.OnCompleted();
         }
 
-        void INetChannelListener.OnNetData(NativeReader reader)
+        void INetChannelListener.OnNetData(BinaryReader reader)
         {
             Message msg = Node.MessageFactory.Deserialize(reader);
             var operationHeader = msg.GetHeader<OperationHeader>();
@@ -159,7 +162,7 @@ namespace MOUSE.Core
         {
             var cancelation = new CancellationTokenSource();
             cancelation.CancelAfter(waitTime);
-            return MessageEvent.OfType<T>().StartAsync(cancelation.Token);
+            return MessageEvent.OfType<T>().RunAsync(cancelation.Token);
         }
 
         public IMessageFactory MessageFactory
@@ -177,7 +180,7 @@ namespace MOUSE.Core
             if (!PendingOperationsByRequestId.TryAdd(requestId, continuation))
                 throw new Exception("This could happen only if requestId is duplicated");
 
-            var expiration = TaskEx.Delay(TimeSpan.FromSeconds(ExpirationTimeout), continuation.Expiration.Token);
+            var expiration = Task.Delay(TimeSpan.FromSeconds(ExpirationTimeout), continuation.Expiration.Token);
             expiration.ContinueWith((_) =>
             {
                 PendingOperation dummy;
@@ -232,7 +235,7 @@ namespace MOUSE.Core
     {
         private const int MaxMessagesPerTick = 100000;
         private const int MaxEventsPerTick = 100000;
-        private const int ExpirationTimeout = 30;
+        private const int ExpirationTimeout = 10;
 
         public Logger Log;
 
@@ -246,7 +249,7 @@ namespace MOUSE.Core
         private Thread _updateThread;
 
         protected int RequestId = 0;
-        
+
         public IMessageFactory MessageFactory { get; set; }
         public INetProvider Net { get; set; }
         public IServiceProtocol Protocol { get; set; }
@@ -295,9 +298,10 @@ namespace MOUSE.Core
             }
         }
 
-
+        Stopwatch _timer = new Stopwatch();
         public virtual void Update()
         {
+            _timer.Restart();
             for (int i = 0; i < MaxMessagesPerTick; i++)
             {
                 if (!Net.PumpEvents())
@@ -305,6 +309,9 @@ namespace MOUSE.Core
             }
 
             OnNodeUpdate();
+            _timer.Stop();
+            if (_timer.ElapsedMilliseconds > 100)
+                Log.Warn("{0} Update took {1}ms", this, _timer.ElapsedMilliseconds);
         }
 
         private void UpdateLoop()
@@ -323,9 +330,9 @@ namespace MOUSE.Core
             Log.Info("NetId:{0} has connected", channel.Id);
             TNetPeer peer = CreatePeer(channel);
             peer.DisconnectedEvent.Subscribe(OnPeerDisconnected);
-            if(!PeersByNetId.TryAdd(peer.Channel.Id, peer))
+            if (!PeersByNetId.TryAdd(peer.Channel.Id, peer))
                 throw new Exception("NetId should increment monotonically or never called from different threads");
-                            
+
             //OnNodeConnected(node);
 
             PendingConnection continuation;
@@ -354,7 +361,7 @@ namespace MOUSE.Core
         }
 
         protected virtual void OnNodeUpdate()
-        {}
+        { }
 
         public virtual TNetPeer CreatePeer(INetChannel channel)
         {
@@ -382,7 +389,7 @@ namespace MOUSE.Core
             foreach (var pair in PeersByNetId)
             {
                 if (endPoint.Equals(pair.Value.Channel.EndPoint))
-                    return TaskEx.FromResult((INetPeer)pair.Value);
+                    return Task.FromResult((INetPeer)pair.Value);
             }
 
             return _pendingConnections.AddOrUpdate(endPoint,
@@ -392,7 +399,7 @@ namespace MOUSE.Core
                             Log.Info("Connecting to " + endPoint);
                             Net.Connect(endPoint);
 
-                            var expiration = TaskEx.Delay(TimeSpan.FromSeconds(ExpirationTimeout),
+                            var expiration = Task.Delay(TimeSpan.FromSeconds(ExpirationTimeout),
                                                           val.Expiration.Token);
                             expiration.ContinueWith((_) =>
                                     {
@@ -405,33 +412,15 @@ namespace MOUSE.Core
                         (key, val) => val
                  ).TCS.Task;
         }
-        
+
+        public IPEndPoint Endpoint
+        {
+            get { return Net.EndPoint; }
+        }
+
         public override string ToString()
         {
-            return "NetNode - "+ Net.EndPoint;
-        }
-    }
-
-    public class InvalidInput : Exception
-    {
-        public ushort ErrorCode;
-
-        public InvalidInput(Enum errorCode, string debugMessage)
-            : base(debugMessage)
-        {
-            ErrorCode = Convert.ToUInt16(errorCode);
-        }
-
-        public InvalidInput(ushort errorCode, string debugMessage)
-            : base(debugMessage)
-        {
-            ErrorCode = errorCode;
-        }
-
-        public InvalidInput(Enum errorCode)
-            : base("InvalidInput:" + errorCode)
-        {
-            ErrorCode = Convert.ToUInt16(errorCode);
+            return "NetNode - " + Net.EndPoint;
         }
     }
 }

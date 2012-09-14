@@ -24,7 +24,8 @@ RakPeerInterface::RakPeerInterface(IPEndPoint^ listenEndpoint, unsigned short ma
 	_endpoint = listenEndpoint;
 	_maxConnections = maxConnections;
     _rakPeer = RakNet::RakPeerInterface::GetInstance();
-    _reader = gcnew NativeReader();
+	_stream = gcnew MemoryStream();
+    _reader = gcnew BinaryReader(_stream);
     _buff = gcnew array<unsigned char>(1024*1024*10);
     _buff[0] = (unsigned char)ID_USER_PACKET_ENUM;
     _channels = gcnew Dictionary<int, RakChannel^>();
@@ -35,7 +36,8 @@ RakPeerInterface::RakPeerInterface()
 	_endpoint = nullptr;
 	_maxConnections = 1000;
     _rakPeer = RakNet::RakPeerInterface::GetInstance();
-    _reader = gcnew NativeReader();
+    _stream = gcnew MemoryStream();
+    _reader = gcnew BinaryReader(_stream);
     _buff = gcnew array<unsigned char>(1024*1024*10);
     _buff[0] = (unsigned char)ID_USER_PACKET_ENUM;
     _channels = gcnew Dictionary<int, RakChannel^>();
@@ -201,7 +203,9 @@ bool RakPeerInterface::PumpEvents()
             
             if(_channels->TryGetValue(np->systemAddress.systemIndex, channel))
             {
-                _reader->SetBuffer(_buff, 1);//skip rakNet control byte
+				_stream->Position = 0;
+				_stream->Write(_buff, 1, _buff->Length-1);
+				_stream->Position = 0;
                 channel->ChannelListener->OnNetData(_reader);
             }
             break;

@@ -1,10 +1,12 @@
 ﻿<#+  
-void GenerateSerialization(Type type) 
+void GenerateDTOSerialization(Type type) 
 {
+	if(type.IsEnum || type.IsArray)
+		return;
 #>	
     public static class <#= type.Name+"Serializer" #>	
     {
-        public static void Serialize(<#= TypeToString(type) #> x, NativeWriter w)
+        public static void Serialize(<#= TypeToString(type) #> x, BinaryWriter w)
         {
             if(x == null)
             {
@@ -12,11 +14,11 @@ void GenerateSerialization(Type type)
                 return;
             }
             w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
-<#+ foreach (var field in type.GetFields().Where(x => x.ContainsAttribute<DataMemberAttribute>()))
+<#+ foreach (var field in type.GetFields())
         WriteComplex(field.FieldType, "x."+field.Name); #>
         }
         
-        public static <#= TypeToString(type) #> Deserialize(NativeReader r)
+        public static <#= TypeToString(type) #> Deserialize(BinaryReader r)
         {
             {
                 bool isNotNull = r.Read<#= GetReadSuffix(typeof(bool)) #>();
@@ -24,7 +26,7 @@ void GenerateSerialization(Type type)
                     return null;
             }
             var ret = new <#= TypeToString(type) #>();
-<#+ foreach (var field in type.GetFields().Where(x => x.ContainsAttribute<DataMemberAttribute>()))
+<#+ foreach (var field in type.GetFields())
         ReadComplex(field.FieldType, "ret."+field.Name); #>
             return ret;
         }
@@ -105,7 +107,7 @@ void ReadArray(Type type, string name)
                 else
                 {
                     int lenght = r.Read<#= GetReadSuffix(typeof(int)) #>();
-                    var list = new List< <#= type.GetGenericArguments()[0] #> >(lenght);
+                    var list = new <#= TypeToString(type) #>(lenght);
                     for(int i = 0; i < lenght; i++)
                     {
             <#+ ReadComplex(type.GetGenericArguments()[0], "var x"); #>
@@ -118,11 +120,16 @@ void ReadArray(Type type, string name)
 }
 string TypeToString(Type type)
 {
-    using (var p = new CSharpCodeProvider())
+    if(type.IsArray)
     {
-        var r = new CodeTypeReference(type);
-        return p.GetTypeOutput(r);
-    }            
+        return "List<" + TypeToString(type.GetElementType()) + ">";
+    }
+    else if(type.IsGenericType)
+    {
+        if(type.GetGenericTypeDefinition() == typeof(List<>))
+            return "List<" + TypeToString(type.GetGenericArguments()[0]) + ">";
+    }
+    return type.Name;
 }
 bool IsAtomic(Type type)
 {
@@ -159,7 +166,7 @@ string GetReadSuffix(Type type)
     if(type == typeof(ulong))
         return "UInt64";
     if(type == typeof(string))
-        return "Unicode";
+        return "String";
     throw new Exception("Cannot map type:"+type);
 }
 string GetWriteSuffix(Type type)
@@ -181,7 +188,7 @@ string GetWriteSuffix(Type type)
     if(type == typeof(ulong))
         return "";
     if(type == typeof(string))
-        return "Unicode";
+        return "";
     throw new Exception("Cannot map type:"+type);
 }
 #>

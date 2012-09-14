@@ -1,9 +1,3 @@
-// The following ifdef block is the standard way of creating macros which make exporting 
-// from a DLL simpler. All files within this DLL are compiled with the RAKNETWRAP_EXPORTS
-// symbol defined on the command line. this symbol should not be defined on any project
-// that uses this DLL. This way any other project whose source files include this file see 
-// RAKNETWRAP_API functions as being imported from a DLL, whereas this DLL sees symbols
-// defined with this macro as being exported.
 #ifdef RAKNETWRAP_EXPORTS
 #define RAKNETWRAP_API __declspec(dllexport)
 #else
@@ -22,17 +16,16 @@ using namespace System::IO;
 using namespace System::Net;
 using namespace MOUSE::Core;
 using namespace System::Collections::Generic;
-using namespace System::ComponentModel::Composition;
 
 namespace RakNetWrapper
 {
     ref class RakChannel;
 
-    [Export(INetProvider::typeid)]
     public ref class RakPeerInterface : INetProvider
     {
         RakNet::RakPeerInterface* _rakPeer;
-        NativeReader^ _reader;
+        BinaryReader^ _reader;
+		MemoryStream^ _stream;
         array<unsigned char>^ _buff;
         Dictionary<int, RakChannel^ >^ _channels;
         INetChannelConsumer^ _peerFactory;
@@ -111,8 +104,8 @@ namespace RakNetWrapper
         
         virtual void Send(Message^ msg)
         {
-            NativeWriter^ writer = msg->GetSerialized();
-            _rakPeer->Send(_netId, writer->Buff, writer->Position, msg->Priority, msg->Reliability);
+            array<unsigned char>^ buff = msg->GetSerialized();
+			_rakPeer->Send(_netId, buff, buff->Length, msg->Priority, msg->Reliability);
         }
 
         virtual void Close()

@@ -2,6 +2,8 @@
 using System.Reflection;
 using System.Runtime.ConstrainedExecution;
 using System.Collections.Generic;
+using System.Net;
+using System.Globalization;
 
 namespace MOUSE.Core
 {
@@ -21,37 +23,36 @@ namespace MOUSE.Core
     public static class Misc
     {
         private static readonly List<int> _usedIds = new List<int>();
-        //full copy of .Net hash algo to stabilize it because server and client frameworks are using different algos
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        unsafe public static uint GenerateHash(string str)
+
+        public static uint GenerateHash(string str)
         {
-            int ret;
-            fixed (char* chrs = str.ToCharArray())
-            {
-                char* chPtr = chrs;
-                int num = 0x15051505;
-                int num2 = num;
-                int* numPtr = (int*)chPtr;
-                for (int i = str.Length; i > 0; i -= 4)
-                {
-                    num = (((num << 5) + num) + (num >> 0x1b)) ^ numPtr[0];
-                    if (i <= 2)
-                    {
-                        break;
-                    }
-                    num2 = (((num2 << 5) + num2) + (num2 >> 0x1b)) ^ numPtr[1];
-                    numPtr += 2;
-                }
+            return (uint)str.GetHashCode();
+        }
 
-                ret = (num + (num2 * 0x5d588b65));
-            }
-            if (_usedIds.Contains((ushort)ret))
-            {
-                throw new Exception("Hash overlapp occurred!!!!");
-            }
-            _usedIds.Add(ret);
-            return (uint)ret;
+        
+    }
 
+
+    public class InvalidInput : Exception
+    {
+        public ushort ErrorCode;
+
+        public InvalidInput(Enum errorCode, string debugMessage)
+            : base(debugMessage)
+        {
+            ErrorCode = Convert.ToUInt16(errorCode);
+        }
+
+        public InvalidInput(ushort errorCode, string debugMessage)
+            : base(debugMessage)
+        {
+            ErrorCode = errorCode;
+        }
+
+        public InvalidInput(Enum errorCode)
+            : base("InvalidInput:" + errorCode)
+        {
+            ErrorCode = Convert.ToUInt16(errorCode);
         }
     }
     

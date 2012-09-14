@@ -1,17 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition.Hosting;
 using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
 using Autofac;
-using Autofac.Integration.Mef;
 using MOUSE.Core;
 using PhotonAdapter;
-using SampleC2SProtocol;
-using SampleS2SProtocol;
 using SampleServer;
+using IChatLogin = Protocol.Generated.IChatLogin;
 
 namespace SampleServerPhotonHost
 {
@@ -20,14 +17,28 @@ namespace SampleServerPhotonHost
         protected override IServerNode CreateNode()
         {
             var builder = new ContainerBuilder();
+
             //register core messages
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INode))));
-            //register c2s contracts
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(IChatLogin))));
-            //register s2s contracts
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(IChatManager))));
-            //register services and generated messages
-            builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(ChatClient))));
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(EmptyMessage)))
+                .Where(x => x.IsAssignableTo<Message>() && x != typeof(Message))
+                .As<Message>();
+
+            //register domain messages
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+                .Where(x => x.IsAssignableTo<Message>() && x != typeof(Message))
+                .As<Message>();
+
+            //register domain service definitions and proxies
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+                .Where(x => x.IsAssignableTo<NodeServiceProxy>() && x != typeof(NodeServiceProxy))
+                .As<NodeServiceProxy>();
+
+            //register domain service implementations
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(ChatManager)))
+                .Where(x => x.IsAssignableTo<NodeService>() && x != typeof(NodeService))
+                .As<NodeService>();
+
+            builder.RegisterType<ChatClient>().As<C2SPeer>();
 
             builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
             builder.RegisterType<ServicesRepository>().As<IServicesRepository>().SingleInstance();

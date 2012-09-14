@@ -1,16 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MOUSE.Core;
-using SampleC2SProtocol;
-using SampleS2SProtocol;
+using NLog;
+using Protocol.Generated;
 
 namespace SampleServer
 {
-    [Export(typeof(NodeService))]
     [NodeService(AutoCreate = true, Persistant = false)]
     public class ChatRoom : NodeService, IChatRoom, IChatRoomService
     {
@@ -22,38 +20,47 @@ namespace SampleServer
 
         public override void OnCreated()
         {
+            Log = LogManager.GetLogger("ChatRoom");
             _usersById = new Dictionary<uint, ChatRoomClient>();
             _usersByChannelId = new Dictionary<uint, ChatRoomClient>();
             _awaitingUsers = new Dictionary<long, ChatUserInfo>();
             _messages = new List<string>();
         }
         
+        [NetOperationHandler]
         public async Task<List<ChatUserInfo>> GetUsersInside()
         {
+            Log.Info("GetUsersInside");
             return _usersById.Values.Select(x => x.Info).ToList();
         }
 
+        [NetOperationHandler]
         public async Task<long> AwaitUser(ChatUserInfo user)
         {
+            Log.Info("Awaiting for " + user.Name);
             var ticket = _ticketCounter++;
             _awaitingUsers.Add(ticket, user);
-            ExpireTicketAsync(ticket);
+            Fiber.Shedule(() => ExpireTicketAsync(ticket), TimeSpan.FromSeconds(10), LockType.Write);
             return ticket;
         }
 
-        private async void ExpireTicketAsync(long ticket)
+        private void ExpireTicketAsync(long ticket)
         {
-            await TaskEx.Delay(TimeSpan.FromSeconds(30));
             _awaitingUsers.Remove(ticket);
+            Log.Info("Ticket {0} has expired", ticket);
         }
 
-        public async Task RemoveUser(uint userId)
+        [NetOperationHandler]
+        public async Task<bool> RemoveUser(uint userId)
         {
+            Log.Info("User<Id:{0}> will be removed", userId);
             ChatRoomClient client;
             if (_usersById.TryGetValue(userId, out client))
             {
                 OnUserDisconnected(client.Peer);
             }
+
+            return true;
         }
 
         private void OnUserDisconnected(INetPeer peer)
@@ -68,27 +75,35 @@ namespace SampleServer
                 _messages.Add(disconnectMsg);
 
                 SendToAll(disconnectMsg);
+                Log.Info("User<Name:{0}> has disconnected", client.Info.Name);
             }
         }
-        
+
+        [NetOperationHandler]
         public async Task<List<string>> Join(long ticket)
         {
             ChatUserInfo info;
-            if(_awaitingUsers.TryGetValue(ticket, out info))
+            if(!_awaitingUsers.TryGetValue(ticket, out info))
+                throw new InvalidInput(JoinRoomInvalidRetCode.ClientNotAwaited);
+
+            _awaitingUsers.Remove(ticket);
+            ChatRoomClient client;
+            if (!_usersById.TryGetValue(info.Id, out client))
             {
-                _awaitingUsers.Remove(ticket);
-                var client = new ChatRoomClient(Context.Source, info);
+                client = new ChatRoomClient(Context.Source, info);
                 _usersById.Add(info.Id, client);
                 _usersByChannelId.Add(client.Peer.Channel.Id, client);
 
                 client.DisconnectionSubscription = Context.Source.DisconnectedEvent.Subscribe(OnUserDisconnected);
-                string connectMsg = client.Info.Name + " has connected";
-                _messages.Add(connectMsg);
-
-                SendToAll(connectMsg);
-                return _messages;
             }
-            throw new InvalidInput(JoinRoomInvalidRetCode.ClientNotAwaited);
+            string connectMsg = client.Info.Name + " has connected";
+            _messages.Add(connectMsg);
+
+            SendToAll(connectMsg);
+
+            Log.Info("User<Name:{0}> has joined", client.Info.Name);
+            return _messages;
+            
         }
 
         private void SendToAll(string msg)
@@ -100,6 +115,7 @@ namespace SampleServer
             }
         }
 
+        [NetOperationHandler]
         public void Say(string message)
         {
             ChatRoomClient client;
@@ -112,6 +128,19 @@ namespace SampleServer
             else
                 Log.Warn("Say from unconnected peer - " + Context.Source);
 
+        }
+
+        [NetOperationHandler]
+        public void Leave()
+        {
+            ChatRoomClient client;
+            if (_usersByChannelId.TryGetValue(Context.Source.Channel.Id, out client))
+            {
+                Log.Info("User<Name:{0}> has left", client.Info.Name);
+                OnUserDisconnected(client.Peer);
+            }
+            else
+                Log.Warn("Leave from unconnected peer - " + Context.Source);
         }
     }
 

@@ -7,4 +7,4 @@
 	   .Where(x => x.GetName().Name.Contains("SampleC2SProtocol") || x.GetName().Name.Contains("SampleS2SProtocol")));
     GenerateProtocol(asms);
 #>
-<#@ include file="..\Core\DomainGeneration\EntityGeneration.ttinclude" #>
+<#@ include file="..\Core\DomainGeneration\AsyncProtocol.ttinclude" #>

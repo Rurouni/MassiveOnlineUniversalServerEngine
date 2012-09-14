@@ -12,25 +12,18 @@ void GenerateMessages(Type contractType)
 	        opAttr.Priority, opAttr.Reliability, opAttr.Lock);
         if(method.ReturnType != typeof(void))
         {
-            if(method.ReturnType == typeof(Task))
-                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName, new List<Tuple<Type, string>>(),
-	                opAttr.Priority, opAttr.Reliability, opAttr.Lock);
-            else
-                GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName,
-	                new List<Tuple<Type, string>>{Tuple.Create(method.ReturnType.GetGenericArguments()[0], "RetVal")},
-                    opAttr.Priority, opAttr.Reliability, opAttr.Lock);
+            GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName,
+                new List<Tuple<Type, string>>{Tuple.Create(method.ReturnType, "RetVal")},
+                opAttr.Priority, opAttr.Reliability, opAttr.Lock);
         }
     }
 }
 void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> parameters, MessagePriority messagePriority, MessageReliability messageReliability, LockType lockType)
 {#>
-    [Export(typeof(Message))]
-    [DataContract]
     public sealed class <#= name #> : Message
     {
 <#+ foreach (var parameter in parameters)
     {	#>
-        [DataMember]
         public <#= TypeToString(parameter.Item1) #> <#= parameter.Item2 #>;
 <#+ } 	#>
 
@@ -39,7 +32,7 @@ void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> paramete
             get { return <#= msgId #>; }
         }
 
-        public override void Serialize(NativeWriter w)
+        public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
 <#+ foreach (var parameter in parameters)
@@ -48,7 +41,7 @@ void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> paramete
     }	#>
         }
 
-        public override void Deserialize(NativeReader r)
+        public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
 <#+ foreach (var parameter in parameters)
@@ -59,7 +52,6 @@ void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> paramete
 
         public override MessagePriority Priority { get { return MessagePriority.<#= messagePriority.ToString() #>; } }
         public override MessageReliability Reliability { get { return MessageReliability.<#= messageReliability.ToString() #>; } }
-        public override LockType LockType { get { return LockType.<#= lockType.ToString() #>; } }
     }
 <#+
 }

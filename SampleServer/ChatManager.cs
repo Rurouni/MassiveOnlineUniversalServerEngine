@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using System.Linq;
 using System.Text;
-using SampleS2SProtocol;
+using Protocol.Generated;
 using System.Threading.Tasks;
-using SampleC2SProtocol;
 using MOUSE.Core;
 
 namespace SampleServer
 {
-    [Export(typeof(NodeService))]
     [NodeService(AutoCreate = true, Persistant = false)]
     public class ChatManager : NodeService, IChatManager
     {
@@ -30,25 +27,37 @@ namespace SampleServer
             _roomCounter = 1;
         }
 
+        [NetOperationHandler]
         public async Task<ChatUserInfo> GetUser(string name)
         {
             ChatUserInfo user;
             if(_usersByName.TryGetValue(name, out user))
                 return user;
+
             return null;
         }
 
+        [NetOperationHandler]
         public async Task<ChatUserInfo> TryRegisterUser(string name)
         {
             if (_usersByName.ContainsKey(name))
                 return null;
+
             uint id = _userCounter++;
-            var user = new ChatUserInfo(id, name);
+
+            var user = new ChatUserInfo
+            {
+                Id = id,
+                Name = name
+            };
+
             _usersByName.Add(name, user);
             _usersById.Add(id, user);
+
             return user;
         }
 
+        [NetOperationHandler]
         public void UnregisterUser(uint id)
         {
             ChatUserInfo user;
@@ -59,26 +68,34 @@ namespace SampleServer
             }
         }
 
+        [NetOperationHandler(Lock = LockType.Read)]
         public async Task<List<ChatRoomInfo>> GetRooms()
         {
             return _rooms;
         }
 
+        [NetOperationHandler]
         public async Task<uint> GetOrCreateRoom(string roomName)
         {
             ChatRoomInfo room = _rooms.Find(x=>x.Name == roomName);
             if(room == null)
             {
-                room = new ChatRoomInfo(_roomCounter++, roomName);
+                room = new ChatRoomInfo
+                {
+                    Id = _roomCounter++,
+                    Name = roomName
+                };
                 _rooms.Add(room);
                 Log.Info("New ChatRoom<Id:{0}, Name:{1}> is created", room.Id, room.Name);
             }
             return room.Id;
         }
 
-        public async Task DeleteRoom(uint roomId)
+        [NetOperationHandler]
+        public async Task<bool> DeleteRoom(uint roomId)
         {
             _rooms.RemoveAll(x => x.Id == roomId);
+            return true;
         }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Linq;
@@ -149,7 +148,6 @@ namespace MOUSE.Core
                 foreach (NodeServiceContractDescription contract in service.Description.ImplementedContracts)
                 {
                     var key = new NodeServiceKey(contract.TypeId, service.Id);
-                    NodeService existingService;
                     if (!_services.ContainsKey(key))
                         throw new Exception(string.Format("Something went wrong, {0} is not fully registered in internal dictionary", service));
                     _services.Remove(key);

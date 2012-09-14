@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Runtime.Serialization;
+using System.IO;
+using System.Globalization;
 
 namespace MOUSE.Core
 {
@@ -23,15 +24,12 @@ namespace MOUSE.Core
         Last, //used for protocol generation
     }
 
-
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class EmptyMessage : Message
     {
         public override uint Id { get { return (uint)NodeMessageId.Empty; } }
     }
 
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class ConnectRequest : Message
     {
@@ -40,20 +38,19 @@ namespace MOUSE.Core
 
         public override uint Id { get { return (uint)NodeMessageId.ConnectionRequest; } }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
             Description.Serialize(writer);
         }
 
-        public override void Deserialize(NativeReader reader)
+        public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
             Description = new NodeDescription(reader);
         }
     }
 
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class ConnectReply : Message
     {
@@ -62,20 +59,19 @@ namespace MOUSE.Core
 
         public override uint Id { get { return (uint)NodeMessageId.ConnectionReply; } }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
             Description.Serialize(writer);
         }
 
-        public override void Deserialize(NativeReader reader)
+        public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
             Description = new NodeDescription(reader);
         }
     }
 
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class ServiceAccessRequest : Message
     {
@@ -89,26 +85,23 @@ namespace MOUSE.Core
             ServiceKey = serviceKey;
         }
 
-        private ServiceAccessRequest()
+        public ServiceAccessRequest()
         {
         }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
             ServiceKey.Serialize(writer);
         }
 
-        public override void Deserialize(NativeReader reader)
+        public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
             ServiceKey = new NodeServiceKey(reader);
         }
     }
 
-    
-
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class ServiceAccessReply : Message
     {
@@ -119,7 +112,7 @@ namespace MOUSE.Core
 
         public override uint Id { get { return (uint)NodeMessageId.ServiceAccessReply; } }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
             writer.Write(IsValid);
@@ -134,7 +127,7 @@ namespace MOUSE.Core
             
         }
 
-        public override void Deserialize(NativeReader reader)
+        public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
             IsValid = reader.ReadBoolean();
@@ -143,7 +136,7 @@ namespace MOUSE.Core
                 ServiceOwner = new NodeDescription(reader);
         }
 
-        private ServiceAccessReply()
+        public ServiceAccessReply()
         {
         }
         
@@ -154,7 +147,6 @@ namespace MOUSE.Core
         }
     }
 
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class UpdateClusterInfo : Message
     {
@@ -163,7 +155,7 @@ namespace MOUSE.Core
 
         public override uint Id { get { return (uint)NodeMessageId.UpdateClusterInfo; } }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
             writer.Write(Descriptions.Count);
@@ -171,7 +163,7 @@ namespace MOUSE.Core
                 description.Serialize(writer);
         }
 
-        public override void Deserialize(NativeReader reader)
+        public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
 
@@ -182,14 +174,12 @@ namespace MOUSE.Core
         }
     }
 
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class EntityDiscoveryRequest : Message
     {
         public override uint Id { get { return (uint)NodeMessageId.EntityDiscoveryRequest; } }
     }
 
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class EntityDiscoveryReply : Message
     {
@@ -198,20 +188,19 @@ namespace MOUSE.Core
 
         public override uint Id { get { return (uint)NodeMessageId.EntityDiscoveryReply; } }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
             Description.Serialize(writer);
         }
 
-        public override void Deserialize(NativeReader reader)
+        public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
             Description = new NodeDescription(reader);
         }
     }
 
-    [Export(typeof(Message))]
     [DataContract]
     public sealed class InvalidOperation : Message
     {
@@ -234,18 +223,18 @@ namespace MOUSE.Core
             DebugDescription = debugDescription;
         }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
             writer.Write(ErrorCode);
-            writer.WriteUnicode(DebugDescription);
+            writer.Write(DebugDescription);
         }
 
-        public override void Deserialize(NativeReader reader)
+        public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
             ErrorCode = reader.ReadUInt16();
-            DebugDescription = reader.ReadUnicode();
+            DebugDescription = reader.ReadString();
         }
     }
 
@@ -255,9 +244,7 @@ namespace MOUSE.Core
         [DataMember]
         public readonly ulong NodeId;
         [DataMember]
-        public readonly string Ip;
-        [DataMember]
-        public readonly ushort Port;
+        public readonly string Address;
 
         private IPEndPoint _endPoint;
         public IPEndPoint EndPoint
@@ -265,7 +252,7 @@ namespace MOUSE.Core
             get
             {
                 if(_endPoint == null)
-                    _endPoint = new IPEndPoint(IPAddress.Parse(Ip), Port);
+                    _endPoint = CreateIPEndPoint(Address);
                 return _endPoint;
             }
         }
@@ -274,28 +261,52 @@ namespace MOUSE.Core
         {
             NodeId = nodeId;
             _endPoint = endpoint;
-            Ip = endpoint.Address.ToString();
-            Port = (ushort)endpoint.Port;
+            Address = endpoint.ToString();
         }
 
-        public NodeDescription(NativeReader reader)
+        public NodeDescription(BinaryReader reader)
         {
             NodeId = reader.ReadUInt64();
-            Ip = reader.ReadASCII();
-            Port = reader.ReadUInt16();
+            Address = reader.ReadString();
         }
 
-        public void Serialize(NativeWriter writer)
+        public void Serialize(BinaryWriter writer)
         {
             writer.Write(NodeId);
-            writer.WriteASCII(Ip);
-            writer.Write(Port);
+            writer.Write(Address);
+        }
+
+        public static IPEndPoint CreateIPEndPoint(string endPoint)
+        {
+            string[] ep = endPoint.Split(':');
+            if (ep.Length < 2) throw new FormatException("Invalid endpoint format");
+            IPAddress ip;
+            if (ep.Length > 2)
+            {
+                if (!IPAddress.TryParse(string.Join(":", ep, 0, ep.Length - 1), out ip))
+                {
+                    throw new FormatException("Invalid ip-adress");
+                }
+            }
+            else
+            {
+                if (!IPAddress.TryParse(ep[0], out ip))
+                {
+                    throw new FormatException("Invalid ip-adress");
+                }
+            }
+            int port;
+            if (!int.TryParse(ep[ep.Length - 1], NumberStyles.None, NumberFormatInfo.CurrentInfo, out port))
+            {
+                throw new FormatException("Invalid port");
+            }
+            return new IPEndPoint(ip, port);
         }
 
 
         public override string ToString()
         {
-            return string.Format("Node<Id:{0}, Ip:{1}, Port:{2}>", NodeId, Ip, Port);
+            return string.Format("Node<Id:{0}, Endpoint:{1}>", NodeId, Address);
         }
     }
 }

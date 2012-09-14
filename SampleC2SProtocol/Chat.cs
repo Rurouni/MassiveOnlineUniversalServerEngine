@@ -13,30 +13,31 @@ namespace SampleC2SProtocol
     public interface IChatLogin
     {
         [NetOperation]
-        Task<LoginResult> Login(string name);
+        LoginResult Login(string name);
     }
 
     [NetContract]
     public interface IChatService
     {
-        [NetOperation(Lock = LockType.ReadReentrant)]
-        Task<List<ChatRoomInfo>> GetRooms();
+        [NetOperation]
+        List<ChatRoomInfo> GetRooms();
 
         [NetOperation]
-        Task<CreateRoomResponse> JoinOrCreateRoom(string roomName);
+        JoinRoomResponse JoinOrCreateRoom(string roomName);
 
         /// <returns>Ticket</returns>
         [NetOperation(InvalidRetCode = typeof(JoinRoomInvalidRetCode))]
-        Task<long> JoinRoom(uint roomId);
+        JoinRoomResponse JoinRoom(uint roomId);
     }
     
     [NetContract(AllowExternalConnections = true)]
     public interface IChatRoomService
     {
         [NetOperation]
-        Task<List<string>> Join(long ticket);
-
-        [NetOperation(Lock = LockType.ReadReentrant)]
+        List<string> Join(long ticket);
+        [NetOperation]
+        void Leave();
+        [NetOperation]
         void Say(string message);
     }
 
@@ -48,13 +49,15 @@ namespace SampleC2SProtocol
         void OnRoomMessage(uint roomId, string message);
     }
 
-    public enum LoginResult
+    [DataContract]
+    public enum LoginResult : byte
     {
         Ok,
         NameInUse,
         AlreadyRegistered
     }
 
+    [DataContract]
     public enum JoinRoomInvalidRetCode
     {
         RoomNotFound,
@@ -62,34 +65,18 @@ namespace SampleC2SProtocol
     }
 
     [DataContract]
-    public class CreateRoomResponse
+    public class JoinRoomResponse
     {
-        [DataMember]
         public uint RoomId;
-        [DataMember]
         public long Ticket;
+        public string ServerEndpoint;
     }
 
     [DataContract]
     public class ChatRoomInfo
     {
-        [DataMember]
         public uint Id;
-        [DataMember]
         public string Name;
-
-        public ChatRoomInfo(){}
-
-        public ChatRoomInfo(uint id, string name)
-        {
-            Id = id;
-            Name = name;
-        }
-
-        public override string ToString()
-        {
-            return Name;
-        }
     }
 
 }

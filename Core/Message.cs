@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Runtime.Serialization;
+using System.IO;
 
 namespace MOUSE.Core
 {
@@ -22,11 +23,6 @@ namespace MOUSE.Core
         public virtual MessageReliability Reliability
         {
             get { return MessageReliability.ReliableOrdered; }
-        }
-
-        public virtual LockType LockType
-        {
-            get { return LockType.Full; }
         }
 
         public void AttachHeader<THeader>(THeader header) where THeader : MessageHeader
@@ -62,18 +58,24 @@ namespace MOUSE.Core
             _headers.Clear();
         }
 
-        NativeWriter _writer;
-        public NativeWriter GetSerialized()
+        BinaryWriter _writer;
+        /// <summary>
+        /// TODO: non optimal
+        /// </summary>
+        public byte[] GetSerialized()
         {
             if (_writer == null)
-                _writer = new NativeWriter(new byte[128], true);
+                _writer = new BinaryWriter(new MemoryStream(128));
             else
-                _writer.Position = 0;
+                _writer.Seek(0, SeekOrigin.Begin);
             Serialize(_writer);
-            return _writer;
+            long count = _writer.BaseStream.Position;
+            _writer.BaseStream.Seek(0, SeekOrigin.Begin);
+            BinaryReader reader = new BinaryReader(_writer.BaseStream);
+            return reader.ReadBytes((int)count);
         }
 
-        public virtual void Serialize(NativeWriter writer)
+        public virtual void Serialize(BinaryWriter writer)
         {
             writer.Write(Id);
             writer.Write((byte)(_headers != null ? _headers.Count : 0));
@@ -82,7 +84,7 @@ namespace MOUSE.Core
                     MessageHeader.Serialize(header, writer);
         }
 
-        public virtual void Deserialize(NativeReader reader)
+        public virtual void Deserialize(BinaryReader reader)
         {
             int count = reader.ReadByte();
             if (count > 0)

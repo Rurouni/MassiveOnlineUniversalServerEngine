@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Runtime.Serialization;
+using System.IO;
 
 namespace MOUSE.Core
 {
     [DataContract]
     public abstract class MessageHeader
     {
-        public static MessageHeader Deserialize(NativeReader reader)
+        public static MessageHeader Deserialize(BinaryReader reader)
         {
             byte headerId = reader.ReadByte();
             switch (headerId)
@@ -21,7 +22,7 @@ namespace MOUSE.Core
             }
         }
 
-        public static void Serialize(MessageHeader header, NativeWriter writer)
+        public static void Serialize(MessageHeader header, BinaryWriter writer)
         {
             if      (header is TransportHeader) writer.Write((byte)1);
             else if (header is OperationHeader) writer.Write((byte)2);
@@ -32,7 +33,7 @@ namespace MOUSE.Core
             header.Serialize(writer);
         }
 
-        public abstract void Serialize(NativeWriter writer);
+        public abstract void Serialize(BinaryWriter writer);
     }
 
     [DataContract]
@@ -49,7 +50,7 @@ namespace MOUSE.Core
             RoutedNodeId = routedNodeId;
         }
 
-        public TransportHeader(NativeReader reader)
+        public TransportHeader(BinaryReader reader)
         {
             SourceNodeId = reader.ReadUInt64();
             bool hasValue = reader.ReadBoolean();
@@ -57,7 +58,7 @@ namespace MOUSE.Core
                 RoutedNodeId = reader.ReadUInt64();
         }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             writer.Write(SourceNodeId);
             writer.Write(RoutedNodeId.HasValue);
@@ -80,13 +81,13 @@ namespace MOUSE.Core
             Type = type;
         }
 
-        public OperationHeader(NativeReader reader)
+        public OperationHeader(BinaryReader reader)
         {
             RequestId = reader.ReadInt32();
             Type = (OperationType)reader.ReadByte();
         }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             writer.Write(RequestId);
             writer.Write((byte)Type);
@@ -111,12 +112,12 @@ namespace MOUSE.Core
             TargetServiceKey = targetServiceKey;
         }
 
-        public ServiceHeader(NativeReader reader)
+        public ServiceHeader(BinaryReader reader)
         {
             TargetServiceKey = new NodeServiceKey(reader);
         }
 
-        public override void Serialize(NativeWriter writer)
+        public override void Serialize(BinaryWriter writer)
         {
             TargetServiceKey.Serialize(writer);
         }

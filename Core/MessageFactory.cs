@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
 using System.Linq;
 using System.Text;
 using NLog;
 using System.Runtime.Serialization;
 using System.Collections.Concurrent;
+using System.IO;
 
 namespace MOUSE.Core
 {
@@ -16,13 +16,13 @@ namespace MOUSE.Core
     {
         TMessage New<TMessage>() where TMessage : Message;
         void Free(Message msg);
-        Message Deserialize(NativeReader reader);
+        Message Deserialize(BinaryReader reader);
     }
 
     //TODO: rework headers sp they also could be pooled
     public class MessageFactory : IMessageFactory
     {
-        Logger Log = LogManager.GetCurrentClassLogger();
+        readonly Logger Log = LogManager.GetCurrentClassLogger();
         private Dictionary<Type, uint> _msgIdByType = new Dictionary<Type,uint>();
         private Dictionary<uint, Type> _typeByMsgId = new Dictionary<uint,Type>();
         private ConcurrentDictionary<uint, ConcurrentStack<Message>> _messagePoolByMsgId = new ConcurrentDictionary<uint, ConcurrentStack<Message>>();
@@ -74,7 +74,7 @@ namespace MOUSE.Core
             _messagePoolByMsgId[msg.Id].Push(msg);
         }
 
-        public Message Deserialize(NativeReader reader)
+        public Message Deserialize(BinaryReader reader)
         {
             uint msgId = reader.ReadUInt32();
             
