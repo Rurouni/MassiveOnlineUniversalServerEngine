@@ -30,6 +30,5 @@ _ReSharper*/
 *.opensdf
 *.sdf
 *.sln.docstates
+*.ncrunch*
 
-
-External
