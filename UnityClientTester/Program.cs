@@ -72,7 +72,7 @@ namespace UnityClientTester
             Console.WriteLine("Login Reply:" + loginReply.Reply);
 
             var chatServiceProxy = client.GetService<IChatService>();
-            var joinReply = new OperationReply<CreateRoomResponse>();
+            var joinReply = new OperationReply<JoinRoomResponse>();
 
             foreach (var o in chatServiceProxy.JoinOrCreateRoom("TestRoom", joinReply))
             {

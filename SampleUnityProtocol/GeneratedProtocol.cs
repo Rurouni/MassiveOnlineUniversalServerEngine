@@ -17,13 +17,14 @@ namespace Protocol.Generated
 	public interface IChatService
 	{
 		IEnumerable GetRooms (  OperationReply< List<ChatRoomInfo> > reply);
-		IEnumerable JoinOrCreateRoom ( String roomName,  OperationReply< CreateRoomResponse > reply);
-		IEnumerable JoinRoom ( UInt32 roomId,  OperationReply< Int64 > reply);
+		IEnumerable JoinOrCreateRoom ( String roomName,  OperationReply< JoinRoomResponse > reply);
+		IEnumerable JoinRoom ( UInt32 roomId,  OperationReply< JoinRoomResponse > reply);
 	}
 	[NetContract]
 	public interface IChatRoomService
 	{
 		IEnumerable Join ( Int64 ticket,  OperationReply< List<String> > reply);
+		void Leave (  );
 		void Say ( String message );
 	}
 	[NetContract]
@@ -79,7 +80,7 @@ namespace Protocol.Generated
 			var msg = (IChatServiceGetRoomsRequest)input;
 			throw new NotSupportedException();
 		}
-		public IEnumerable JoinOrCreateRoom ( String roomName,  OperationReply< CreateRoomResponse > replyChannel)
+		public IEnumerable JoinOrCreateRoom ( String roomName,  OperationReply< JoinRoomResponse > replyChannel)
 		{
 			//var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
 			var request = new IChatServiceJoinOrCreateRoomRequest();
@@ -90,7 +91,7 @@ namespace Protocol.Generated
 			if(msgReply.IsValid)
 				replyChannel.SetReply( ((IChatServiceJoinOrCreateRoomReply)msgReply.Reply).RetVal, null);
 			else
-				replyChannel.SetReply(default(CreateRoomResponse), msgReply.Error);
+				replyChannel.SetReply(default(JoinRoomResponse), msgReply.Error);
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
 		}
@@ -100,7 +101,7 @@ namespace Protocol.Generated
 			var msg = (IChatServiceJoinOrCreateRoomRequest)input;
 			throw new NotSupportedException();
 		}
-		public IEnumerable JoinRoom ( UInt32 roomId,  OperationReply< Int64 > replyChannel)
+		public IEnumerable JoinRoom ( UInt32 roomId,  OperationReply< JoinRoomResponse > replyChannel)
 		{
 			//var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
 			var request = new IChatServiceJoinRoomRequest();
@@ -111,7 +112,7 @@ namespace Protocol.Generated
 			if(msgReply.IsValid)
 				replyChannel.SetReply( ((IChatServiceJoinRoomReply)msgReply.Reply).RetVal, null);
 			else
-				replyChannel.SetReply(default(Int64), msgReply.Error);
+				replyChannel.SetReply(default(JoinRoomResponse), msgReply.Error);
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
 		}
@@ -145,6 +146,19 @@ namespace Protocol.Generated
 		{
 			var msg = (IChatRoomServiceJoinRequest)input;
 			throw new NotSupportedException();
+		}
+		public void Leave (  )
+		{
+			//var request = MessageFactory.New< IChatRoomServiceLeaveRequest >();
+			var request = new IChatRoomServiceLeaveRequest();
+			ExecuteOneWayServiceOperation(request);
+			//MessageFactory.Free(request);
+		}
+		[NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceLeaveRequest), ReplyMessage = null)]
+		public static void Leave(IMessageFactory msgFactory, object target, Message input)
+		{
+			var msg = (IChatRoomServiceLeaveRequest)input;
+			((IChatRoomService)target).Leave();
 		}
 		public void Say ( String message )
 		{
@@ -322,7 +336,7 @@ namespace Protocol.Generated
     }
     public sealed class IChatServiceJoinOrCreateRoomReply : Message
     {
-        public CreateRoomResponse RetVal;
+        public JoinRoomResponse RetVal;
 
         public override uint Id
         {
@@ -332,13 +346,13 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            CreateRoomResponseSerializer.Serialize(RetVal, w);
+            JoinRoomResponseSerializer.Serialize(RetVal, w);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            RetVal = CreateRoomResponseSerializer.Deserialize(r);
+            RetVal = JoinRoomResponseSerializer.Deserialize(r);
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -370,7 +384,7 @@ namespace Protocol.Generated
     }
     public sealed class IChatServiceJoinRoomReply : Message
     {
-        public Int64 RetVal;
+        public JoinRoomResponse RetVal;
 
         public override uint Id
         {
@@ -380,13 +394,13 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            w.Write(RetVal);
+            JoinRoomResponseSerializer.Serialize(RetVal, w);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            RetVal = r.ReadInt64();
+            RetVal = JoinRoomResponseSerializer.Deserialize(r);
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -463,6 +477,27 @@ namespace Protocol.Generated
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
+    public sealed class IChatRoomServiceLeaveRequest : Message
+    {
+
+        public override uint Id
+        {
+            get { return 3592121337; }
+        }
+
+        public override void Serialize(BinaryWriter w)
+        {
+            base.Serialize(w);
+        }
+
+        public override void Deserialize(BinaryReader r)
+        {
+            base.Deserialize(r);
+        }
+
+        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
+        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
+    }
     public sealed class IChatRoomServiceSayRequest : Message
     {
         public String message;
@@ -528,10 +563,11 @@ namespace Protocol.Generated
 		ClientNotAwaited = 1,
 	}
 	
-	public class CreateRoomResponse
+	public class JoinRoomResponse
 	{
 		public UInt32 RoomId;
 		public Int64 Ticket;
+		public String ServerEndpoint;
 	}
 	
 	public class ChatRoomInfo
@@ -540,9 +576,9 @@ namespace Protocol.Generated
 		public String Name;
 	}
 	
-    public static class CreateRoomResponseSerializer	
+    public static class JoinRoomResponseSerializer	
     {
-        public static void Serialize(CreateRoomResponse x, BinaryWriter w)
+        public static void Serialize(JoinRoomResponse x, BinaryWriter w)
         {
             if(x == null)
             {
@@ -552,18 +588,20 @@ namespace Protocol.Generated
             w.Write(true);
             w.Write(x.RoomId);
             w.Write(x.Ticket);
+            w.Write(x.ServerEndpoint);
         }
         
-        public static CreateRoomResponse Deserialize(BinaryReader r)
+        public static JoinRoomResponse Deserialize(BinaryReader r)
         {
             {
                 bool isNotNull = r.ReadBoolean();
                 if(!isNotNull)
                     return null;
             }
-            var ret = new CreateRoomResponse();
+            var ret = new JoinRoomResponse();
             ret.RoomId = r.ReadUInt32();
             ret.Ticket = r.ReadInt64();
+            ret.ServerEndpoint = r.ReadString();
             return ret;
         }
     }

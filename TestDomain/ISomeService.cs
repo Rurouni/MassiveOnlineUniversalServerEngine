@@ -18,7 +18,7 @@ namespace TestDomain
         [NetOperation(Lock = LockType.None, Reliability = MessageReliability.Unreliable)]
         void SimpleOneWay();
 
-        [NetOperation(Lock = LockType.Full, Priority = MessagePriority.High, Reliability = MessageReliability.ReliableOrdered)]
+        [NetOperation(Lock = LockType.Write, Priority = MessagePriority.High, Reliability = MessageReliability.ReliableOrdered)]
         ComplexData Complex(int requestId, ComplexData data, string name, List<SubData> datas);
 
     }

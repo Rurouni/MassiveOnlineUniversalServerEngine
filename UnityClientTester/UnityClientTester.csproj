@@ -60,7 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SampleUnityProtocol\SampleUnityProtocol.csproj">
-      <Project>{33506DB1-4D52-4BEE-A352-F8A7FB8EE4A5}</Project>
+      <Project>{33506db1-4d52-4bee-a352-f8a7fb8ee4a5}</Project>
       <Name>SampleUnityProtocol</Name>
     </ProjectReference>
     <ProjectReference Include="..\UnityClient\UnityClient.csproj">
