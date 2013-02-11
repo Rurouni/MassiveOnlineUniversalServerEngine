@@ -1,3 +1,4 @@
+##NOTE: Many things have changed and this doc is quite outdated, better look at Chat Sample for insight
 ##General Info
 This is C# server framework for small to large mmo's where you need both reliable and unreliable transport, request/reply and full duplex communications,
 with the idea that communication between clients and servers is made in form of asynchroneous RPC calls to some services
@@ -40,7 +41,7 @@ the more you partition your logic into different services more possibilities are
 2. **Messages/Serialization generation** - done
 3. **Proxy/Dispatcher generation** - done
 4. **Single node server** - done
-5. *Multi node server* - in progress
+5. **Multi node server** - done
 6. Automatical persistance for services
 7. cluster monitoring tools
 8. detailed problem analyzis tools (what service takes most CPU, operations processing times etc.)
