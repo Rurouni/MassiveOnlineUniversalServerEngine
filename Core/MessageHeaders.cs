@@ -17,7 +17,7 @@ namespace MOUSE.Core
             {
                 case 1: return new TransportHeader(reader);
                 case 2: return new OperationHeader(reader);
-                case 3: return new ServiceHeader(reader);
+                case 3: return new ActorHeader(reader);
                 default: throw new Exception("Not supported header id:" + headerId);
             }
         }
@@ -26,7 +26,7 @@ namespace MOUSE.Core
         {
             if      (header is TransportHeader) writer.Write((byte)1);
             else if (header is OperationHeader) writer.Write((byte)2);
-            else if (header is ServiceHeader)   writer.Write((byte)3);
+            else if (header is ActorHeader) writer.Write((byte)3);
             else
                 throw new Exception("Not supported header id:" + header);
 
@@ -102,24 +102,24 @@ namespace MOUSE.Core
 
     
     [DataContract]
-    public class ServiceHeader : MessageHeader
+    public class ActorHeader : MessageHeader
     {
         [DataMember]
-        public readonly NodeServiceKey TargetServiceKey;
+        public readonly uint ActorLocalId;
 
-        public ServiceHeader(NodeServiceKey targetServiceKey)
+        public ActorHeader(uint actorLocalId)
         {
-            TargetServiceKey = targetServiceKey;
+            ActorLocalId = actorLocalId;
         }
 
-        public ServiceHeader(BinaryReader reader)
+        public ActorHeader(BinaryReader reader)
         {
-            TargetServiceKey = new NodeServiceKey(reader);
+            ActorLocalId = reader.ReadUInt32(); ;
         }
 
         public override void Serialize(BinaryWriter writer)
         {
-            TargetServiceKey.Serialize(writer);
+            writer.Write(ActorLocalId);
         }
     }
 }

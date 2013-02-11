@@ -12,32 +12,24 @@ namespace SampleC2SProtocol
     [NetContract]
     public interface IChatLogin
     {
-        [NetOperation]
         LoginResult Login(string name);
     }
 
     [NetContract]
     public interface IChatService
     {
-        [NetOperation]
-        List<ChatRoomInfo> GetRooms();
-
-        [NetOperation]
+        List<string> GetRooms();
         JoinRoomResponse JoinOrCreateRoom(string roomName);
-
-        /// <returns>Ticket</returns>
-        [NetOperation(InvalidRetCode = typeof(JoinRoomInvalidRetCode))]
-        JoinRoomResponse JoinRoom(uint roomId);
     }
     
-    [NetContract(AllowExternalConnections = true)]
+    [NetContract(AllowExternalConnections = true, IsPrimary = false)]
     public interface IChatRoomService
     {
-        [NetOperation]
+        //return everything said so far in room as separate strings
+        [NetOperation(InvalidRetCode = typeof(JoinRoomInvalidRetCode))]
         List<string> Join(long ticket);
-        [NetOperation]
+
         void Leave();
-        [NetOperation]
         void Say(string message);
     }
 
@@ -45,8 +37,7 @@ namespace SampleC2SProtocol
     [NetContract]
     public interface IChatRoomServiceCallback
     {
-        [NetOperation]
-        void OnRoomMessage(uint roomId, string message);
+        void OnRoomMessage(string roomName, string message);
     }
 
     [DataContract]
@@ -58,25 +49,17 @@ namespace SampleC2SProtocol
     }
 
     [DataContract]
-    public enum JoinRoomInvalidRetCode
-    {
-        RoomNotFound,
-        ClientNotAwaited
-    }
-
-    [DataContract]
     public class JoinRoomResponse
     {
-        public uint RoomId;
+        public uint RoomActorId;
         public long Ticket;
         public string ServerEndpoint;
     }
 
     [DataContract]
-    public class ChatRoomInfo
+    public enum JoinRoomInvalidRetCode
     {
-        public uint Id;
-        public string Name;
+        RoomNotFound,
+        ClientNotAwaited
     }
-
 }

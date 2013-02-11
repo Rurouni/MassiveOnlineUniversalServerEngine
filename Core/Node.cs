@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Reactive.Subjects;
 using System.Reactive;
-using System.Reactive.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -13,69 +12,21 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System.Collections.Concurrent;
 using System.Threading.Tasks.Dataflow;
-using System.IO;
 using System.Diagnostics;
 
 namespace MOUSE.Core
 {
-    public class PendingConnection
-    {
-        public readonly TaskCompletionSource<INetPeer> TCS;
-        public readonly DateTime StartTime;
-        public readonly IPEndPoint Target;
-        public readonly CancellationTokenSource Expiration;
-
-        public PendingConnection(IPEndPoint target)
-        {
-            TCS = new TaskCompletionSource<INetPeer>();
-            StartTime = DateTime.Now;
-            Target = target;
-            Expiration = new CancellationTokenSource();
-        }
-    }
-
-    public class PendingOperation
-    {
-        public readonly TaskCompletionSource<Message> TCS;
-        public readonly DateTime StartTime;
-        public readonly int RequestId;
-        public readonly CancellationTokenSource Expiration;
-
-        public PendingOperation(int requestId)
-        {
-            TCS = new TaskCompletionSource<Message>();
-            StartTime = DateTime.Now;
-            RequestId = requestId;
-            Expiration = new CancellationTokenSource();
-        }
-    }
-
-    public interface INetPeer : INetChannelListener
-    {
-        void Init(INetChannel channel, INode node);
-
-        INetChannel Channel {get;}
-
-        IObservable<INetPeer> DisconnectedEvent { get; }
-        IObservable<Message> MessageEvent { get; }
-
-        IMessageFactory MessageFactory { get; }
-
-        Task<Message> ExecuteOperation(Message input);
-        T As<T>();
-    }
-
     public interface INode
     {
         IMessageFactory MessageFactory { get; }
-        IServiceProtocol Protocol { get; }
+        IOperationDispatcher Dispatcher { get; }
 
         void Start();
         void Stop();
     }
 
     /// <summary>
-    /// Different peers could simultaniously receive events, so implementation should be aware of this
+    /// Different peers could simultaniously receive events from network level, so implementation should be aware of this
     /// </summary>
     public interface INetNode<out TNetPeer> : INode
         where TNetPeer : INetPeer
@@ -91,140 +42,9 @@ namespace MOUSE.Core
         IObservable<TNetPeer> PeerDisconnectedEvent { get; }
 
         IPEndPoint Endpoint { get; }
-        
-    }
 
-    /// <summary>
-    /// All fields should be initialized only in Init
-    /// </summary>
-    public class NetPeer : INetPeer, IServiceOperationDispatcher
-    {
-        private const int ExpirationTimeout = 30;
+        TNetPeer GetPeer(uint localPeerId);
 
-        public Logger Log;
-        public INetChannel Channel { get; private set; }
-        private Subject<INetPeer> _onDisconnectedSubject;
-        private Subject<Message> _onMessageSubject;
-        public INode Node { get; private set; }
-
-        private int _requestId = 0;
-        protected ConcurrentDictionary<int, PendingOperation> PendingOperationsByRequestId;
-        private ConcurrentDictionary<NodeServiceKey, NodeServiceProxy> _proxyCache;
-
-        public virtual void Init(INetChannel channel, INode node)
-        {
-            Channel = channel;
-            Node = node;
-            Log = LogManager.GetLogger(ToString());
-            _onMessageSubject = new Subject<Message>();
-            _onDisconnectedSubject = new Subject<INetPeer>();
-            PendingOperationsByRequestId = new ConcurrentDictionary<int, PendingOperation>();
-            _proxyCache = new ConcurrentDictionary<NodeServiceKey, NodeServiceProxy>();
-        }
-
-        void INetChannelListener.OnDisconnected()
-        {
-            _onDisconnectedSubject.OnNext(this);
-            _onDisconnectedSubject.OnCompleted();
-        }
-
-        void INetChannelListener.OnNetData(BinaryReader reader)
-        {
-            Message msg = Node.MessageFactory.Deserialize(reader);
-            var operationHeader = msg.GetHeader<OperationHeader>();
-            if (operationHeader != null && operationHeader.Type == OperationType.Reply)
-            {
-                PendingOperation continuation;
-                if (PendingOperationsByRequestId.TryRemove(operationHeader.RequestId, out continuation))
-                {
-                    continuation.Expiration.Cancel();
-                    if (msg.Id == (uint)NodeMessageId.InvalidOperation)
-                    {
-                        var invMsg = msg as InvalidOperation;
-                        continuation.TCS.SetException(new InvalidInput(invMsg.ErrorCode, invMsg.DebugDescription));
-                    }
-                    else
-                        continuation.TCS.SetResult(msg);
-                }
-                else
-                    Log.Warn("Received Reply with requestId:{0}  with no continuation for it", operationHeader.RequestId);
-            }
-
-            _onMessageSubject.OnNext(msg);
-        }
-
-        public IObservable<T> ReceiveMessage<T>() where T : Message
-        {
-            return MessageEvent.OfType<T>();
-        }
-
-        public IObservable<T> ReceiveMessage<T>(TimeSpan waitTime) where T : Message
-        {
-            var cancelation = new CancellationTokenSource();
-            cancelation.CancelAfter(waitTime);
-            return MessageEvent.OfType<T>().RunAsync(cancelation.Token);
-        }
-
-        public IMessageFactory MessageFactory
-        {
-            get { return Node.MessageFactory; }
-        }
-
-        public virtual Task<Message> ExecuteOperation(Message input)
-        {
-            int requestId = Interlocked.Increment(ref _requestId);
-            input.AttachHeader(new OperationHeader(requestId, OperationType.Request));
-            Channel.Send(input);
-
-            var continuation = new PendingOperation(requestId);
-            if (!PendingOperationsByRequestId.TryAdd(requestId, continuation))
-                throw new Exception("This could happen only if requestId is duplicated");
-
-            var expiration = Task.Delay(TimeSpan.FromSeconds(ExpirationTimeout), continuation.Expiration.Token);
-            expiration.ContinueWith((_) =>
-            {
-                PendingOperation dummy;
-                if (PendingOperationsByRequestId.TryRemove(continuation.RequestId, out dummy))
-                    continuation.TCS.SetException(new Exception(string.Format("ExecuteOperation<{0}, {1}> has Expired after {2} sec",requestId, input, ExpirationTimeout)));
-            });
-            return continuation.TCS.Task;
-        }
-
-        public virtual T As<T>()
-        {
-            NodeServiceKey serviceKey = Node.Protocol.GetKey<T>();
-            return (T)(object)_proxyCache.GetOrAdd(serviceKey, createProxy);
-        }
-
-        private NodeServiceProxy createProxy(NodeServiceKey serviceKey)
-        {
-            return Node.Protocol.CreateProxy(serviceKey, MessageFactory, this);
-        }
-
-        public IObservable<INetPeer> DisconnectedEvent
-        {
-            get { return _onDisconnectedSubject; }
-        }
-
-        public IObservable<Message> MessageEvent
-        {
-            get { return _onMessageSubject; }
-        }
-
-        public override string ToString()
-        {
-            return string.Format("NodeProxy<NetId:{0}, Endpoint:{1}>", Channel.Id, Channel.EndPoint);
-        }
-
-        Task<Message> IServiceOperationDispatcher.ExecuteServiceOperation(Message request)
-        {
-            return ExecuteOperation(request);
-        }
-
-        void IServiceOperationDispatcher.ExecuteOneWayServiceOperation(Message request)
-        {
-            Channel.Send(request);
-        }
     }
 
     /// <summary>
@@ -234,7 +54,6 @@ namespace MOUSE.Core
         where TNetPeer : INetPeer
     {
         private const int MaxMessagesPerTick = 100000;
-        private const int MaxEventsPerTick = 100000;
         private const int ExpirationTimeout = 10;
 
         public Logger Log;
@@ -248,26 +67,28 @@ namespace MOUSE.Core
         private int _updateLoopRunning = 0;
         private Thread _updateThread;
 
+        readonly Stopwatch _timer = new Stopwatch();
+
         protected int RequestId = 0;
 
         public IMessageFactory MessageFactory { get; set; }
         public INetProvider Net { get; set; }
-        public IServiceProtocol Protocol { get; set; }
+        public IOperationDispatcher Dispatcher { get; set; }
 
         protected Func<TNetPeer> PeerFactory;
 
-        public NetNode(INetProvider net, IMessageFactory msgFactory, IServiceProtocol protocol,
+        public NetNode(INetProvider net, IMessageFactory msgFactory, IOperationDispatcher protocol,
             bool manualUpdate = false, Func<TNetPeer> peerFactory = null)
         {
             Net = net;
             MessageFactory = msgFactory;
-            Protocol = protocol;
+            Dispatcher = protocol;
 
             if (peerFactory != null)
                 PeerFactory = peerFactory;
             else
             {
-                PeerFactory = () => (TNetPeer)FormatterServices.GetUninitializedObject(typeof(TNetPeer));
+                PeerFactory = () => (TNetPeer)Activator.CreateInstance(typeof(TNetPeer));
             }
 
             _manualUpdate = manualUpdate;
@@ -290,15 +111,15 @@ namespace MOUSE.Core
 
         public virtual void Stop()
         {
-            Net.Shutdown();
             if (_updateLoopRunning == 1)
             {
                 Interlocked.Exchange(ref _updateLoopRunning, 0);
                 _updateThread.Join();
             }
+            Net.Shutdown();
         }
 
-        Stopwatch _timer = new Stopwatch();
+        
         public virtual void Update()
         {
             _timer.Restart();
@@ -418,9 +239,34 @@ namespace MOUSE.Core
             get { return Net.EndPoint; }
         }
 
+        public TNetPeer GetPeer(uint localPeerId)
+        {
+            TNetPeer peer;
+            if (PeersByNetId.TryGetValue(localPeerId, out peer))
+                return peer;
+            else
+                return default(TNetPeer);
+        }
+
         public override string ToString()
         {
             return "NetNode - " + Net.EndPoint;
+        }
+    }
+
+    public class PendingConnection
+    {
+        public readonly TaskCompletionSource<INetPeer> TCS;
+        public readonly DateTime StartTime;
+        public readonly IPEndPoint Target;
+        public readonly CancellationTokenSource Expiration;
+
+        public PendingConnection(IPEndPoint target)
+        {
+            TCS = new TaskCompletionSource<INetPeer>();
+            StartTime = DateTime.Now;
+            Target = target;
+            Expiration = new CancellationTokenSource();
         }
     }
 }

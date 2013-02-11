@@ -22,5 +22,6 @@
         <Button Content="Join" Height="23" HorizontalAlignment="Left" Margin="220,42,0,0" Name="btnJoin" VerticalAlignment="Top" Width="75" Click="btnJoin_Click" />
         <Button Content="Send" Height="76" Margin="0,0,10.4,34.8" Name="btnSend" VerticalAlignment="Bottom" Click="btnSend_Click" HorizontalAlignment="Right" Width="49" Grid.Row="2" />
         <Label Name="lblStatus" Content="Disconnected" HorizontalAlignment="Left" Margin="16,87.8,0,0" Grid.Row="2" VerticalAlignment="Top" Width="495" Height="20" FontSize="8" ScrollViewer.VerticalScrollBarVisibility="Disabled"/>
+        <Button Name="btnRefreshRooms" Content="RefreshRooms" HorizontalAlignment="Left" Margin="306,42,0,0" VerticalAlignment="Top" Width="91" Height="23" Click="btnRefreshRooms_Click"/>
     </Grid>
 </Window>

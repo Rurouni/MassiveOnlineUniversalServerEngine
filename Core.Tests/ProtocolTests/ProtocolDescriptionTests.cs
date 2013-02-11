@@ -17,14 +17,14 @@ namespace Core.Tests
     {
         private const uint ServiceTypeId = 3211691920;
 
-        private ServiceProtocol _protocolDesc;
-        private NodeServiceContractDescription _contractDesc;
+        private OperationDispatcher _protocolDesc;
+        private NetContractDescription _contractDesc;
 
         public EntityDomainDescriptionTests()
         {
-            _protocolDesc = new ServiceProtocol(Substitute.For<IMessageFactory>(),
-                new NodeServiceProxy[] { new ISomeServiceProxy() });
-            _contractDesc = _protocolDesc.GetDescription(ServiceTypeId);
+            _protocolDesc = new OperationDispatcher(Substitute.For<IMessageFactory>(),
+                new NetProxy[] { new ISomeServiceProxy() });
+            _contractDesc = _protocolDesc.GetContract(ServiceTypeId);
         }
 
         [Fact]

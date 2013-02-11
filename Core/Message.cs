@@ -60,7 +60,7 @@ namespace MOUSE.Core
 
         BinaryWriter _writer;
         /// <summary>
-        /// TODO: non optimal
+        /// Beware: 3 allocs first time, 1 alloc all others + not thread safe
         /// </summary>
         public byte[] GetSerialized()
         {
@@ -71,7 +71,8 @@ namespace MOUSE.Core
             Serialize(_writer);
             long count = _writer.BaseStream.Position;
             _writer.BaseStream.Seek(0, SeekOrigin.Begin);
-            BinaryReader reader = new BinaryReader(_writer.BaseStream);
+
+            var reader = new BinaryReader(_writer.BaseStream);
             return reader.ReadBytes((int)count);
         }
 

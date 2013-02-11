@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>CompareNETObjects</id>
+    <version>1.6.0.0</version>
+    <title>Compare .NET Objects</title>
+    <authors>gfinzer</authors>
+    <owners>gfinzer</owners>
+    <licenseUrl>http://comparenetobjects.codeplex.com/license</licenseUrl>
+    <projectUrl>http://comparenetobjects.codeplex.com/</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>What you have been waiting for. Perform a deep compare of any two .NET objects using reflection. Shows the differences between the two objects.</description>
+    <summary>Features
+* Compare Children 
+* Handling for Trees with Children Pointing To Parents
+* Compare Primitive Types
+* Compare Complex Types</summary>
+    <releaseNotes>* Changed object1 and object2 to expected and actual in the differences string.  
+* Allow renaming ExpectedName and ActualName in DifferencesString
+* Allow custom functions to be launched by Compare .Net Objects
+* Support for IPEndPoint
+* Added the ability to compare only the ElementsToInclude
+* Fix for IgnoreAttribute on property
+* Differences list now more detailed.  You can now use LINQ over the properties.</releaseNotes>
+    <language>en-US</language>
+    <tags>compare comparison objects difference</tags>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="System" targetFramework=".NETFramework3.5" />
+      <frameworkAssembly assemblyName="System" targetFramework=".NETFramework4.0" />
+    </frameworkAssemblies>
+    <references>
+      <reference file="KellermanSoftware.Compare-NET-Objects.dll" />
+    </references>
+  </metadata>
+</package>

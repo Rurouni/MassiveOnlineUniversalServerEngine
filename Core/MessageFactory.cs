@@ -25,7 +25,7 @@ namespace MOUSE.Core
         readonly Logger Log = LogManager.GetCurrentClassLogger();
         private Dictionary<Type, uint> _msgIdByType = new Dictionary<Type,uint>();
         private Dictionary<uint, Type> _typeByMsgId = new Dictionary<uint,Type>();
-        private ConcurrentDictionary<uint, ConcurrentStack<Message>> _messagePoolByMsgId = new ConcurrentDictionary<uint, ConcurrentStack<Message>>();
+        private readonly ConcurrentDictionary<uint, ConcurrentStack<Message>> _messagePoolByMsgId = new ConcurrentDictionary<uint, ConcurrentStack<Message>>();
 
         
         public MessageFactory(IEnumerable<Message> importedMessages)

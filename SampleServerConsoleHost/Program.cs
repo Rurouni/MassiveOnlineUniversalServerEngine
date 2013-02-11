@@ -8,7 +8,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Autofac;
+using Isis;
 using MOUSE.Core;
+using MOUSE.Core.Actors;
+using MOUSE.Core.NodeCoordination;
 using NLog;
 using Protocol.Generated;
 using RakNetWrapper;
@@ -21,9 +24,14 @@ namespace SampleServerConsoleHost
         static void Main(string[] args)
         {
             Logger Log = LogManager.GetLogger("ConsoleHost");
-            Log.Info("Starting");
-            IPEndPoint externalEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5055);
-            IPEndPoint internalEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 6055);
+
+
+            Log.Info("Starting ISIS");
+            var coordinator = new IsisNodeCoordinator();
+
+            IPEndPoint externalEndpoint = null;
+            IPEndPoint internalEndpoint = null;
+           
             try
             {
                 if (args.Length == 2)
@@ -32,6 +40,11 @@ namespace SampleServerConsoleHost
                     externalEndpoint = new IPEndPoint(IPAddress.Parse(addrPort[0]), int.Parse(addrPort[1]));
                     addrPort = args[1].Split(':');
                     internalEndpoint = new IPEndPoint(IPAddress.Parse(addrPort[0]), int.Parse(addrPort[1]));
+                }
+                else
+                {
+                    externalEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5055);
+                    internalEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5056);
                 }
             }
             catch (Exception)
@@ -53,27 +66,23 @@ namespace SampleServerConsoleHost
 
             //register domain service definitions and proxies
             builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
-                .Where(x => x.IsAssignableTo<NodeServiceProxy>() && x != typeof(NodeServiceProxy))
-                .As<NodeServiceProxy>();
+                .Where(x => x.IsAssignableTo<NetProxy>() && x != typeof(NetProxy))
+                .As<NetProxy>();
 
             //register domain service implementations
-            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(ChatManager)))
-                .Where(x => x.IsAssignableTo<NodeService>() && x != typeof(NodeService))
-                .As<NodeService>();
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(UserManager)))
+                .Where(x => x.IsAssignableTo<Actor>() && x != typeof(Actor))
+                .As<Actor>();
 
-            builder.RegisterType<ChatClient>().As<C2SPeer>();
-
-            builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
-            builder.RegisterType<ServicesRepository>().As<IServicesRepository>().SingleInstance();
-            builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>().SingleInstance();
+            builder.RegisterType<OperationDispatcher>().As<IOperationDispatcher>().SingleInstance();
+            builder.RegisterType<ActorRepository>().As<IActorRepository>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
-            builder.Register(c => new RakPeerInterface(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5055), 10000))
-                .As<INetProvider>().SingleInstance();
 
             builder.Register(c => new ServerNode(
                     new RakPeerInterface(externalEndpoint, 10000),
                     new RakPeerInterface(internalEndpoint, 10000),
-                    c.Resolve<IMessageFactory>(), c.Resolve<IServiceProtocol>(), c.Resolve<IServicesRepository>(), c.Resolve<C2SPeer>()))
+                    coordinator,
+                    c.Resolve<IMessageFactory>(), c.Resolve<IOperationDispatcher>(), c.Resolve<IActorRepository>(), () => new ChatClient()))
                 .As<IServerNode>().SingleInstance();
 
             var container = builder.Build();
@@ -81,11 +90,7 @@ namespace SampleServerConsoleHost
             var node = container.Resolve<IServerNode>();
             node.Start();
 
-            Log.Info("Press q to quit");
-            while (Console.ReadKey(true).KeyChar != 'q')
-            { }
-
-            node.Stop();
+            IsisSystem.WaitForever();
         }
     }
 }

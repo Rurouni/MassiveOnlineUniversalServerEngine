@@ -4,7 +4,7 @@ void GenerateMessages(Type contractType)
     var attr = contractType.GetAttribute<NetContractAttribute>();
     foreach (MethodInfo method in contractType.GetMethods())
     {
-        var opAttr = method.GetAttribute<NetOperationAttribute>();
+        var opAttr = method.GetAttribute<NetOperationAttribute>() ?? new NetOperationAttribute();
         string requestMsgName = contractType.Name+method.Name+"Request";
         string replyMsgName = contractType.Name+method.Name+"Reply";
         GenerateMessage(Misc.GenerateHash(requestMsgName), requestMsgName,

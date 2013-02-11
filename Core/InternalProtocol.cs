@@ -6,48 +6,44 @@ using System.Text;
 using System.Runtime.Serialization;
 using System.IO;
 using System.Globalization;
+using MOUSE.Core.Actors;
 
 namespace MOUSE.Core
 {
-    public enum NodeMessageId : uint
+    public enum MessageId : uint
     {
         Empty = 1,
         ConnectionRequest = 2,
         ConnectionReply = 3,
-        UpdateClusterInfo = 4,
-        InvalidOperation = 5,
-        EntityDiscoveryRequest = 6,
-        EntityDiscoveryReply = 7,
-        ServiceAccessRequest = 8,
-        ServiceAccessReply = 9,
-        ConnectToService = 10,
+        InvalidOperation = 4,
+        SetInitialActorsList = 5,
         Last, //used for protocol generation
     }
 
     [DataContract]
     public sealed class EmptyMessage : Message
     {
-        public override uint Id { get { return (uint)NodeMessageId.Empty; } }
+        public override uint Id { get { return (uint)MessageId.Empty; } }
     }
 
     [DataContract]
     public sealed class ConnectRequest : Message
     {
         [DataMember]
-        public NodeDescription Description;
+        public NodeRemoteInfo Info;
 
-        public override uint Id { get { return (uint)NodeMessageId.ConnectionRequest; } }
+        public override uint Id { get { return (uint)MessageId.ConnectionRequest; } }
 
         public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
-            Description.Serialize(writer);
+            NodeRemoteInfoSerializer.Serialize(Info, writer);
         }
 
         public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
-            Description = new NodeDescription(reader);
+            Info = NodeRemoteInfoSerializer.Deserialize(reader);
         }
     }
 
@@ -55,149 +51,20 @@ namespace MOUSE.Core
     public sealed class ConnectReply : Message
     {
         [DataMember]
-        public NodeDescription Description;
+        public NodeRemoteInfo Info;
 
-        public override uint Id { get { return (uint)NodeMessageId.ConnectionReply; } }
+        public override uint Id { get { return (uint)MessageId.ConnectionReply; } }
 
         public override void Serialize(BinaryWriter writer)
         {
             base.Serialize(writer);
-            Description.Serialize(writer);
+            NodeRemoteInfoSerializer.Serialize(Info, writer);
         }
 
         public override void Deserialize(BinaryReader reader)
         {
             base.Deserialize(reader);
-            Description = new NodeDescription(reader);
-        }
-    }
-
-    [DataContract]
-    public sealed class ServiceAccessRequest : Message
-    {
-        [DataMember]
-        public NodeServiceKey ServiceKey;
-
-        public override uint Id { get { return (uint)NodeMessageId.ServiceAccessRequest; } }
-
-        public ServiceAccessRequest(NodeServiceKey serviceKey)
-        {
-            ServiceKey = serviceKey;
-        }
-
-        public ServiceAccessRequest()
-        {
-        }
-
-        public override void Serialize(BinaryWriter writer)
-        {
-            base.Serialize(writer);
-            ServiceKey.Serialize(writer);
-        }
-
-        public override void Deserialize(BinaryReader reader)
-        {
-            base.Deserialize(reader);
-            ServiceKey = new NodeServiceKey(reader);
-        }
-    }
-
-    [DataContract]
-    public sealed class ServiceAccessReply : Message
-    {
-        [DataMember]
-        public bool IsValid;
-        [DataMember]
-        public NodeDescription ServiceOwner;
-
-        public override uint Id { get { return (uint)NodeMessageId.ServiceAccessReply; } }
-
-        public override void Serialize(BinaryWriter writer)
-        {
-            base.Serialize(writer);
-            writer.Write(IsValid);
-            if (ServiceOwner != null)
-            {
-                writer.Write(true);
-                ServiceOwner.Serialize(writer);
-            }
-            else
-                writer.Write(false);
-
-            
-        }
-
-        public override void Deserialize(BinaryReader reader)
-        {
-            base.Deserialize(reader);
-            IsValid = reader.ReadBoolean();
-            bool exist = reader.ReadBoolean();
-            if(exist)
-                ServiceOwner = new NodeDescription(reader);
-        }
-
-        public ServiceAccessReply()
-        {
-        }
-        
-        public ServiceAccessReply(bool isValid, NodeDescription serviceOwner)
-        {
-            IsValid = isValid;
-            ServiceOwner = serviceOwner;
-        }
-    }
-
-    [DataContract]
-    public sealed class UpdateClusterInfo : Message
-    {
-        [DataMember]
-        public List<NodeDescription> Descriptions;
-
-        public override uint Id { get { return (uint)NodeMessageId.UpdateClusterInfo; } }
-
-        public override void Serialize(BinaryWriter writer)
-        {
-            base.Serialize(writer);
-            writer.Write(Descriptions.Count);
-            foreach (var description in Descriptions)
-                description.Serialize(writer);
-        }
-
-        public override void Deserialize(BinaryReader reader)
-        {
-            base.Deserialize(reader);
-
-            int count = reader.ReadInt32();
-            Descriptions = new List<NodeDescription>(count);
-            for (int i = 0; i < count; i++)
-                Descriptions.Add(new NodeDescription(reader));
-        }
-    }
-
-    [DataContract]
-    public sealed class EntityDiscoveryRequest : Message
-    {
-        public override uint Id { get { return (uint)NodeMessageId.EntityDiscoveryRequest; } }
-    }
-
-    [DataContract]
-    public sealed class EntityDiscoveryReply : Message
-    {
-        [DataMember]
-        public NodeDescription Description;
-
-        public override uint Id { get { return (uint)NodeMessageId.EntityDiscoveryReply; } }
-
-        public override void Serialize(BinaryWriter writer)
-        {
-            base.Serialize(writer);
-            Description.Serialize(writer);
-        }
-
-        public override void Deserialize(BinaryReader reader)
-        {
-            base.Deserialize(reader);
-            Description = new NodeDescription(reader);
+            Info = NodeRemoteInfoSerializer.Deserialize(reader);
         }
     }
 
@@ -209,7 +76,7 @@ namespace MOUSE.Core
         [DataMember]
         public string DebugDescription;
 
-        public override uint Id { get { return (uint)NodeMessageId.InvalidOperation; } }
+        public override uint Id { get { return (uint)MessageId.InvalidOperation; } }
 
         public InvalidOperation()
         {
@@ -239,44 +106,83 @@ namespace MOUSE.Core
     }
 
     [DataContract]
-    public class NodeDescription
+    public sealed class SetInitialActorsList : Message
+    {
+        [DataMember]
+        public List<ActorRemoteInfo> Actors;
+
+        public SetInitialActorsList()
+        {}
+
+        public SetInitialActorsList(List<ActorRemoteInfo> actors)
+        {
+            Actors = actors;
+        }
+
+        public override uint Id
+        {
+            get { return (uint)MessageId.SetInitialActorsList; }
+        }
+
+        public override void Serialize(BinaryWriter writer)
+        {
+            base.Serialize(writer);
+            writer.Write(Actors.Count);
+            foreach (ActorRemoteInfo actor in Actors)
+            {
+                ActorRemoteInfoSerializer.Serialize(actor, writer);
+            }
+        }
+
+        public override void Deserialize(BinaryReader reader)
+        {
+            base.Deserialize(reader);
+            int count = reader.ReadInt32();
+            Actors = new List<ActorRemoteInfo>(count);
+            for (int i = 0; i < count; i++)
+            {
+                Actors.Add(ActorRemoteInfoSerializer.Deserialize(reader));
+            }
+        }
+    }
+
+    [DataContract]
+    public class NodeRemoteInfo
     {
         [DataMember]
         public readonly ulong NodeId;
         [DataMember]
-        public readonly string Address;
+        public readonly string InternalAddress;
+        [DataMember]
+        public readonly string ExternalAddress;
 
-        private IPEndPoint _endPoint;
-        public IPEndPoint EndPoint
-        {
-            get
-            {
-                if(_endPoint == null)
-                    _endPoint = CreateIPEndPoint(Address);
-                return _endPoint;
-            }
-        }
+        public uint? LocalConnectionId { get; set; }
 
-        public NodeDescription(ulong nodeId, IPEndPoint endpoint)
+        public NodeRemoteInfo(ulong nodeId, IPEndPoint internalEndpoint, IPEndPoint externalEndpoint)
         {
             NodeId = nodeId;
-            _endPoint = endpoint;
-            Address = endpoint.ToString();
+            InternalAddress = internalEndpoint.ToString();
+            ExternalAddress = externalEndpoint.ToString();
         }
 
-        public NodeDescription(BinaryReader reader)
+        public NodeRemoteInfo(ulong nodeId, string internalAddress, string externalAddress)
         {
-            NodeId = reader.ReadUInt64();
-            Address = reader.ReadString();
+            NodeId = nodeId;
+            InternalAddress = internalAddress;
+            ExternalAddress = externalAddress;
         }
 
-        public void Serialize(BinaryWriter writer)
+        public IPEndPoint InternalEndpoint
         {
-            writer.Write(NodeId);
-            writer.Write(Address);
+            get { return ParseIPEndPoint(InternalAddress); }
         }
 
-        public static IPEndPoint CreateIPEndPoint(string endPoint)
+        public IPEndPoint ExternalEndpoint
+        {
+            get { return ParseIPEndPoint(ExternalAddress); }
+        }
+
+        public static IPEndPoint ParseIPEndPoint(string endPoint)
         {
             string[] ep = endPoint.Split(':');
             if (ep.Length < 2) throw new FormatException("Invalid endpoint format");
@@ -306,7 +212,26 @@ namespace MOUSE.Core
 
         public override string ToString()
         {
-            return string.Format("Node<Id:{0}, Endpoint:{1}>", NodeId, Address);
+            return string.Format("Node<Id:{0}, InternalAddress:{1}, ExternalAddress:{2}>", NodeId, InternalAddress, ExternalAddress);
+        }
+    }
+
+
+    public static class NodeRemoteInfoSerializer
+    {
+        public static void Serialize(NodeRemoteInfo obj, BinaryWriter writer)
+        {
+            writer.Write(obj.NodeId);
+            writer.Write(obj.InternalAddress);
+            writer.Write(obj.ExternalAddress);
+        }
+
+        public static NodeRemoteInfo Deserialize(BinaryReader reader)
+        {
+            return new NodeRemoteInfo(
+                reader.ReadUInt64(),
+                reader.ReadString(),
+                reader.ReadString());
         }
     }
 }

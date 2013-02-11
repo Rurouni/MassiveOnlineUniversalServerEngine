@@ -5,10 +5,12 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Runtime.Serialization;
 
+#pragma warning disable 1998
+
 namespace Protocol.Generated
 {
 
-	[NetContract(AllowExternalConnections = false)]
+	[NetContract(AllowExternalConnections = false, IsPrimary = true)]
 	public interface ISomeService
 	{
 		Task< Int32 > Simple ( Int32 requestId );
@@ -16,14 +18,14 @@ namespace Protocol.Generated
 		Task< ComplexData > Complex ( Int32 requestId, ComplexData data, String name, List<SubData> datas );
 	}
 	[NetProxy(ContractTypeId = 3211691920, ContractType = typeof(ISomeService))]
-	public sealed class ISomeServiceProxy : NodeServiceProxy, ISomeService
+	public sealed class ISomeServiceProxy : NetProxy, ISomeService
 	{
 		public async Task< Int32 > Simple ( Int32 requestId )
 		{
 			//var request = MessageFactory.New< ISomeServiceSimpleRequest >();
 			var request = new ISomeServiceSimpleRequest();
 			request.requestId=requestId;
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((ISomeServiceSimpleReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
@@ -43,7 +45,7 @@ namespace Protocol.Generated
 		{
 			//var request = MessageFactory.New< ISomeServiceSimpleOneWayRequest >();
 			var request = new ISomeServiceSimpleOneWayRequest();
-			ExecuteOneWayServiceOperation(request);
+			ExecuteOneWayOperation(request);
 			//MessageFactory.Free(request);
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(ISomeServiceSimpleOneWayRequest), ReplyMessage = null)]
@@ -61,7 +63,7 @@ namespace Protocol.Generated
 			request.data=data;
 			request.name=name;
 			request.datas=datas;
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((ISomeServiceComplexReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);

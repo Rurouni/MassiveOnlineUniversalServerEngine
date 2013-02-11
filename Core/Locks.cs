@@ -7,8 +7,17 @@ namespace MOUSE.Core
 {
     public enum LockType
     {
-        None, //dispatch will be fired in thread pool thread
-        Read, //dispatch will be fired in Concurrent Scheduler
-        Write //dispatch  will be fired in Exclusive Scheduler
+        /// <summary>
+        /// processing will happen in network receiver thread, use for hardcore optimizations only
+        /// </summary>
+        None, 
+        /// <summary>
+        /// processing will happen in actors fiber allowing other operation with Read level to coexecute simultaneously
+        /// </summary>
+        Read, 
+        /// <summary>
+        /// processing will happen in actors fiber taking exclusive access until operation is fully complete
+        /// </summary>
+        Write 
     }
 }

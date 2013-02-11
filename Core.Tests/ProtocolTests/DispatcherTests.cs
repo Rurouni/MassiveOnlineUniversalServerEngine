@@ -17,12 +17,12 @@ namespace Core.Tests
 {
     public class EntityOperationDispatcherTests
     {
-        private ServiceProtocol _protocolDesc;
+        private OperationDispatcher _protocolDesc;
 
         public EntityOperationDispatcherTests()
         {
-            _protocolDesc = new ServiceProtocol(Substitute.For<IMessageFactory>(),
-                new NodeServiceProxy[] { new ISomeServiceProxy() });
+            _protocolDesc = new OperationDispatcher(Substitute.For<IMessageFactory>(),
+                new NetProxy[] { new ISomeServiceProxy() });
         }
 
         [Fact]

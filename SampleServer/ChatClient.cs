@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using MOUSE.Core;
+using MOUSE.Core.ActorCoordination;
+using MOUSE.Core.Actors;
 using NLog;
 using Protocol.Generated;
+
+#pragma warning disable 1998
 
 namespace SampleServer
 {
@@ -33,8 +37,8 @@ namespace SampleServer
             Log.Info("disconnected");
             if (_user != null)
             {
-                IChatManager chatManager = await Node.GetService<IChatManager>();
-                chatManager.UnregisterUser(_user.Id);
+                ActorProxy<IUserManager> chatManager = await Node.GetActor<IUserManager>();
+                chatManager.Channel.UnregisterUser(_user.Id);
             }
         }
 
@@ -43,8 +47,8 @@ namespace SampleServer
         {
             Log.Info(name + " is logging in");
 
-            IChatManager chatManager = await Node.GetService<IChatManager>();
-            ChatUserInfo userInfo = await chatManager.TryRegisterUser(name);
+            ActorProxy<IUserManager> chatManager = await Node.GetActor<IUserManager>();
+            ChatUserInfo userInfo = await chatManager.Channel.TryRegisterUser(name);
             if (userInfo == null)
             {
                 Log.Warn("name in use");
@@ -63,11 +67,13 @@ namespace SampleServer
         }
 
         [NetOperationHandler]
-        public async Task<List<ChatRoomInfo>> GetRooms()
+        public async Task<List<string>> GetRooms()
         {
             Log.Debug("getting rooms");
-            IChatManager chatManager = await Node.GetService<IChatManager>();
-            List<ChatRoomInfo> rooms = await chatManager.GetRooms();
+            IActorCoordinator chatRoomGroupCoordinator = Node.GetCoordinator<IChatRoom>();
+
+            IReadOnlyList<ActorRemoteInfo> actors = await chatRoomGroupCoordinator.GetActors();
+            List<string> rooms = actors.Select(x => x.Name).ToList();
             return rooms;
         }
 
@@ -76,43 +82,17 @@ namespace SampleServer
         {
             Log.Info("JoinOrCreateRoom -" + roomName);
 
-            IChatManager chatManager = await Node.GetService<IChatManager>();
-            uint roomId = await chatManager.GetOrCreateRoom(roomName);
-            Log.Info("joining roomId:" + roomId);
-
-            IChatRoom room = await Node.GetService<IChatRoom>(roomId);
+            ActorProxy<IChatRoom> roomActor = await Node.GetActor<IChatRoom>(roomName);
             Log.Debug("got room service ");
-            long ticket = await room.AwaitUser(_user);
+            long ticket = await roomActor.Channel.AwaitUser(_user);
             Log.Info("room will await user with ticket-" + ticket);
 
             return new JoinRoomResponse
                 {
-                    RoomId = roomId,
+                    RoomActorId = roomActor.Key.LocalActorId,
                     Ticket = ticket,
-                    ServerEndpoint = Node.ExternalNet.Endpoint.ToString()
+                    ServerEndpoint = Node.GetNode(roomActor.Key.OwnerNodeId).ExternalAddress
                 };
-        }
-
-        [NetOperationHandler]
-        public async Task<JoinRoomResponse> JoinRoom(uint roomId)
-        {
-            Log.Info("JoinRoom -" + roomId);
-
-            IChatManager chatManager = await Node.GetService<IChatManager>();
-            List<ChatRoomInfo> rooms = await chatManager.GetRooms();
-            
-            if (!rooms.Any(x => x.Id == roomId))
-                throw new InvalidInput(JoinRoomInvalidRetCode.RoomNotFound);
-         
-            IChatRoom room = await Node.GetService<IChatRoom>(roomId);
-            long ticket = await room.AwaitUser(_user);
-            Log.Info("room will await user with ticket-" + ticket);
-            return new JoinRoomResponse
-            {
-                RoomId = roomId,
-                Ticket = ticket,
-                ServerEndpoint = Node.ExternalNet.Endpoint.ToString()
-            };
         }
 
         public override string ToString()

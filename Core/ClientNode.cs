@@ -10,6 +10,7 @@ using System.Net;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Threading;
+using MOUSE.Core.Actors;
 using Microsoft.CSharp;
 using System.Threading.Tasks.Dataflow;
 
@@ -25,7 +26,7 @@ namespace MOUSE.Core
 
     public interface IServerPeer : INetPeer
     {
-        Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0);
+        Task<TNetContract> GetProxy<TNetContract>(uint? localActorId = null);
         void SetHandler<TNetContract>(TNetContract implementer);
     }
 
@@ -119,7 +120,7 @@ namespace MOUSE.Core
     public class ServerPeer : NetPeer, IServerPeer
     {
         private Dictionary<uint, object> _handlersByNetContractId;
-        private Dictionary<NodeServiceKey, NodeServiceProxy> _proxyCache;
+        private Dictionary<ActorProxyKey, NetProxy> _proxyCache;
 
         public new ClientNode Node { get { return (ClientNode)base.Node; } }
 
@@ -127,30 +128,21 @@ namespace MOUSE.Core
         {
             base.Init(channel, node);
             _handlersByNetContractId = new Dictionary<uint, object>();
-            _proxyCache = new Dictionary<NodeServiceKey, NodeServiceProxy>();
+            _proxyCache = new Dictionary<ActorProxyKey, NetProxy>();
             MessageEvent.Subscribe((msg) => Node.Fiber.Process(() => OnMessage(msg)));
         }
 
-        public async Task<TNetContract> GetService<TNetContract>(uint serviceLocalId = 0)
+        public async Task<TNetContract> GetProxy<TNetContract>(uint? localActorId = null)
         {
             await Node.Fiber.ContinueOn().ConfigureAwait(false);
 
-            NodeServiceKey serviceKey = Node.Protocol.GetKey<TNetContract>(serviceLocalId);
-            NodeServiceProxy proxy;
-            if (!_proxyCache.TryGetValue(serviceKey, out proxy))
+            NetContractDescription contractDesc = Node.Dispatcher.GetContract<TNetContract>();
+            var proxyKey = new ActorProxyKey(new ActorKey(0, localActorId ?? 0), contractDesc.TypeId);
+            NetProxy proxy;
+            if (!_proxyCache.TryGetValue(proxyKey, out proxy))
             {
-                var reply = (ServiceAccessReply)await ExecuteOperation(new ServiceAccessRequest(serviceKey)).ConfigureAwait(false);
-
-                if (!reply.IsValid)
-                    throw new Exception("Invalid Access");
-
-                await Node.Fiber.ContinueOn().ConfigureAwait(false);//reply could come in other thread depending on network library
-
-                if (!_proxyCache.TryGetValue(serviceKey, out proxy))
-                {
-                    proxy = Node.Protocol.CreateProxy(serviceKey, MessageFactory, this);
-                    _proxyCache.Add(serviceKey, proxy);
-                }
+                proxy = Node.Dispatcher.CreateProxy(contractDesc.TypeId, MessageFactory, this, localActorId.HasValue ? proxyKey.ActorKey : (ActorKey?)null);
+                _proxyCache.Add(proxyKey, proxy);
             }
 
             return (TNetContract)(object)proxy;
@@ -158,25 +150,22 @@ namespace MOUSE.Core
 
         protected void OnMessage(Message msg)
         {
-            var serviceHeader = msg.GetHeader<ServiceHeader>();
-            if (serviceHeader != null)
+            NetContractDescription contractDesc = Node.Dispatcher.GetContractForMessage(msg.Id);
+            object handler;
+            if (_handlersByNetContractId.TryGetValue(contractDesc.TypeId, out handler))
             {
-                object handler;
-                if (_handlersByNetContractId.TryGetValue(serviceHeader.TargetServiceKey.TypeId, out handler))
-                {
-                    //NOTE: doesnt support server->client request-reply, only one way notifications
-                    Node.Protocol.Dispatch(handler, msg);
-                }
-                else
-                    Log.Warn("Handler for {0} is unregistered", msg);
+                //NOTE: doesnt support server->client request-reply, only one way notifications
+                Node.Dispatcher.Dispatch(handler, msg);
             }
+            else
+                Log.Warn("Handler for {0} is unregistered", msg);
         }
 
         public void SetHandler<TNetContract>(TNetContract implementer)
         {
             Node.Fiber.Process(() =>
             {
-                _handlersByNetContractId[Node.Protocol.GetContractId(typeof(TNetContract))] = implementer;
+                _handlersByNetContractId[Node.Dispatcher.GetContractId(typeof(TNetContract))] = implementer;
             });
         }
     }
@@ -188,7 +177,7 @@ namespace MOUSE.Core
     {
         public ClientFiber Fiber;
         
-        public ClientNode(INetProvider net, IMessageFactory msgFactory, IServiceProtocol protocol,
+        public ClientNode(INetProvider net, IMessageFactory msgFactory, IOperationDispatcher protocol,
             bool manualUpdate = false)
             : base(net, msgFactory, protocol, manualUpdate)
         {
@@ -211,7 +200,7 @@ namespace MOUSE.Core
 
         public async Task<IServerPeer> ConnectToServer(string serverEndPoint)
         {
-            return (IServerPeer)await Connect(NodeDescription.CreateIPEndPoint(serverEndPoint)).ConfigureAwait(false);
+            return (IServerPeer)await Connect(NodeRemoteInfo.ParseIPEndPoint(serverEndPoint)).ConfigureAwait(false);
         }
     }
 }

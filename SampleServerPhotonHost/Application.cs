@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using Autofac;
 using MOUSE.Core;
+using MOUSE.Core.Actors;
 using PhotonAdapter;
 using SampleServer;
 using IChatLogin = Protocol.Generated.IChatLogin;
@@ -30,19 +31,19 @@ namespace SampleServerPhotonHost
 
             //register domain service definitions and proxies
             builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
-                .Where(x => x.IsAssignableTo<NodeServiceProxy>() && x != typeof(NodeServiceProxy))
-                .As<NodeServiceProxy>();
+                .Where(x => x.IsAssignableTo<NetProxy>() && x != typeof(NetProxy))
+                .As<NetProxy>();
 
             //register domain service implementations
             builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(ChatManager)))
-                .Where(x => x.IsAssignableTo<NodeService>() && x != typeof(NodeService))
-                .As<NodeService>();
+                .Where(x => x.IsAssignableTo<Actor>() && x != typeof(Actor))
+                .As<Actor>();
 
             builder.RegisterType<ChatClient>().As<C2SPeer>();
 
-            builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
-            builder.RegisterType<ServicesRepository>().As<IServicesRepository>().SingleInstance();
-            builder.RegisterType<NullPersistanceProvider>().As<IPersistanceProvider>().SingleInstance();
+            builder.RegisterType<OperationDispatcher>().As<IOperationDispatcher>().SingleInstance();
+            builder.RegisterType<ActorRepository>().As<IActorRepository>().SingleInstance();
+            builder.RegisterType<NullKeyValueStorage>().As<IKeyValueStorage>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
             builder.Register(c => this).As<INetProvider>();
 

@@ -4,13 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MOUSE.Core;
+using MOUSE.Core.ActorCoordination;
+using MOUSE.Core.Actors;
 using NLog;
 using Protocol.Generated;
 
+#pragma warning disable 1998
+
 namespace SampleServer
 {
-    [NodeService(AutoCreate = true, Persistant = false)]
-    public class ChatRoom : NodeService, IChatRoom, IChatRoomService
+    public class ChatRoom : Actor, IChatRoom, IChatRoomService
     {
         private long _ticketCounter = 0;
         private Dictionary<uint, ChatRoomClient> _usersById;
@@ -20,7 +23,7 @@ namespace SampleServer
 
         public override void OnCreated()
         {
-            Log = LogManager.GetLogger("ChatRoom");
+            Log = LogManager.GetLogger("ChatRoom:"+Name);
             _usersById = new Dictionary<uint, ChatRoomClient>();
             _usersByChannelId = new Dictionary<uint, ChatRoomClient>();
             _awaitingUsers = new Dictionary<long, ChatUserInfo>();
@@ -47,7 +50,7 @@ namespace SampleServer
         private void ExpireTicketAsync(long ticket)
         {
             _awaitingUsers.Remove(ticket);
-            Log.Info("Ticket {0} has expired", ticket);
+            Log.Debug("Ticket {0} has expired", ticket);
         }
 
         [NetOperationHandler]
@@ -76,6 +79,12 @@ namespace SampleServer
 
                 SendToAll(disconnectMsg);
                 Log.Info("User<Name:{0}> has disconnected", client.Info.Name);
+                if (!_usersByChannelId.Any())
+                {
+                    IActorCoordinator coordinator = Node.GetCoordinator<IChatRoom>();
+
+                    coordinator.RemoveActor(Name);//kill me pls
+                }
             }
         }
 
@@ -111,7 +120,7 @@ namespace SampleServer
             foreach (var client in _usersByChannelId.Values)
             {
                 var callback = client.Peer.As<IChatRoomServiceCallback>();
-                callback.OnRoomMessage(Id, msg);
+                callback.OnRoomMessage(Name, msg);
             }
         }
 

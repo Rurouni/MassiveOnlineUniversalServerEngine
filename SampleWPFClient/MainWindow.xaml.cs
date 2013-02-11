@@ -61,10 +61,10 @@ namespace SampleWPFClient
 
             //register domain service definitions and proxies
             builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
-                .Where(x => x.IsAssignableTo<NodeServiceProxy>() && x != typeof(NodeServiceProxy))
-                .As<NodeServiceProxy>();
+                .Where(x => x.IsAssignableTo<NetProxy>() && x != typeof(NetProxy))
+                .As<NetProxy>();
 
-            builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
+            builder.RegisterType<OperationDispatcher>().As<IOperationDispatcher>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
             //builder.Register(c => new PhotonNetClient("MouseChat")).As<INetProvider>().SingleInstance();
             builder.RegisterType<RakPeerInterface>().As<INetProvider>().SingleInstance();
@@ -83,19 +83,19 @@ namespace SampleWPFClient
         private async void UpdateRooms()
         {
             _rooms.Clear();
-            List<ChatRoomInfo> rooms = await _chatServiceProxy.GetRooms();
+            List<string> rooms = await _chatServiceProxy.GetRooms();
             foreach (var room in rooms)
-                _rooms.Add(new ChatRoomModel(room.Id,room.Name));
+                _rooms.Add(new ChatRoomModel(room));
         }
 
-        private async void OnMainChannelDisconnect()
+        private void OnMainChannelDisconnect()
         {
             SetStatus("Disconnected");
             MessageBox.Show("Connection lost - reconnecting");
             Connect();
         }
 
-        public void OnRoomMessage(uint roomId, string message)
+        public void OnRoomMessage(string room, string message)
         {
             txtChat.AppendText(message +"\n");
         }
@@ -121,7 +121,7 @@ namespace SampleWPFClient
                         .ObserveOn(new DispatcherScheduler(Dispatcher))
                         .Subscribe((_) => OnMainChannelDisconnect());
 
-                    var loginService = await _mainChannel.GetService<IChatLogin>();
+                    var loginService = await _mainChannel.GetProxy<IChatLogin>();
                     LoginResult result = await loginService.Login(txtUserName.Text);
 
                     if (result != LoginResult.Ok)
@@ -131,7 +131,7 @@ namespace SampleWPFClient
                     }
                     else
                     {
-                        _chatServiceProxy = await _mainChannel.GetService<IChatService>();
+                        _chatServiceProxy = await _mainChannel.GetProxy<IChatService>();
                         UpdateRooms();
                         SetStatus("Connected");
                         btnJoin.IsEnabled = true;
@@ -190,15 +190,13 @@ namespace SampleWPFClient
                     _chatChannelDisconnectionSubscription.Dispose();
                 }
                 _chatChannel = await _node.ConnectToServer(response.ServerEndpoint);
-                _chatRoomServiceProxy = await _chatChannel.GetService<IChatRoomService>(response.RoomId);
+                _chatRoomServiceProxy = await _chatChannel.GetProxy<IChatRoomService>(response.RoomActorId);
                 _chatChannel.SetHandler<IChatRoomServiceCallback>(this);
-                _chatChannelDisconnectionSubscription = 
-                    _chatChannel.DisconnectedEvent.Subscribe((_) => MessageBox.Show("Disconnected from chat room, try connect again"));
+                _chatChannelDisconnectionSubscription = _chatChannel.DisconnectedEvent.Subscribe((_) => MessageBox.Show("Disconnected from chat room, try connect again"));
                 var content = await _chatRoomServiceProxy.Join(response.Ticket);
                 txtChat.Clear();
                 foreach (var msg in content)
                     txtChat.AppendText(msg + "\n");
-                UpdateRooms();
 
             }
             catch (Exception exception)
@@ -220,16 +218,19 @@ namespace SampleWPFClient
         {
             lblStatus.Content = text;
         }
+
+        private void btnRefreshRooms_Click(object sender, RoutedEventArgs e)
+        {
+            UpdateRooms();
+        }
     }
 
     public class ChatRoomModel
     {
-        public uint Id;
-        public String Name;
+        public string Name;
 
-        public ChatRoomModel(uint id, string name)
+        public ChatRoomModel(string name)
         {
-            Id = id;
             Name = name;
         }
 

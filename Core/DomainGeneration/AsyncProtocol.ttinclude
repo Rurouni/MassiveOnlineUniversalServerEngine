@@ -31,6 +31,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Runtime.Serialization;
 
+#pragma warning disable 1998
+
 namespace Protocol.Generated
 {
 <#+
@@ -60,7 +62,7 @@ void GenerateAsyncContract(Type contractType)
 	var attr = contractType.GetAttribute<NetContractAttribute>();
 #>
 
-	[NetContract(AllowExternalConnections = <#= attr.AllowExternalConnections.ToString().ToLower() #>)]
+	[NetContract(AllowExternalConnections = <#= attr.AllowExternalConnections.ToString().ToLower() #>, IsPrimary = <#= attr.IsPrimary.ToString().ToLower() #>)]
 	public interface <#= contractType.Name #>
 	{
 <#+	foreach (MethodInfo method in contractType.GetMethods())
@@ -104,7 +106,7 @@ void GenerateDTO(Type dtoType)
 void GenerateAsyncProxy(Type contractType)
 { #>
 	[NetProxy(ContractTypeId = <#= Misc.GenerateHash(contractType.Name) #>, ContractType = typeof(<#= contractType.Name #>))]
-	public sealed class <#= contractType.Name + "Proxy" #> : NodeServiceProxy, <#= contractType.Name #>
+	public sealed class <#= contractType.Name + "Proxy" #> : NetProxy, <#= contractType.Name #>
 	{
 <#+	var attr = contractType.GetAttribute<NetContractAttribute>();
 	foreach (MethodInfo method in contractType.GetMethods())
@@ -180,12 +182,12 @@ void WriteMethodBody(MethodInfo method, Type contractType)
 	}
 	if(method.ReturnType == typeof(void))
 	{	#>
-			ExecuteOneWayServiceOperation(request);
+			ExecuteOneWayOperation(request);
 			//MessageFactory.Free(request);
 <#+ }
 	else
 	{	#>
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((<#= contractType.Name + method.Name + "Reply" #>)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);

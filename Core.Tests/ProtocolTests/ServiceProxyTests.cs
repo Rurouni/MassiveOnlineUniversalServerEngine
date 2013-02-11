@@ -20,19 +20,19 @@ namespace Core.Tests
         [Fact]
         public void EntityProxyShouldTranslateMethodCallToMessage()
         {
-            Fixture fixture = new Fixture();
+            var fixture = new Fixture();
             IMessageFactory msgFactory = new MessageFactory(new List<Message>() { new ISomeServiceSimpleRequest(), new ISomeServiceSimpleReply() });
             int input = fixture.CreateAnonymous<int>();
             int output = fixture.CreateAnonymous<int>();
             var proxy = new ISomeServiceProxy();
-            var dispatcher = Substitute.For<IServiceOperationDispatcher>();
-            dispatcher.ExecuteServiceOperation(Arg.Is<Message>(x => ((ISomeServiceSimpleRequest)x).requestId == input))
+            var executor = Substitute.For<IOperationExecutor>();
+            executor.ExecuteOperation(Arg.Is<OperationContext>(x => ((ISomeServiceSimpleRequest)x.Message).requestId == input))
                 .Returns(x => Task.FromResult<Message>(new ISomeServiceSimpleReply() { RetVal = output }));
-            proxy.Init(new NodeServiceKey(0, 0), null, msgFactory, dispatcher);
+            proxy.Init(null, msgFactory, executor);
 
             Task<int> retTask = proxy.Simple(input);
 
-            dispatcher.Received(1).ExecuteServiceOperation(Arg.Is<Message>(x => ((ISomeServiceSimpleRequest)x).requestId == input));
+            executor.Received(1).ExecuteOperation(Arg.Is<OperationContext>(x => ((ISomeServiceSimpleRequest)x.Message).requestId == input));
             retTask.Should().NotBeNull();
             retTask.Result.Should().Be(output);
         }

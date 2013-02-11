@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using MOUSE.Core.ActorCoordination;
 
 namespace MOUSE.Core
 {
@@ -9,10 +10,12 @@ namespace MOUSE.Core
     public class NetContractAttribute : Attribute
     {
         public bool AllowExternalConnections { get; set; }
+        public bool IsPrimary { get; set; }
 
         public NetContractAttribute()
         {
             AllowExternalConnections = false;
+            IsPrimary = true;
         }
     }
 
@@ -46,17 +49,14 @@ namespace MOUSE.Core
     }
 
     [AttributeUsage(AttributeTargets.Class)]
-    public class NodeServiceAttribute : Attribute
+    public class ActorAttribute : Attribute
     {
-        public bool Persistant { get; set; }
-        public bool AutoCreate { get; set; }
-        
-
-        public NodeServiceAttribute()
+        public ActorAttribute()
         {
-            Persistant = false;
-            AutoCreate = true;
+            Coordinator = typeof (IsisActorCoordinator);
         }
+
+        public Type Coordinator { get; set; }
     }
 
     [AttributeUsage(AttributeTargets.Class)]

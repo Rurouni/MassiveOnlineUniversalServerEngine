@@ -5,24 +5,25 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Runtime.Serialization;
 
+#pragma warning disable 1998
+
 namespace Protocol.Generated
 {
 
-	[NetContract(AllowExternalConnections = false)]
+	[NetContract(AllowExternalConnections = false, IsPrimary = true)]
 	public interface IChatLogin
 	{
 		Task< LoginResult > Login ( String name );
 	}
 
-	[NetContract(AllowExternalConnections = false)]
+	[NetContract(AllowExternalConnections = false, IsPrimary = true)]
 	public interface IChatService
 	{
-		Task< List<ChatRoomInfo> > GetRooms (  );
+		Task< List<String> > GetRooms (  );
 		Task< JoinRoomResponse > JoinOrCreateRoom ( String roomName );
-		Task< JoinRoomResponse > JoinRoom ( UInt32 roomId );
 	}
 
-	[NetContract(AllowExternalConnections = true)]
+	[NetContract(AllowExternalConnections = true, IsPrimary = false)]
 	public interface IChatRoomService
 	{
 		Task< List<String> > Join ( Int64 ticket );
@@ -30,24 +31,21 @@ namespace Protocol.Generated
 		void Say ( String message );
 	}
 
-	[NetContract(AllowExternalConnections = false)]
+	[NetContract(AllowExternalConnections = false, IsPrimary = true)]
 	public interface IChatRoomServiceCallback
 	{
-		void OnRoomMessage ( UInt32 roomId, String message );
+		void OnRoomMessage ( String roomName, String message );
 	}
 
-	[NetContract(AllowExternalConnections = false)]
-	public interface IChatManager
+	[NetContract(AllowExternalConnections = false, IsPrimary = true)]
+	public interface IUserManager
 	{
 		Task< ChatUserInfo > GetUser ( String name );
 		Task< ChatUserInfo > TryRegisterUser ( String name );
 		void UnregisterUser ( UInt32 id );
-		Task< List<ChatRoomInfo> > GetRooms (  );
-		Task< UInt32 > GetOrCreateRoom ( String roomName );
-		Task< Boolean > DeleteRoom ( UInt32 roomId );
 	}
 
-	[NetContract(AllowExternalConnections = false)]
+	[NetContract(AllowExternalConnections = false, IsPrimary = true)]
 	public interface IChatRoom
 	{
 		Task< List<ChatUserInfo> > GetUsersInside (  );
@@ -55,14 +53,14 @@ namespace Protocol.Generated
 		Task< Boolean > RemoveUser ( UInt32 userId );
 	}
 	[NetProxy(ContractTypeId = 1279047273, ContractType = typeof(IChatLogin))]
-	public sealed class IChatLoginProxy : NodeServiceProxy, IChatLogin
+	public sealed class IChatLoginProxy : NetProxy, IChatLogin
 	{
 		public async Task< LoginResult > Login ( String name )
 		{
 			//var request = MessageFactory.New< IChatLoginLoginRequest >();
 			var request = new IChatLoginLoginRequest();
 			request.name=name;
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((IChatLoginLoginReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
@@ -80,13 +78,13 @@ namespace Protocol.Generated
 		}
 	}
 	[NetProxy(ContractTypeId = 4131147598, ContractType = typeof(IChatService))]
-	public sealed class IChatServiceProxy : NodeServiceProxy, IChatService
+	public sealed class IChatServiceProxy : NetProxy, IChatService
 	{
-		public async Task< List<ChatRoomInfo> > GetRooms (  )
+		public async Task< List<String> > GetRooms (  )
 		{
 			//var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
 			var request = new IChatServiceGetRoomsRequest();
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((IChatServiceGetRoomsReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
@@ -107,7 +105,7 @@ namespace Protocol.Generated
 			//var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
 			var request = new IChatServiceJoinOrCreateRoomRequest();
 			request.roomName=roomName;
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((IChatServiceJoinOrCreateRoomReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
@@ -123,37 +121,16 @@ namespace Protocol.Generated
 			retMsg.RetVal = retVal;
 			return retMsg;
 		}
-		public async Task< JoinRoomResponse > JoinRoom ( UInt32 roomId )
-		{
-			//var request = MessageFactory.New< IChatServiceJoinRoomRequest >();
-			var request = new IChatServiceJoinRoomRequest();
-			request.roomId=roomId;
-			Message reply = await ExecuteServiceOperation(request);
-			var ret = ((IChatServiceJoinRoomReply)reply).RetVal;
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
-			return ret;
-		}
-		[NetOperationDispatcher(RequestMessage = typeof(IChatServiceJoinRoomRequest), ReplyMessage = typeof(IChatServiceJoinRoomReply))]
-		public static async Task<Message> JoinRoom(IMessageFactory msgFactory, object target, Message input)
-		{
-			var msg = (IChatServiceJoinRoomRequest)input;
-			var retVal = await ((IChatService)target).JoinRoom(msg.roomId);
-			//var retMsg = msgFactory.New<IChatServiceJoinRoomReply>();
-			var retMsg = new IChatServiceJoinRoomReply();
-			retMsg.RetVal = retVal;
-			return retMsg;
-		}
 	}
 	[NetProxy(ContractTypeId = 2616972471, ContractType = typeof(IChatRoomService))]
-	public sealed class IChatRoomServiceProxy : NodeServiceProxy, IChatRoomService
+	public sealed class IChatRoomServiceProxy : NetProxy, IChatRoomService
 	{
 		public async Task< List<String> > Join ( Int64 ticket )
 		{
 			//var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
 			var request = new IChatRoomServiceJoinRequest();
 			request.ticket=ticket;
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((IChatRoomServiceJoinReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
@@ -173,7 +150,7 @@ namespace Protocol.Generated
 		{
 			//var request = MessageFactory.New< IChatRoomServiceLeaveRequest >();
 			var request = new IChatRoomServiceLeaveRequest();
-			ExecuteOneWayServiceOperation(request);
+			ExecuteOneWayOperation(request);
 			//MessageFactory.Free(request);
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceLeaveRequest), ReplyMessage = null)]
@@ -188,7 +165,7 @@ namespace Protocol.Generated
 			//var request = MessageFactory.New< IChatRoomServiceSayRequest >();
 			var request = new IChatRoomServiceSayRequest();
 			request.message=message;
-			ExecuteOneWayServiceOperation(request);
+			ExecuteOneWayOperation(request);
 			//MessageFactory.Free(request);
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceSayRequest), ReplyMessage = null)]
@@ -200,156 +177,94 @@ namespace Protocol.Generated
 		}
 	}
 	[NetProxy(ContractTypeId = 3421052361, ContractType = typeof(IChatRoomServiceCallback))]
-	public sealed class IChatRoomServiceCallbackProxy : NodeServiceProxy, IChatRoomServiceCallback
+	public sealed class IChatRoomServiceCallbackProxy : NetProxy, IChatRoomServiceCallback
 	{
-		public void OnRoomMessage ( UInt32 roomId, String message )
+		public void OnRoomMessage ( String roomName, String message )
 		{
 			//var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
 			var request = new IChatRoomServiceCallbackOnRoomMessageRequest();
-			request.roomId=roomId;
+			request.roomName=roomName;
 			request.message=message;
-			ExecuteOneWayServiceOperation(request);
+			ExecuteOneWayOperation(request);
 			//MessageFactory.Free(request);
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceCallbackOnRoomMessageRequest), ReplyMessage = null)]
 		public static async Task<Message> OnRoomMessage(IMessageFactory msgFactory, object target, Message input)
 		{
 			var msg = (IChatRoomServiceCallbackOnRoomMessageRequest)input;
-			((IChatRoomServiceCallback)target).OnRoomMessage(msg.roomId, msg.message);
+			((IChatRoomServiceCallback)target).OnRoomMessage(msg.roomName, msg.message);
 			return null;
 		}
 	}
-	[NetProxy(ContractTypeId = 1635796547, ContractType = typeof(IChatManager))]
-	public sealed class IChatManagerProxy : NodeServiceProxy, IChatManager
+	[NetProxy(ContractTypeId = 1145035414, ContractType = typeof(IUserManager))]
+	public sealed class IUserManagerProxy : NetProxy, IUserManager
 	{
 		public async Task< ChatUserInfo > GetUser ( String name )
 		{
-			//var request = MessageFactory.New< IChatManagerGetUserRequest >();
-			var request = new IChatManagerGetUserRequest();
+			//var request = MessageFactory.New< IUserManagerGetUserRequest >();
+			var request = new IUserManagerGetUserRequest();
 			request.name=name;
-			Message reply = await ExecuteServiceOperation(request);
-			var ret = ((IChatManagerGetUserReply)reply).RetVal;
+			Message reply = await ExecuteOperation(request);
+			var ret = ((IUserManagerGetUserReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
 			return ret;
 		}
-		[NetOperationDispatcher(RequestMessage = typeof(IChatManagerGetUserRequest), ReplyMessage = typeof(IChatManagerGetUserReply))]
+		[NetOperationDispatcher(RequestMessage = typeof(IUserManagerGetUserRequest), ReplyMessage = typeof(IUserManagerGetUserReply))]
 		public static async Task<Message> GetUser(IMessageFactory msgFactory, object target, Message input)
 		{
-			var msg = (IChatManagerGetUserRequest)input;
-			var retVal = await ((IChatManager)target).GetUser(msg.name);
-			//var retMsg = msgFactory.New<IChatManagerGetUserReply>();
-			var retMsg = new IChatManagerGetUserReply();
+			var msg = (IUserManagerGetUserRequest)input;
+			var retVal = await ((IUserManager)target).GetUser(msg.name);
+			//var retMsg = msgFactory.New<IUserManagerGetUserReply>();
+			var retMsg = new IUserManagerGetUserReply();
 			retMsg.RetVal = retVal;
 			return retMsg;
 		}
 		public async Task< ChatUserInfo > TryRegisterUser ( String name )
 		{
-			//var request = MessageFactory.New< IChatManagerTryRegisterUserRequest >();
-			var request = new IChatManagerTryRegisterUserRequest();
+			//var request = MessageFactory.New< IUserManagerTryRegisterUserRequest >();
+			var request = new IUserManagerTryRegisterUserRequest();
 			request.name=name;
-			Message reply = await ExecuteServiceOperation(request);
-			var ret = ((IChatManagerTryRegisterUserReply)reply).RetVal;
+			Message reply = await ExecuteOperation(request);
+			var ret = ((IUserManagerTryRegisterUserReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
 			return ret;
 		}
-		[NetOperationDispatcher(RequestMessage = typeof(IChatManagerTryRegisterUserRequest), ReplyMessage = typeof(IChatManagerTryRegisterUserReply))]
+		[NetOperationDispatcher(RequestMessage = typeof(IUserManagerTryRegisterUserRequest), ReplyMessage = typeof(IUserManagerTryRegisterUserReply))]
 		public static async Task<Message> TryRegisterUser(IMessageFactory msgFactory, object target, Message input)
 		{
-			var msg = (IChatManagerTryRegisterUserRequest)input;
-			var retVal = await ((IChatManager)target).TryRegisterUser(msg.name);
-			//var retMsg = msgFactory.New<IChatManagerTryRegisterUserReply>();
-			var retMsg = new IChatManagerTryRegisterUserReply();
+			var msg = (IUserManagerTryRegisterUserRequest)input;
+			var retVal = await ((IUserManager)target).TryRegisterUser(msg.name);
+			//var retMsg = msgFactory.New<IUserManagerTryRegisterUserReply>();
+			var retMsg = new IUserManagerTryRegisterUserReply();
 			retMsg.RetVal = retVal;
 			return retMsg;
 		}
 		public void UnregisterUser ( UInt32 id )
 		{
-			//var request = MessageFactory.New< IChatManagerUnregisterUserRequest >();
-			var request = new IChatManagerUnregisterUserRequest();
+			//var request = MessageFactory.New< IUserManagerUnregisterUserRequest >();
+			var request = new IUserManagerUnregisterUserRequest();
 			request.id=id;
-			ExecuteOneWayServiceOperation(request);
+			ExecuteOneWayOperation(request);
 			//MessageFactory.Free(request);
 		}
-		[NetOperationDispatcher(RequestMessage = typeof(IChatManagerUnregisterUserRequest), ReplyMessage = null)]
+		[NetOperationDispatcher(RequestMessage = typeof(IUserManagerUnregisterUserRequest), ReplyMessage = null)]
 		public static async Task<Message> UnregisterUser(IMessageFactory msgFactory, object target, Message input)
 		{
-			var msg = (IChatManagerUnregisterUserRequest)input;
-			((IChatManager)target).UnregisterUser(msg.id);
+			var msg = (IUserManagerUnregisterUserRequest)input;
+			((IUserManager)target).UnregisterUser(msg.id);
 			return null;
-		}
-		public async Task< List<ChatRoomInfo> > GetRooms (  )
-		{
-			//var request = MessageFactory.New< IChatManagerGetRoomsRequest >();
-			var request = new IChatManagerGetRoomsRequest();
-			Message reply = await ExecuteServiceOperation(request);
-			var ret = ((IChatManagerGetRoomsReply)reply).RetVal;
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
-			return ret;
-		}
-		[NetOperationDispatcher(RequestMessage = typeof(IChatManagerGetRoomsRequest), ReplyMessage = typeof(IChatManagerGetRoomsReply))]
-		public static async Task<Message> GetRooms(IMessageFactory msgFactory, object target, Message input)
-		{
-			var msg = (IChatManagerGetRoomsRequest)input;
-			var retVal = await ((IChatManager)target).GetRooms();
-			//var retMsg = msgFactory.New<IChatManagerGetRoomsReply>();
-			var retMsg = new IChatManagerGetRoomsReply();
-			retMsg.RetVal = retVal;
-			return retMsg;
-		}
-		public async Task< UInt32 > GetOrCreateRoom ( String roomName )
-		{
-			//var request = MessageFactory.New< IChatManagerGetOrCreateRoomRequest >();
-			var request = new IChatManagerGetOrCreateRoomRequest();
-			request.roomName=roomName;
-			Message reply = await ExecuteServiceOperation(request);
-			var ret = ((IChatManagerGetOrCreateRoomReply)reply).RetVal;
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
-			return ret;
-		}
-		[NetOperationDispatcher(RequestMessage = typeof(IChatManagerGetOrCreateRoomRequest), ReplyMessage = typeof(IChatManagerGetOrCreateRoomReply))]
-		public static async Task<Message> GetOrCreateRoom(IMessageFactory msgFactory, object target, Message input)
-		{
-			var msg = (IChatManagerGetOrCreateRoomRequest)input;
-			var retVal = await ((IChatManager)target).GetOrCreateRoom(msg.roomName);
-			//var retMsg = msgFactory.New<IChatManagerGetOrCreateRoomReply>();
-			var retMsg = new IChatManagerGetOrCreateRoomReply();
-			retMsg.RetVal = retVal;
-			return retMsg;
-		}
-		public async Task< Boolean > DeleteRoom ( UInt32 roomId )
-		{
-			//var request = MessageFactory.New< IChatManagerDeleteRoomRequest >();
-			var request = new IChatManagerDeleteRoomRequest();
-			request.roomId=roomId;
-			Message reply = await ExecuteServiceOperation(request);
-			var ret = ((IChatManagerDeleteRoomReply)reply).RetVal;
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
-			return ret;
-		}
-		[NetOperationDispatcher(RequestMessage = typeof(IChatManagerDeleteRoomRequest), ReplyMessage = typeof(IChatManagerDeleteRoomReply))]
-		public static async Task<Message> DeleteRoom(IMessageFactory msgFactory, object target, Message input)
-		{
-			var msg = (IChatManagerDeleteRoomRequest)input;
-			var retVal = await ((IChatManager)target).DeleteRoom(msg.roomId);
-			//var retMsg = msgFactory.New<IChatManagerDeleteRoomReply>();
-			var retMsg = new IChatManagerDeleteRoomReply();
-			retMsg.RetVal = retVal;
-			return retMsg;
 		}
 	}
 	[NetProxy(ContractTypeId = 4011898469, ContractType = typeof(IChatRoom))]
-	public sealed class IChatRoomProxy : NodeServiceProxy, IChatRoom
+	public sealed class IChatRoomProxy : NetProxy, IChatRoom
 	{
 		public async Task< List<ChatUserInfo> > GetUsersInside (  )
 		{
 			//var request = MessageFactory.New< IChatRoomGetUsersInsideRequest >();
 			var request = new IChatRoomGetUsersInsideRequest();
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((IChatRoomGetUsersInsideReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
@@ -370,7 +285,7 @@ namespace Protocol.Generated
 			//var request = MessageFactory.New< IChatRoomAwaitUserRequest >();
 			var request = new IChatRoomAwaitUserRequest();
 			request.user=user;
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((IChatRoomAwaitUserReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
@@ -391,7 +306,7 @@ namespace Protocol.Generated
 			//var request = MessageFactory.New< IChatRoomRemoveUserRequest >();
 			var request = new IChatRoomRemoveUserRequest();
 			request.userId=userId;
-			Message reply = await ExecuteServiceOperation(request);
+			Message reply = await ExecuteOperation(request);
 			var ret = ((IChatRoomRemoveUserReply)reply).RetVal;
 			//MessageFactory.Free(reply);
 			//MessageFactory.Free(request);
@@ -479,7 +394,7 @@ namespace Protocol.Generated
     }
     public sealed class IChatServiceGetRoomsReply : Message
     {
-        public List<ChatRoomInfo> RetVal;
+        public List<String> RetVal;
 
         public override uint Id
         {
@@ -494,7 +409,7 @@ namespace Protocol.Generated
                 w.Write(true);
                 w.Write((int)RetVal.Count);
                 foreach(var element in RetVal)
-                    ChatRoomInfoSerializer.Serialize(element, w);
+                    w.Write(element);
             }
             else
                 w.Write(false);
@@ -510,10 +425,10 @@ namespace Protocol.Generated
                 else
                 {
                     int lenght = r.ReadInt32();
-                    var list = new List<ChatRoomInfo>(lenght);
+                    var list = new List<String>(lenght);
                     for(int i = 0; i < lenght; i++)
                     {
-                        var x = ChatRoomInfoSerializer.Deserialize(r);
+                        var x = r.ReadString();
                         list.Add(x);
                     }
                     RetVal = list;
@@ -555,54 +470,6 @@ namespace Protocol.Generated
         public override uint Id
         {
             get { return 1860964580; }
-        }
-
-        public override void Serialize(BinaryWriter w)
-        {
-            base.Serialize(w);
-            JoinRoomResponseSerializer.Serialize(RetVal, w);
-        }
-
-        public override void Deserialize(BinaryReader r)
-        {
-            base.Deserialize(r);
-            RetVal = JoinRoomResponseSerializer.Deserialize(r);
-        }
-
-        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
-        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
-    }
-    public sealed class IChatServiceJoinRoomRequest : Message
-    {
-        public UInt32 roomId;
-
-        public override uint Id
-        {
-            get { return 4139561538; }
-        }
-
-        public override void Serialize(BinaryWriter w)
-        {
-            base.Serialize(w);
-            w.Write(roomId);
-        }
-
-        public override void Deserialize(BinaryReader r)
-        {
-            base.Deserialize(r);
-            roomId = r.ReadUInt32();
-        }
-
-        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
-        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
-    }
-    public sealed class IChatServiceJoinRoomReply : Message
-    {
-        public JoinRoomResponse RetVal;
-
-        public override uint Id
-        {
-            get { return 693987992; }
         }
 
         public override void Serialize(BinaryWriter w)
@@ -738,7 +605,7 @@ namespace Protocol.Generated
     }
     public sealed class IChatRoomServiceCallbackOnRoomMessageRequest : Message
     {
-        public UInt32 roomId;
+        public String roomName;
         public String message;
 
         public override uint Id
@@ -749,27 +616,27 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            w.Write(roomId);
+            w.Write(roomName);
             w.Write(message);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            roomId = r.ReadUInt32();
+            roomName = r.ReadString();
             message = r.ReadString();
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
-    public sealed class IChatManagerGetUserRequest : Message
+    public sealed class IUserManagerGetUserRequest : Message
     {
         public String name;
 
         public override uint Id
         {
-            get { return 599658246; }
+            get { return 3814590393; }
         }
 
         public override void Serialize(BinaryWriter w)
@@ -787,13 +654,13 @@ namespace Protocol.Generated
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
-    public sealed class IChatManagerGetUserReply : Message
+    public sealed class IUserManagerGetUserReply : Message
     {
         public ChatUserInfo RetVal;
 
         public override uint Id
         {
-            get { return 855131526; }
+            get { return 1331483126; }
         }
 
         public override void Serialize(BinaryWriter w)
@@ -811,13 +678,13 @@ namespace Protocol.Generated
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
-    public sealed class IChatManagerTryRegisterUserRequest : Message
+    public sealed class IUserManagerTryRegisterUserRequest : Message
     {
         public String name;
 
         public override uint Id
         {
-            get { return 78289361; }
+            get { return 3826256710; }
         }
 
         public override void Serialize(BinaryWriter w)
@@ -835,13 +702,13 @@ namespace Protocol.Generated
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
-    public sealed class IChatManagerTryRegisterUserReply : Message
+    public sealed class IUserManagerTryRegisterUserReply : Message
     {
         public ChatUserInfo RetVal;
 
         public override uint Id
         {
-            get { return 2842931784; }
+            get { return 1261048400; }
         }
 
         public override void Serialize(BinaryWriter w)
@@ -859,13 +726,13 @@ namespace Protocol.Generated
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
-    public sealed class IChatManagerUnregisterUserRequest : Message
+    public sealed class IUserManagerUnregisterUserRequest : Message
     {
         public UInt32 id;
 
         public override uint Id
         {
-            get { return 2572877251; }
+            get { return 4107410130; }
         }
 
         public override void Serialize(BinaryWriter w)
@@ -878,170 +745,6 @@ namespace Protocol.Generated
         {
             base.Deserialize(r);
             id = r.ReadUInt32();
-        }
-
-        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
-        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
-    }
-    public sealed class IChatManagerGetRoomsRequest : Message
-    {
-
-        public override uint Id
-        {
-            get { return 2417978606; }
-        }
-
-        public override void Serialize(BinaryWriter w)
-        {
-            base.Serialize(w);
-        }
-
-        public override void Deserialize(BinaryReader r)
-        {
-            base.Deserialize(r);
-        }
-
-        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
-        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
-    }
-    public sealed class IChatManagerGetRoomsReply : Message
-    {
-        public List<ChatRoomInfo> RetVal;
-
-        public override uint Id
-        {
-            get { return 2603755715; }
-        }
-
-        public override void Serialize(BinaryWriter w)
-        {
-            base.Serialize(w);
-            if(RetVal != null)
-            {
-                w.Write(true);
-                w.Write((int)RetVal.Count);
-                foreach(var element in RetVal)
-                    ChatRoomInfoSerializer.Serialize(element, w);
-            }
-            else
-                w.Write(false);
-        }
-
-        public override void Deserialize(BinaryReader r)
-        {
-            base.Deserialize(r);
-            {
-                bool isNotNull = r.ReadBoolean();
-                if(!isNotNull)
-                    RetVal = null;
-                else
-                {
-                    int lenght = r.ReadInt32();
-                    var list = new List<ChatRoomInfo>(lenght);
-                    for(int i = 0; i < lenght; i++)
-                    {
-                        var x = ChatRoomInfoSerializer.Deserialize(r);
-                        list.Add(x);
-                    }
-                    RetVal = list;
-                }
-            }
-        }
-
-        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
-        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
-    }
-    public sealed class IChatManagerGetOrCreateRoomRequest : Message
-    {
-        public String roomName;
-
-        public override uint Id
-        {
-            get { return 1850635672; }
-        }
-
-        public override void Serialize(BinaryWriter w)
-        {
-            base.Serialize(w);
-            w.Write(roomName);
-        }
-
-        public override void Deserialize(BinaryReader r)
-        {
-            base.Deserialize(r);
-            roomName = r.ReadString();
-        }
-
-        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
-        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
-    }
-    public sealed class IChatManagerGetOrCreateRoomReply : Message
-    {
-        public UInt32 RetVal;
-
-        public override uint Id
-        {
-            get { return 3183698915; }
-        }
-
-        public override void Serialize(BinaryWriter w)
-        {
-            base.Serialize(w);
-            w.Write(RetVal);
-        }
-
-        public override void Deserialize(BinaryReader r)
-        {
-            base.Deserialize(r);
-            RetVal = r.ReadUInt32();
-        }
-
-        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
-        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
-    }
-    public sealed class IChatManagerDeleteRoomRequest : Message
-    {
-        public UInt32 roomId;
-
-        public override uint Id
-        {
-            get { return 3478560237; }
-        }
-
-        public override void Serialize(BinaryWriter w)
-        {
-            base.Serialize(w);
-            w.Write(roomId);
-        }
-
-        public override void Deserialize(BinaryReader r)
-        {
-            base.Deserialize(r);
-            roomId = r.ReadUInt32();
-        }
-
-        public override MessagePriority Priority { get { return MessagePriority.Medium; } }
-        public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
-    }
-    public sealed class IChatManagerDeleteRoomReply : Message
-    {
-        public Boolean RetVal;
-
-        public override uint Id
-        {
-            get { return 85503512; }
-        }
-
-        public override void Serialize(BinaryWriter w)
-        {
-            base.Serialize(w);
-            w.Write(RetVal);
-        }
-
-        public override void Deserialize(BinaryReader r)
-        {
-            base.Deserialize(r);
-            RetVal = r.ReadBoolean();
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -1219,30 +922,21 @@ namespace Protocol.Generated
 		AlreadyRegistered = 2,
 	}
 	
-	public enum JoinRoomInvalidRetCode : int
-	{
-		RoomNotFound = 0,
-		ClientNotAwaited = 1,
-	}
-	
 	[DataContract]
 	public class JoinRoomResponse
 	{
 		[DataMember]
-		public UInt32 RoomId;
+		public UInt32 RoomActorId;
 		[DataMember]
 		public Int64 Ticket;
 		[DataMember]
 		public String ServerEndpoint;
 	}
 	
-	[DataContract]
-	public class ChatRoomInfo
+	public enum JoinRoomInvalidRetCode : int
 	{
-		[DataMember]
-		public UInt32 Id;
-		[DataMember]
-		public String Name;
+		RoomNotFound = 0,
+		ClientNotAwaited = 1,
 	}
 	
 	[DataContract]
@@ -1264,7 +958,7 @@ namespace Protocol.Generated
                 return;
             }
             w.Write(true);
-            w.Write(x.RoomId);
+            w.Write(x.RoomActorId);
             w.Write(x.Ticket);
             w.Write(x.ServerEndpoint);
         }
@@ -1277,37 +971,9 @@ namespace Protocol.Generated
                     return null;
             }
             var ret = new JoinRoomResponse();
-            ret.RoomId = r.ReadUInt32();
+            ret.RoomActorId = r.ReadUInt32();
             ret.Ticket = r.ReadInt64();
             ret.ServerEndpoint = r.ReadString();
-            return ret;
-        }
-    }
-	
-    public static class ChatRoomInfoSerializer	
-    {
-        public static void Serialize(ChatRoomInfo x, BinaryWriter w)
-        {
-            if(x == null)
-            {
-                w.Write(false);
-                return;
-            }
-            w.Write(true);
-            w.Write(x.Id);
-            w.Write(x.Name);
-        }
-        
-        public static ChatRoomInfo Deserialize(BinaryReader r)
-        {
-            {
-                bool isNotNull = r.ReadBoolean();
-                if(!isNotNull)
-                    return null;
-            }
-            var ret = new ChatRoomInfo();
-            ret.Id = r.ReadUInt32();
-            ret.Name = r.ReadString();
             return ret;
         }
     }

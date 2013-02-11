@@ -204,7 +204,7 @@ bool RakPeerInterface::PumpEvents()
             if(_channels->TryGetValue(np->systemAddress.systemIndex, channel))
             {
 				_stream->Position = 0;
-				_stream->Write(_buff, 1, _buff->Length-1);
+				_stream->Write(_buff, 1, np->length-1);
 				_stream->Position = 0;
                 channel->ChannelListener->OnNetData(_reader);
             }
