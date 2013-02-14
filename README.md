@@ -1,4 +1,4 @@
-##NOTE: Many things have changed and this doc is quite outdated, better look at Chat Sample for insight
+##NOTE: Many things have changed and this doc is quite outdated, better look at SampleServer for insight
 ##General Info
 This is C# server framework for small to large mmo's where you need both reliable and unreliable transport, request/reply and full duplex communications,
 with the idea that communication between clients and servers is made in form of asynchroneous RPC calls to some services
