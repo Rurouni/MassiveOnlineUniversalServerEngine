@@ -1,6 +1,7 @@
 ##General Info
 This is high level C# server framework for small to large mmo's where you need both reliable and unreliable transport, request/reply and full duplex communications, with the idea that client-server and server-server communication is done
 in form of asynchronous RPC calls to actors implementing some protocol contract(attributed C# interface). As low level internal transport currently RakNet, Photon and Lidgren are supported. Idea is that if you split you domain model into actors from beforehand then later you will be able to automatically horizontally scale as actors could be distributed across nodes. But in the beginning you can start small with only one node having all performance you can get from one machine as actors communicating on the same node do not use network just putting messages to each other input queue.
+
 ##Concepts
 On high level any project using MOUSE consists from such steps:
 + Protocol:  you define protocol as set of interfaces. Any custom types you want to use in interfaces you define here as attributed POCOs.
@@ -32,46 +33,56 @@ If you know WCF everything above sounds quite familiar. So you can ask why we ne
 Each actor and Peer has own logical fiber you can rely on this and forget about writing locks. This works even if you call any async method on actor proxy, fiber waits until Task of result is finished before starting processing another message. If you know that operation doesn't change anything you could attribute it with LockLevel.Read and all Read level operations could be processed simultaneously.
 Actors implementing same protocol contract are considered a group and each group of actors has own actor coordinator that is responsible for preserving consistency of the view of the actor group across all nodes in cluster. Actor coordinator also responsible for creating/removing actors on other nodes. Default actor coordinator uses Isis2 (http://isis2.codeplex.com/) internally and guarantees that only one actor with same name exist across all cluster at any moment of time. New actors are created at random nodes by default.
 
-##Main aspects
-
 + Building primitives are:
-	+ NodeService subclass
+	+ Actor subclass
 		+ has some messaging contract in form of implemented interfaces
- 		+ Id is used for distribution in a cluster
-   		+ could be moved anywhere/anytime in a cluster, so it could be externally accessible only over proxy 
-     		+ OperationContex could be used to store client peer and send callback messages later
+ 		+ has Name and local node Id if created
+   		+ OperationContex could be used to store client peer and send callback messages later
  		+ auto persistance using provided IPersistanceProvider for attributed fields
 	+ C2SPeer subclass
 		+ has some messaging contract in form of implemented interfaces
-  		+ could manage exposed contracts using `SetHandler<>()` method
-		+ can manage client state and call internal services depending on that state
-+ All communications between C2S and S2S are asynchronous RPC (relies on async/await feature of 4.5 Framework)
-	+ async/await keeps code simple but return semantics for all methods in net contract is limited to:
-		+ `void` for one way methods,
+  		+ could manage exposed contracts using `SetHandler<TNetContract>(TNetContract handler)` method
+		+ manages client state and acts as mediator to other actors calls depending on that state
++ All communications are asynchronous RPC (relies on async/await feature of 4.5 Framework) of type
+		+ `void` for one way methods(hardcore ),
 		+ `Task`  if  you just want to wait for completion
 		+ `Task<ReplyType>` if we want to get something back
-  	+ each NodeService and C2SPeer has own logical fiber, with blocking chunks fired in thread pool
+  	+ each Actor and C2SPeer has own logical fiber, with blocking chunks fired in thread pool
 	+ each net contract method could be attributed with such lock levels:
 		+ None : processing happens on thread where net receive came
-		+ ReadReentrant : processing in thread pool simultaniously with other Read operations
-		+ WriteReentrant : sequential processing in thread pool(doesnt protect from state changes during async wait)
-		+ Full : no other operations would be processed until this one finishes (including all async cont)
-+ All messages, proxies and dispatchers are generated using t4 for maximum performance
-+ Currently supports Photon and RakNet as transport engines (binaries are not included in the project, only wrappers)
-
-##Roadmap
-1. **Basic networking** - done
-2. **Messages/Serialization generation** - done
-3. **Proxy/Dispatcher generation** - done
-4. **Single node server** - done
-5. **Multi node server** - done
-6. Automatical persistance for services
-7. cluster monitoring tools
-8. detailed problem analyzis tools (what service takes most CPU, operations processing times etc.)
+		+ Read : processing in thread pool simultaniously with other Read operations
+		+ Write : no other operations would be processed until this one finishes (including all async cont)
 
 
-## Example and details
-In ChatSample folder you can find simple chat server with rooms and basic user tracking as showcase
+##Features
++ Protocol generation from C# assembly via t4
+	+ Request\Reply messages are generated from interface methods
+	+ serialization is generated for all messages and any data types defined in protocol assembly
+	+ proxy/dispatcher is generated from each interface to allow mapping from method call to message and vice versa
+	+ statically defined protocol serialization results in maximum performance
++ several generators present
+	+ async: for server side(full 4.5 async/await power)
+	+ Unity3d: uses custom Future class and targets .Net 3.5 as Task is not available under Unity
++ High level dispatching core working on top of any transport library (you need only to implement 2 interfaces)
+	+Photon and RakNet and Lidgren already supported
++ Nodes discover each other and join into cluster via Isis2
+	+ cluster view is same across all nodes and is delivered via virtual synchrony epochs 
++ Actors are automatically distributed across nodes
++ Actors location is transparent as they are accessed via contracts defined in protocol
+	+ Single node server ensures max performance as local actors are communicating directly without network
+
+##Planned
+1. Send broadcasts and queries to group of actors of same type
+2. C++ client node and protocol generator
+3. Ability to persist actors in Redis
+4. ActorCoordinator that maintains required amount of replicas for each named actor
+
+
+
+## Tutorial (TBD)
+Look at projects named Sample, this is simple chat server with rooms and basic user tracking as showcase
+
+##OUTDATED (rework tutorial)
 ### Client
 First of all you need protocol described in some dll (SampleC2SProtocol)
 It should contain net contracts of such form:
@@ -80,15 +91,8 @@ It should contain net contracts of such form:
 [NetContract]
 public interface IChatService
 {
-	[NetOperation(Lock = LockType.ReadReentrant)]
-	Task<List<ChatRoomInfo>> GetRooms();
-	
-	[NetOperation]
-	Task<CreateRoomResponse> JoinOrCreateRoom(string roomName);
-	
-	/// <returns>Ticket</returns>
-	[NetOperation(InvalidRetCode = typeof(JoinRoomInvalidRetCode))]
-	Task<long> JoinRoom(uint roomId);
+	List<string> GetRooms();
+        JoinRoomResponse JoinOrCreateRoom(string roomName);
 }
 ```
 You also need to add t4 file that will generate all messages/proxies, look GeneratedDomain.tt, here you just need to define assemblies that contain your net contracts
