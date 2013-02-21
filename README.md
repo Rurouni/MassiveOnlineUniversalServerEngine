@@ -1,13 +1,36 @@
-##NOTE: Many things have changed and this doc is quite outdated, better look at SampleServer for insight
 ##General Info
-This is C# server framework for small to large mmo's where you need both reliable and unreliable transport, request/reply and full duplex communications,
-with the idea that communication between clients and servers is made in form of asynchroneous RPC calls to some services
-implementing some net contract(attributed C# interface). Each service has own logical thread and state. Client accesses a service
-using only service type Id and ServiceId. This allows a server team to start with a single server configuration and in case of need
-simply add new nodes and services will be redistributed automatically, without rewriting of game logic and restarting game server.
-But it won't scale if you have only one service that manages all, so you need to design your server approprietly,
-the more you partition your logic into different services more possibilities are to scale out.
+This is high level C# server framework for small to large mmo's where you need both reliable and unreliable transport, request/reply and full duplex communications, with the idea that client-server and server-server communication is done
+in form of asynchronous RPC calls to actors implementing some protocol contract(attributed C# interface). As low level internal transport currently RakNet, Photon and Lidgren are supported. Idea is that if you split you domain model into actors from beforehand then later you will be able to automatically horizontally scale as actors could be distributed across nodes. But in the beginning you can start small with only one node having all performance you can get from one machine as actors communicating on the same node do not use network just putting messages to each other input queue.
+##Concepts
+On high level any project using MOUSE consists from such steps:
++ Protocol:  you define protocol as set of interfaces. Any custom types you want to use in interfaces you define here as attributed POCOs.
++ Client:
+	+ You generate final protocol with help of platform specific t4 generator
+	+ You initialize ClientNode and connect to some endpoint and receive a channel
+	+ You use channel to get typed proxies of defined in protocol interfaces and call async methods on them(implementation of asynchrony would depend on which protocol generator you have used)
+	+ you implement callback interfaces if any and register your implementation with channel
++ Server:
+	+ You generate final protocol with help of async(Task based) t4 generator
+	+ You create inheritor from C2SPeer and register it with ServerNode, it will act as persistent connection to any client that has connected via external endpoint of this ServerNode
+	+ You create any amount of classes inherited from Actor depending on your design
+	+ You implement protocol interfaces from generated via t4 file. You have basically 2 choices here
+		+ You can implement them directly in your custom C2SPeer class
+		+ You can implement them inside one or many of your custom actor classes
+	+ For each custom actor type you define coordinator type
+    + You call actors from C2S peers or other actors, coordinators deals with locating/creating new actors in clustered setup
+    + You call client back via callback interfaces from custom C2SPeer or actors that you marked to be able to receive external connections
+	+ You start ServerNode configuring everything including what transport libraries use for internal and external connections
+	+ You add/remove nodes with this codebase depending on your load
 
+If you know WCF everything above sounds quite familiar. So you can ask why we need something else. There are several reasons why you would not choose WCF for MMO game:
++ WCF is general and huge, it supports all kinds of enterprise scenarios and you pay in performance for things games never need
++ WCF doesn't have reliable/unreliable UDP transport from a box,  many online games need both reliable and unreliable traffic and easy way of defining which message is reliable and which not.
++ Have fun consuming WCF services from C++ clients or old mono runtimes like Unity3d
++ WCF doesn't help you with coordination or consistent group views or multicasts, maximum scalability that you can get with WCF is when you have setup like this: hardware load balancer in front and set of stateless WCF services with same contract in the back. Have fun implementing open world MMO with such setup.
+
+##Details
+Each actor and Peer has own logical fiber you can rely on this and forget about writing locks. This works even if you call any async method on actor proxy, fiber waits until Task of result is finished before starting processing another message. If you know that operation doesn't change anything you could attribute it with LockLevel.Read and all Read level operations could be processed simultaneously.
+Actors implementing same protocol contract are considered a group and each group of actors has own actor coordinator that is responsible for preserving consistency of the view of the actor group across all nodes in cluster. Actor coordinator also responsible for creating/removing actors on other nodes. Default actor coordinator uses Isis2 (http://isis2.codeplex.com/) internally and guarantees that only one actor with same name exist across all cluster at any moment of time. New actors are created at random nodes by default.
 
 ##Main aspects
 
