@@ -9,12 +9,13 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using Autofac;
 using Isis;
+using Lidgren.Network;
+using LidgrenWrap;
 using MOUSE.Core;
 using MOUSE.Core.Actors;
 using MOUSE.Core.NodeCoordination;
 using NLog;
 using Protocol.Generated;
-using RakNetWrapper;
 using SampleServer;
 
 namespace SampleServerConsoleHost
@@ -78,9 +79,22 @@ namespace SampleServerConsoleHost
             builder.RegisterType<ActorRepository>().As<IActorRepository>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
 
+            var externalNetConf = new NetPeerConfiguration("ChatApp")
+                {
+                    ConnectionTimeout = 10000,
+                    Port = externalEndpoint.Port,
+                    LocalAddress = externalEndpoint.Address
+                };
+            var internalNetConf = new NetPeerConfiguration("ChatApp")
+            {
+                ConnectionTimeout = 10000,
+                Port = internalEndpoint.Port,
+                LocalAddress = internalEndpoint.Address
+            };
+            
             builder.Register(c => new ServerNode(
-                    new RakPeerInterface(externalEndpoint, 10000),
-                    new RakPeerInterface(internalEndpoint, 10000),
+                    new LidgrenNetProvider(externalNetConf),
+                    new LidgrenNetProvider(internalNetConf),
                     coordinator,
                     c.Resolve<IMessageFactory>(), c.Resolve<IOperationDispatcher>(), c.Resolve<IActorRepository>(), () => new ChatClient()))
                 .As<IServerNode>().SingleInstance();

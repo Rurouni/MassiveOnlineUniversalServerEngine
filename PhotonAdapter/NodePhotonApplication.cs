@@ -178,9 +178,7 @@ namespace PhotonAdapter
 
         public void Send(Message msg)
         {
-            BinaryWriter writer = msg.GetSerialized();
-            var arr = new byte[writer.Position];
-            Array.Copy(writer.Buff, arr, writer.Position); //TODO:need workaround
+            var arr = msg.GetSerialized();;
             var data = new Dictionary<byte, object>();
             data[0] = arr;
 

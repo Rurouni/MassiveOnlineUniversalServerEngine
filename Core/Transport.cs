@@ -12,6 +12,8 @@ namespace MOUSE.Core
         bool Init(INetChannelConsumer factory);
         void Shutdown();
         void Connect(IPEndPoint target);
+        
+        /// <returns>if caller should continue polling, false to stop</returns>
         bool PumpEvents();
         IPEndPoint EndPoint{get;}
     }
@@ -22,7 +24,7 @@ namespace MOUSE.Core
     }
 
     /// <summary>
-    /// assumes sequential calling
+    /// methods are called on network receiving thread and you should not delay BinaryReader usage
     /// </summary>
     public interface INetChannelListener
     {

@@ -12,6 +12,8 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Net;
+using Lidgren.Network;
+using LidgrenWrap;
 using MOUSE.Core;
 using PhotonClientWrap;
 using System.Threading.Tasks;
@@ -22,7 +24,6 @@ using Protocol.Generated;
 using System.Reflection;
 using System.Reactive.Linq;
 using System.Reactive.Threading;
-using RakNetWrapper;
 using System.Reactive.Concurrency;
 
 namespace SampleWPFClient
@@ -67,7 +68,12 @@ namespace SampleWPFClient
             builder.RegisterType<OperationDispatcher>().As<IOperationDispatcher>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
             //builder.Register(c => new PhotonNetClient("MouseChat")).As<INetProvider>().SingleInstance();
-            builder.RegisterType<RakPeerInterface>().As<INetProvider>().SingleInstance();
+            var netConf = new NetPeerConfiguration("ChatApp")
+            {
+                ConnectionTimeout = 10000,
+            };
+
+            builder.Register(x => new LidgrenNetProvider(netConf)).As<INetProvider>().SingleInstance();
             builder.RegisterType<ClientNode>().As<IClientNode>();
             var container = builder.Build();
             
