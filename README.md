@@ -12,7 +12,7 @@ in form of asynchronous RPC calls to actors implementing some protocol contract(
 	+ async: for server side(full 4.5 async/await power)
 	+ Unity3d: uses custom Future class and targets .Net 3.5 as Task is not available under Unity
 + High level dispatching core working on top of any transport library (you need only to implement 2 interfaces)
-	+Photon and RakNet and Lidgren already supported
+	+ Photon and RakNet and Lidgren already supported
 + Nodes discover each other and join into cluster via Isis2
 	+ cluster view is same across all nodes and is delivered via virtual synchrony epochs 
 + Actors are automatically distributed across nodes
