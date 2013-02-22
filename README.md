@@ -2,6 +2,23 @@
 This is high level C# server framework for small to large mmo's where you need both reliable and unreliable transport, request/reply and full duplex communications, with the idea that client-server and server-server communication is done
 in form of asynchronous RPC calls to actors implementing some protocol contract(attributed C# interface). As low level internal transport currently RakNet, Photon and Lidgren are supported. Idea is that if you split you domain model into actors from beforehand then later you will be able to automatically horizontally scale as actors could be distributed across nodes. But in the beginning you can start small with only one node having all performance you can get from one machine as actors communicating on the same node do not use network just putting messages to each other input queue.
 
+##Features
++ Protocol generation from C# assembly via t4
+	+ Request\Reply messages are generated from interface methods
+	+ serialization is generated for all messages and any data types defined in protocol assembly
+	+ proxy/dispatcher is generated from each interface to allow mapping from method call to message and vice versa
+	+ statically defined protocol serialization results in maximum performance
++ several generators present
+	+ async: for server side(full 4.5 async/await power)
+	+ Unity3d: uses custom Future class and targets .Net 3.5 as Task is not available under Unity
++ High level dispatching core working on top of any transport library (you need only to implement 2 interfaces)
+	+Photon and RakNet and Lidgren already supported
++ Nodes discover each other and join into cluster via Isis2
+	+ cluster view is same across all nodes and is delivered via virtual synchrony epochs 
++ Actors are automatically distributed across nodes
++ Actors location is transparent as they are accessed via contracts defined in protocol
+	+ Single node server ensures max performance as local actors are communicating directly without network
+
 ##Concepts
 On high level any project using MOUSE consists from such steps:
 + Protocol:  you define protocol as set of interfaces. Any custom types you want to use in interfaces you define here as attributed POCOs.
@@ -52,23 +69,6 @@ Actors implementing same protocol contract are considered a group and each group
 		+ Read : processing in thread pool simultaniously with other Read operations
 		+ Write : no other operations would be processed until this one finishes (including all async cont)
 
-
-##Features
-+ Protocol generation from C# assembly via t4
-	+ Request\Reply messages are generated from interface methods
-	+ serialization is generated for all messages and any data types defined in protocol assembly
-	+ proxy/dispatcher is generated from each interface to allow mapping from method call to message and vice versa
-	+ statically defined protocol serialization results in maximum performance
-+ several generators present
-	+ async: for server side(full 4.5 async/await power)
-	+ Unity3d: uses custom Future class and targets .Net 3.5 as Task is not available under Unity
-+ High level dispatching core working on top of any transport library (you need only to implement 2 interfaces)
-	+Photon and RakNet and Lidgren already supported
-+ Nodes discover each other and join into cluster via Isis2
-	+ cluster view is same across all nodes and is delivered via virtual synchrony epochs 
-+ Actors are automatically distributed across nodes
-+ Actors location is transparent as they are accessed via contracts defined in protocol
-	+ Single node server ensures max performance as local actors are communicating directly without network
 
 ##Planned
 1. Send broadcasts and queries to group of actors of same type
