@@ -30,7 +30,7 @@ On high level any project using MOUSE consists from such steps:
 + Server:
 	+ You generate final protocol with help of async(Task based) t4 generator
 	+ You create inheritor from C2SPeer and register it with ServerNode, it will act as persistent connection to any client that has connected via external endpoint of this ServerNode
-	+ You create any amount of classes inherited from Actor depending on your design
+	+ You create any amount of classes inherited from Actor depending on your design(those would be bread and butter of your future scalability)
 	+ You implement protocol interfaces from generated via t4 file. You have basically 2 choices here
 		+ You can implement them directly in your custom C2SPeer class
 		+ You can implement them inside one or many of your custom actor classes
