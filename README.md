@@ -13,9 +13,9 @@ in form of asynchronous RPC calls to actors implementing some protocol contract(
 	+ Unity3d: uses custom Future class and targets .Net 3.5 as Task is not available under Unity
 + High level dispatching core working on top of any transport library (you need only to implement 2 interfaces)
 	+ Photon and RakNet and Lidgren already supported
-+ Nodes discover each other and join into cluster via Isis2
++ Nodes discover each other and join into cluster via INodeCoordinator (default one uses Isis2)
 	+ cluster view is same across all nodes and is delivered via virtual synchrony epochs 
-+ Actors are automatically distributed across nodes
++ Actors are automatically distributed and managed across nodes via IActorCoordinator for each group of actors (default one uses Isis2)
 + Actors location is transparent as they are accessed via contracts defined in protocol
 	+ Single node server ensures max performance as local actors are communicating directly without network
 
@@ -60,14 +60,14 @@ Actors implementing same protocol contract are considered a group and each group
   		+ could manage exposed contracts using `SetHandler<TNetContract>(TNetContract handler)` method
 		+ manages client state and acts as mediator to other actors calls depending on that state
 + All communications are asynchronous RPC (relies on async/await feature of 4.5 Framework) of type
-		+ `void` for one way methods(hardcore ),
-		+ `Task`  if  you just want to wait for completion
-		+ `Task<ReplyType>` if we want to get something back
-  	+ each Actor and C2SPeer has own logical fiber, with blocking chunks fired in thread pool
-	+ each net contract method could be attributed with such lock levels:
-		+ None : processing happens on thread where net receive came
-		+ Read : processing in thread pool simultaniously with other Read operations
-		+ Write : no other operations would be processed until this one finishes (including all async cont)
+	+ `Task<ReplyType>` if we want to get something back
+	+ `Task`  if  you just want to wait for completion on other side
+	+ `void` for one way non-async methods only(use with care as received message is recycled immediately upon control returns to proxy),
++ each Actor and C2SPeer has own logical fiber, with blocking chunks fired in thread pool
++ each net contract method could be attributed with such lock levels:
+	+ None : processing happens on thread where net receive came
+	+ Read : processing in thread pool simultaniously with other Read operations
+	+ Write : no other operations would be processed until this one finishes (including all async cont)
 
 
 ##Planned
@@ -75,6 +75,7 @@ Actors implementing same protocol contract are considered a group and each group
 2. C++ client node and protocol generator
 3. Ability to persist actors in Redis
 4. ActorCoordinator that maintains required amount of replicas for each named actor
+5. Zookeeper based actor and node coordinators
 
 
 
