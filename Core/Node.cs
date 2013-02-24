@@ -187,7 +187,7 @@ namespace MOUSE.Core
         public virtual TNetPeer CreatePeer(INetChannel channel)
         {
             var peer = PeerFactory();
-            peer.Init(channel, (INetNode<INetPeer>)this);
+            peer.Init(channel, this);
             return peer;
         }
 
@@ -226,7 +226,7 @@ namespace MOUSE.Core
                                     {
                                         PendingConnection cont;
                                         if (_pendingConnections.TryRemove(key, out cont))
-                                            cont.TCS.SetException(new Exception("Cant connect to -" + key));
+                                            cont.TCS.SetException(new ConnectionFailedException(key));
                                     });
                             return val;
                         },

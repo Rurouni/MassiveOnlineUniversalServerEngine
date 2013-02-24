@@ -21,8 +21,7 @@ namespace Core.Tests
 
         public EntityOperationDispatcherTests()
         {
-            _protocolDesc = new OperationDispatcher(Substitute.For<IMessageFactory>(),
-                new NetProxy[] { new ISomeServiceProxy() });
+            _protocolDesc = new OperationDispatcher(new MessageFactory(ProtocolDescription.GetAllMessages()), ProtocolDescription.GetAllProxies() );
         }
 
         [Fact]
@@ -37,7 +36,7 @@ namespace Core.Tests
                 .With(x => x.SomeArrString, fixture.CreateMany<string>().ToList())
                 .With(x => x.SomeArrRec, fixture.CreateMany<SubData>().ToList()));
 
-            ISomeServiceComplexRequest inputMsg = fixture.CreateAnonymous<ISomeServiceComplexRequest>();
+            var inputMsg = fixture.CreateAnonymous<ISomeServiceComplexRequest>();
             var output = inputMsg.data;
             
             var tcs = new TaskCompletionSource<ComplexData>();

@@ -1,22 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
-using System.Runtime.ConstrainedExecution;
+using MOUSE.Core;
 using MOUSE.Core.Actors;
 using NLog;
-using System.Reflection;
 
-namespace MOUSE.Core
+namespace MOUSE.Unity
 {
     public interface IOperationDispatcher
     {
-        Task<Message> Dispatch(object target, Message msg);
         void DispatchOneWay(object target, Message msg);
-        NetProxy CreateProxy(uint contractId, IMessageFactory messageFactory, IOperationExecutor executor, ActorKey? actorKey = null);
+        NetProxy CreateProxy(uint serviceKey, IMessageFactory messageFactory, INetPeer peer, ActorKey? actorKey = null);
 
         uint GetContractId(Type contractType);
         bool TryGetContractId(Type contractType, out uint typeId);
@@ -28,19 +22,16 @@ namespace MOUSE.Core
 
     public class OperationDispatcher : IOperationDispatcher
     {
-        private readonly Logger Log = LogManager.GetCurrentClassLogger();
+        Logger Log = LogManager.GetLogger("OperationDispatcher");
 
         private readonly Dictionary<uint, NetContractDescription> _descByTypeId = new Dictionary<uint, NetContractDescription>();
         private readonly Dictionary<uint, NetContractDescription> _descByMessageId = new Dictionary<uint, NetContractDescription>();
-        private readonly Dictionary<uint, Func<IMessageFactory, object, Message, Task<Message>>> _dispatcherByMsgId = new Dictionary<uint, Func<IMessageFactory, object, Message, Task<Message>>>();
+        private readonly Dictionary<uint, Func<IMessageFactory, object, Message, Message>> _dispatcherByMsgId = new Dictionary<uint, Func<IMessageFactory, object, Message, Message>>();
         private readonly Dictionary<Type, uint> _contractIdByContractType = new Dictionary<Type, uint>();
         private readonly IMessageFactory _messageFactory;
 
         public OperationDispatcher(IMessageFactory msgfactory, IEnumerable<NetProxy> importedProxies)
         {
-            Contract.Requires(importedProxies != null);
-            Contract.Requires(msgfactory != null);
-
             _messageFactory = msgfactory;
 
             foreach (var proxy in importedProxies)
@@ -55,13 +46,13 @@ namespace MOUSE.Core
                     foreach (var method in type.GetMethods().Where(x => x.ContainsAttribute<NetOperationDispatcherAttribute>()))
                     {
                         var opAttr = method.GetAttribute<NetOperationDispatcherAttribute>();
-                        Message request = (Message)FormatterServices.GetUninitializedObject(opAttr.RequestMessage);
+                        Message request = (Message)Activator.CreateInstance(opAttr.RequestMessage);
                         uint? replyId = null;
                         if (opAttr.ReplyMessage != null)
-                            replyId = ((Message)FormatterServices.GetUninitializedObject(opAttr.ReplyMessage)).Id;
+                            replyId = ((Message)Activator.CreateInstance(opAttr.ReplyMessage)).Id;
                         var opDesc = new NetOperationDescription(
-                            method.Name, request.Id, replyId, (Func<IMessageFactory, object, Message, Task<Message>>)Delegate.CreateDelegate(
-                                                                            typeof(Func<IMessageFactory, object, Message, Task<Message>>), method));
+                            method.Name, request.Id, replyId, (Func<IMessageFactory, object, Message, Message>)Delegate.CreateDelegate(
+                                                                            typeof(Func<IMessageFactory, object, Message, Message>), method));
                         operations.Add(opDesc);
                     }
 
@@ -72,10 +63,9 @@ namespace MOUSE.Core
                 }
             }
         }
-        
+
         public void RegisterService(NetContractDescription desc)
         {
-            Contract.Requires(desc != null);
 
             _descByTypeId.Add(desc.TypeId, desc);
             _contractIdByContractType.Add(desc.ContractType, desc.TypeId);
@@ -83,7 +73,7 @@ namespace MOUSE.Core
             foreach (var operation in desc.Operations)
             {
                 _descByMessageId.Add(operation.RequestMessageId, desc);
-                if(operation.ReplyMessageId.HasValue)
+                if (operation.ReplyMessageId.HasValue)
                     _descByMessageId.Add(operation.ReplyMessageId.Value, desc);
                 _dispatcherByMsgId.Add(operation.RequestMessageId, operation.Dispatch);
             }
@@ -91,45 +81,31 @@ namespace MOUSE.Core
             Log.Info("Registered Entity<contractType:{0}, typeId:{1}>", desc.ContractType, desc.TypeId);
         }
 
-        public Task<Message> Dispatch(object service, Message msg)
+        //client supports only oneWay
+        public void DispatchOneWay(object service, Message msg)
         {
-            Contract.Requires(service != null);
-            Contract.Requires(msg != null);
-            Contract.Ensures(Contract.Result<Message>() != null);
-
-            Func<IMessageFactory, object, Message, Task<Message>> dispatch;
+            Func<IMessageFactory, object, Message, Message> dispatch;
             if (_dispatcherByMsgId.TryGetValue(msg.Id, out dispatch))
-                return dispatch(_messageFactory, service, msg);
+                dispatch(_messageFactory, service, msg);
             else
             {
-                var tcs = new TaskCompletionSource<Message>();
-                tcs.SetResult(new InvalidOperation((ushort)BasicErrorCode.DispatcherFuncNotFound, "Dispatcher func not found for MsgId:"+msg.Id));
-                return tcs.Task;
+                Log.Error("Dispatcher not found for MsgId:" + msg.Id);
             }
         }
 
-        public void DispatchOneWay(object service, Message msg)
-        {
-            Contract.Requires(service != null);
-            Contract.Requires(msg != null);
 
-            Func<IMessageFactory, object, Message, Task<Message>> dispatch;
-            if (_dispatcherByMsgId.TryGetValue(msg.Id, out dispatch))
-                dispatch(_messageFactory, service, msg);
-        }
-
-        public NetProxy CreateProxy(uint contractId, IMessageFactory messageFactory, IOperationExecutor executor, ActorKey? actorKey = null)
+        public NetProxy CreateProxy(uint serviceKey, IMessageFactory messageFactory, INetPeer peer, ActorKey? actorKey = null)
         {
             NetProxy proxy;
             NetContractDescription desc;
-            if (_descByTypeId.TryGetValue(contractId, out desc))
+            if (_descByTypeId.TryGetValue(serviceKey, out desc))
             {
-                proxy = (NetProxy)FormatterServices.GetUninitializedObject(desc.ProxyType);
-                proxy.Init(desc, messageFactory, executor, actorKey);
+                proxy = (NetProxy)Activator.CreateInstance(desc.ProxyType);
+                proxy.Init(serviceKey, desc, messageFactory, peer, actorKey);
             }
             else
-                throw new Exception("Unregistered entity typeId - " + contractId);
-            
+                throw new Exception("Unregistered entity typeId - " + serviceKey);
+
             return proxy;
         }
 
@@ -167,7 +143,7 @@ namespace MOUSE.Core
 
         public NetContractDescription GetContract<TNetContract>()
         {
-            uint contractId = GetContractId(typeof (TNetContract));
+            uint contractId = GetContractId(typeof(TNetContract));
             return GetContract(contractId);
         }
 
@@ -180,6 +156,4 @@ namespace MOUSE.Core
                 return null;
         }
     }
-
-    
 }

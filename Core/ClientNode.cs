@@ -115,9 +115,10 @@ namespace MOUSE.Core
     }
 
     /// <summary>
+    /// Represent connection from client to server on client side
     /// All server peer's share same fiber from client node
     /// </summary>
-    public class ServerPeer : NetPeer, IServerPeer
+    public class C2SPeer : NetPeer, IServerPeer
     {
         private Dictionary<uint, object> _handlersByNetContractId;
         private Dictionary<ActorProxyKey, NetProxy> _proxyCache;
@@ -154,11 +155,17 @@ namespace MOUSE.Core
             object handler;
             if (_handlersByNetContractId.TryGetValue(contractDesc.TypeId, out handler))
             {
-                //NOTE: doesnt support server->client request-reply, only one way notifications
-                Node.Dispatcher.Dispatch(handler, msg);
+                //NOTE: doesnt support server->client request-reply, only one way notifications that's why Task is not awaited
+                Task<Message> task = Node.Dispatcher.Dispatch(handler, msg);
+                if (task.Status != TaskStatus.RanToCompletion)
+                {
+                    Log.Warn("Client supports only one way callback you should never try to return something back from client to server");
+                }
             }
             else
                 Log.Warn("Handler for {0} is unregistered", msg);
+
+            MessageFactory.Free(msg);
         }
 
         public void SetHandler<TNetContract>(TNetContract implementer)
@@ -173,7 +180,7 @@ namespace MOUSE.Core
     /// <summary>
     /// uses internal Fiber to receive all continuations and process messages to achieve thread-safety and provide manual update loop(if needed)
     /// </summary>
-    public class ClientNode : NetNode<ServerPeer>, IClientNode
+    public class ClientNode : NetNode<C2SPeer>, IClientNode
     {
         public ClientFiber Fiber;
         

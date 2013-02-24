@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.ServiceModel.Channels;
 using System.Text;
-using System.Threading.Tasks;
 using Lidgren.Network;
 using MOUSE.Core;
 using NLog;
@@ -89,8 +88,10 @@ namespace LidgrenWrap
                                 _channels.Add(incomingMessage.SenderConnection.RemoteUniqueIdentifier, channel);
                                 break;
                             case NetConnectionStatus.Disconnecting:
+                                Log.Debug("Channel #{0} is disconnecting", incomingMessage.SenderConnection.RemoteUniqueIdentifier);
                                 break;
                             case NetConnectionStatus.Disconnected:
+                                Log.Debug("Channel #{0} has been disconnected", incomingMessage.SenderConnection.RemoteUniqueIdentifier);
                                 LidgrenNetChannel netChannel;
                                 if (_channels.TryGetValue(incomingMessage.SenderConnection.RemoteUniqueIdentifier, out netChannel))
                                 {

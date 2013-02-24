@@ -20,7 +20,7 @@ namespace SampleServer
         InRoom
     }
 
-    public class ChatClient : C2SPeer, IChatLogin, IChatService
+    public class ChatClient : S2CPeer, IChatLogin, IChatService
     {
         private ChatUserInfo _user;
 

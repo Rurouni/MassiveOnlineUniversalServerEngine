@@ -39,7 +39,7 @@ namespace SampleServerPhotonHost
                 .Where(x => x.IsAssignableTo<Actor>() && x != typeof(Actor))
                 .As<Actor>();
 
-            builder.RegisterType<ChatClient>().As<C2SPeer>();
+            builder.RegisterType<ChatClient>().As<S2CPeer>();
 
             builder.RegisterType<OperationDispatcher>().As<IOperationDispatcher>().SingleInstance();
             builder.RegisterType<ActorRepository>().As<IActorRepository>().SingleInstance();

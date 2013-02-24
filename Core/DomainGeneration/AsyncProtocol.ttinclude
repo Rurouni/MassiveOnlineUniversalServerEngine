@@ -3,6 +3,7 @@
 <#@ Assembly Name="System.Xml.Linq.dll" #>
 <#@ Assembly Name="System.Runtime.Serialization.dll" #>
 <#@ Assembly Name="$(SolutionDir)Bin\MOUSE.Core.dll" #>
+<#@ Assembly Name="$(SolutionDir)Bin\MOUSE.Core.Portable.dll" #>
 <#@ import namespace="System" #>
 <#@ import namespace="System.Reflection" #>
 <#@ import namespace="System.Text" #>
@@ -22,7 +23,7 @@
 <#@ include file="POCOSerialization.ttinclude" #>
 
 <#+  
-void GenerateProtocol(IEnumerable<Assembly> assemblies)
+void GenerateAsyncProtocol(string namespaceName, IEnumerable<Assembly> assemblies)
 { #>
 using MOUSE.Core;
 using System;
@@ -33,27 +34,68 @@ using System.Runtime.Serialization;
 
 #pragma warning disable 1998
 
-namespace Protocol.Generated
+namespace <#= namespaceName #>
 {
 <#+
+	List<Type> contractTypes = new List<Type>();
 	foreach (var asm in assemblies)
 		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NetContractAttribute>()))
-			GenerateAsyncContract(type);
+			contractTypes.Add(type);
 
-	foreach (var asm in assemblies)
-		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NetContractAttribute>()))
-		   GenerateAsyncProxy(type);
+	foreach (var type in contractTypes)
+		GenerateAsyncContract(type);
 
-	foreach (var asm in assemblies)
-		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NetContractAttribute>()))
-			GenerateMessages(type);
+	foreach (var type in contractTypes)
+		GenerateAsyncProxy(type);
+
+	List<string> generatedMessages = new List<string>();
+	foreach (var type in contractTypes)
+		GenerateMessages(type, generatedMessages);
+
+	List<Type> dtoTypes = new List<Type>();
 	foreach (var asm in assemblies)
 		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<DataContractAttribute>()))
-			GenerateDTO(type);
+			dtoTypes.Add(type);
 
-	foreach (var asm in assemblies)
-		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<DataContractAttribute>()))
-			GenerateDTOSerialization(type);#>
+	foreach (var type in dtoTypes)
+		GenerateDTO(type);
+
+	foreach (var type in dtoTypes)
+		GenerateDTOSerialization(type);
+
+	foreach(var type in AppDomain.CurrentDomain.GetAssemblies().SelectMany(x=>x.GetTypes()).Where(x => typeof(Message).IsAssignableFrom(x) && !x.IsAbstract ))
+		generatedMessages.Add(type.FullName);#>
+	
+	public static class ProtocolDescription
+	{
+		private static List<Message> s_messages;
+		private static List<NetProxy> s_proxies;
+
+		static ProtocolDescription()
+		{
+			s_messages  = new List<Message>();
+<#+ foreach(var msgName in generatedMessages)
+	{ #>
+			s_messages.Add(new <#= msgName #>());
+<#+ } #>
+
+			s_proxies = new List<NetProxy>();
+<#+ foreach (var type in contractTypes)
+	{ #>
+			s_proxies.Add(new <#= type.Name +"Proxy" #>());
+<#+ } #>
+		}
+
+		public static List<Message> GetAllMessages()
+		{
+			return s_messages;
+		}
+
+		public static List<NetProxy> GetAllProxies()
+		{
+			return s_proxies;
+		}
+	}
 }
 <#+
 }
@@ -71,36 +113,6 @@ void GenerateAsyncContract(Type contractType)
 	} #>
 	}
 <#+
-}
-
-void GenerateDTO(Type dtoType)
-{
-	if(dtoType.IsEnum)
-	{
-		var cs = new CSharpCodeProvider();#>
-	
-	public enum <#= dtoType.Name #> : <#= cs.GetTypeOutput(new CodeTypeReference(Enum.GetUnderlyingType(dtoType)))#>
-	{
-<#+	foreach (FieldInfo fi in dtoType.GetFields(BindingFlags.Public | BindingFlags.Static))
-	{ #>
-		<#= fi.Name + " = " + fi.GetRawConstantValue() #>,
-<#+ } #>
-	}
-<#+	}
-	else
-	{ #>
-	
-	[DataContract]
-	public class <#= dtoType.Name #>
-	{
-<#+	foreach (FieldInfo field in dtoType.GetFields())
-	{ #>
-		[DataMember]
-		public <#= TypeToString(field.FieldType) + " " + field.Name #>;
-<#+ } #>
-	}
-<#+
-	}
 }
 
 void GenerateAsyncProxy(Type contractType)
@@ -173,8 +185,7 @@ void WriteAsyncMethodDef(MethodInfo method)
 
 void WriteMethodBody(MethodInfo method, Type contractType)
 {	#>
-	//var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
-			var request = new <#= contractType.Name + method.Name + "Request" #>();
+	var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
 <#+ foreach(var par in method.GetParameters())
 	{	#>
 			request.<#= par.Name +"="+ par.Name #>;
@@ -183,14 +194,12 @@ void WriteMethodBody(MethodInfo method, Type contractType)
 	if(method.ReturnType == typeof(void))
 	{	#>
 			ExecuteOneWayOperation(request);
-			//MessageFactory.Free(request);
 <#+ }
 	else
 	{	#>
 			Message reply = await ExecuteOperation(request);
 			var ret = ((<#= contractType.Name + method.Name + "Reply" #>)reply).RetVal;
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
+			MessageFactory.Free(reply);
 			return ret;
 <#+ }
 }
@@ -216,8 +225,7 @@ void WriteDispatcherBody(MethodInfo method, Type contractType)
 	else
 	{	#>
 			var retVal = await ((<#= contractType.Name #>)target).<#= method.Name #>(<#= paramsText #>);
-			//var retMsg = msgFactory.New<<#= contractType.Name + method.Name+ "Reply" #>>();
-			var retMsg = new <#= contractType.Name + method.Name+ "Reply" #>();
+			var retMsg = msgFactory.New<<#= contractType.Name + method.Name+ "Reply" #>>();
 			retMsg.RetVal = retVal;
 			return retMsg;
 <#+ }

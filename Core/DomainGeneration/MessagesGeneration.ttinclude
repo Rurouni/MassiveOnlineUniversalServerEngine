@@ -1,5 +1,5 @@
 ﻿<#+ 
-void GenerateMessages(Type contractType)
+void GenerateMessages(Type contractType, List<string> generatedMessages)
 {
     var attr = contractType.GetAttribute<NetContractAttribute>();
     foreach (MethodInfo method in contractType.GetMethods())
@@ -9,16 +9,18 @@ void GenerateMessages(Type contractType)
         string replyMsgName = contractType.Name+method.Name+"Reply";
         GenerateMessage(Misc.GenerateHash(requestMsgName), requestMsgName,
 	        method.GetParameters().Select(x => Tuple.Create(x.ParameterType, x.Name)).ToList(),
-	        opAttr.Priority, opAttr.Reliability, opAttr.Lock);
+	        opAttr.Priority, opAttr.Reliability);
+	generatedMessages.Add(requestMsgName);
         if(method.ReturnType != typeof(void))
         {
             GenerateMessage(Misc.GenerateHash(replyMsgName), replyMsgName,
                 new List<Tuple<Type, string>>{Tuple.Create(method.ReturnType, "RetVal")},
-                opAttr.Priority, opAttr.Reliability, opAttr.Lock);
+                opAttr.Priority, opAttr.Reliability);
+		generatedMessages.Add(replyMsgName);
         }
     }
 }
-void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> parameters, MessagePriority messagePriority, MessageReliability messageReliability, LockType lockType)
+void GenerateMessage(uint msgId, string name, List<Tuple<Type, string>> parameters, MessagePriority messagePriority, MessageReliability messageReliability)
 {#>
     public sealed class <#= name #> : Message
     {

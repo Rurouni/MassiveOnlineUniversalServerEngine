@@ -2,7 +2,7 @@
 <#@ Assembly Name="System.Xml.dll" #>
 <#@ Assembly Name="System.Xml.Linq.dll" #>
 <#@ Assembly Name="System.Runtime.Serialization.dll" #>
-<#@ Assembly Name="$(SolutionDir)Bin\MOUSE.Core.dll" #>
+<#@ Assembly Name="$(SolutionDir)Bin\MOUSE.Core.Portable.dll" #>
 <#@ import namespace="System" #>
 <#@ import namespace="System.Reflection" #>
 <#@ import namespace="System.Text" #>
@@ -21,7 +21,7 @@
 <#@ include file="POCOSerialization.ttinclude" #>
 
 <#+  
-void GenerateProtocol(IEnumerable<Assembly> assemblies)
+void GenerateUnityProtocol(string namespaceName, IEnumerable<Assembly> assemblies)
 { #>
 using System;
 using System.Collections;
@@ -29,33 +29,74 @@ using System.IO;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using MOUSE.Core;
-using UnityClient;
+using MOUSE.Unity;
 
-namespace Protocol.Generated
+namespace <#= namespaceName #>
 {
 <#+
+	List<Type> contractTypes = new List<Type>();
 	foreach (var asm in assemblies)
 		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NetContractAttribute>()))
-			GenerateCoroutineContract(type);
+			contractTypes.Add(type);
 
-	foreach (var asm in assemblies)
-		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NetContractAttribute>()))
-		   GenerateCoroutineProxy(type);
+	foreach (var type in contractTypes)
+		GenerateUnityContract(type);
 
-	foreach (var asm in assemblies)
-		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<NetContractAttribute>()))
-			GenerateMessages(type);
+	foreach (var type in contractTypes)
+		GenerateUnityProxy(type);
+
+	List<string> generatedMessages = new List<string>();
+	foreach (var type in contractTypes)
+		GenerateMessages(type, generatedMessages);
+
+	List<Type> dtoTypes = new List<Type>();
 	foreach (var asm in assemblies)
 		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<DataContractAttribute>()))
-			GenerateDTO(type);
+			dtoTypes.Add(type);
 
-	foreach (var asm in assemblies)
-		foreach (var type in asm.GetTypes().Where(x => x.ContainsAttribute<DataContractAttribute>()))
-			GenerateDTOSerialization(type);#>
+	foreach (var type in dtoTypes)
+		GenerateDTO(type);
+
+	foreach (var type in dtoTypes)
+		GenerateDTOSerialization(type);
+	
+	foreach(var type in AppDomain.CurrentDomain.GetAssemblies().SelectMany(x=>x.GetTypes()).Where(x => typeof(Message).IsAssignableFrom(x) && !x.IsAbstract ))
+		generatedMessages.Add(type.FullName);#>
+
+	public static class ProtocolDescription
+	{
+		private static List<Message> s_messages;
+		private static List<NetProxy> s_proxies;
+
+		static ProtocolDescription()
+		{
+			s_messages  = new List<Message>();
+<#+ foreach(var msgName in generatedMessages)
+	{ #>
+			s_messages.Add(new <#= msgName #>());
+<#+ } #>
+
+			s_proxies = new List<NetProxy>();
+<#+ foreach (var type in contractTypes)
+	{ #>
+			s_proxies.Add(new <#= type.Name +"Proxy" #>());
+<#+ } #>
+		}
+
+		public static List<Message> GetAllMessages()
+		{
+			return s_messages;
+		}
+
+		public static List<NetProxy> GetAllProxies()
+		{
+			return s_proxies;
+		}
+	}
 }
 <#+
 }
-void GenerateCoroutineContract(Type contractType)
+void GenerateUnityContract(Type contractType)
 {
 	var attr = contractType.GetAttribute<NetContractAttribute>();
 #>
@@ -64,49 +105,21 @@ void GenerateCoroutineContract(Type contractType)
 	{
 <#+	foreach (MethodInfo method in contractType.GetMethods())
 	{
-		WriteCoroutineInterfaceDef(method);	
+		WriteUnityInterfaceDef(method);	
 	} #>
 	}
 <#+
 }
 
-void GenerateDTO(Type dtoType)
-{
-	if(dtoType.IsEnum)
-	{
-		var cs = new CSharpCodeProvider();#>
-	
-	public enum <#= dtoType.Name #> : <#= cs.GetTypeOutput(new CodeTypeReference(Enum.GetUnderlyingType(dtoType)))#>
-	{
-<#+	foreach (FieldInfo fi in dtoType.GetFields(BindingFlags.Public | BindingFlags.Static))
-	{ #>
-		<#= fi.Name + " = " + fi.GetRawConstantValue() #>,
-<#+ } #>
-	}
-<#+	}
-	else
-	{ #>
-	
-	public class <#= dtoType.Name #>
-	{
-<#+	foreach (FieldInfo field in dtoType.GetFields())
-	{ #>
-		public <#= TypeToString(field.FieldType) + " " + field.Name #>;
-<#+ } #>
-	}
-<#+
-	}
-}
-
-void GenerateCoroutineProxy(Type contractType)
+void GenerateUnityProxy(Type contractType)
 { #>
 	[NetProxy(ContractTypeId = <#= Misc.GenerateHash(contractType.Name) #>, ContractType = typeof(<#= contractType.Name #>))]
-	public sealed class <#= contractType.Name + "Proxy" #> : NodeServiceProxy, <#= contractType.Name #>
+	public sealed class <#= contractType.Name + "Proxy" #> : NetProxy, <#= contractType.Name #>
 	{
 <#+	var attr = contractType.GetAttribute<NetContractAttribute>();
 	foreach (MethodInfo method in contractType.GetMethods())
 	{
-		WriteCoroutineMethodDef(method);	#>
+		WriteUnityMethodDef(method);	#>
 		{
 		<#+ WriteMethodBody(method, contractType); #>
 		}
@@ -116,7 +129,7 @@ void GenerateCoroutineProxy(Type contractType)
 		else 
 			replyMsgType = "typeof("+contractType.Name + method.Name + "Reply)";	#>
 		[NetOperationDispatcher(RequestMessage = typeof(<#= contractType.Name + method.Name + "Request" #>), ReplyMessage = <#= replyMsgType #>)]
-		public static void <#= method.Name #>(IMessageFactory msgFactory, object target, Message input)
+		public static Message <#= method.Name #>(IMessageFactory msgFactory, object target, Message input)
 		{
 		<#+ WriteDispatcherBody(method, contractType); #>
 		}
@@ -125,7 +138,7 @@ void GenerateCoroutineProxy(Type contractType)
 	}
 <#+
 }
-void WriteCoroutineInterfaceDef(MethodInfo method)
+void WriteUnityInterfaceDef(MethodInfo method)
 {
 	var paramsText = new StringBuilder();
 	var paramArr = method.GetParameters();
@@ -140,14 +153,11 @@ void WriteCoroutineInterfaceDef(MethodInfo method)
 		void <#= method.Name #> ( <#= paramsText #> );
 <#+ }
 	else
-	{
-		if(paramArr.Length > 0)
-			paramsText.Append(", ");
-		#>
-		IEnumerable <#= method.Name #> ( <#= paramsText #> OperationReply< <#= TypeToString(method.ReturnType) #> > reply);
+	{	#>
+		Future< <#= TypeToString(method.ReturnType) #> > <#= method.Name #> ( <#= paramsText #> );
 <#+ }
 }
-void WriteCoroutineMethodDef(MethodInfo method)
+void WriteUnityMethodDef(MethodInfo method)
 {
 	var paramsText = new StringBuilder();
 	var paramArr = method.GetParameters();
@@ -162,18 +172,14 @@ void WriteCoroutineMethodDef(MethodInfo method)
 		public void <#= method.Name #> ( <#= paramsText #> )
 <#+ }
 	else
-	{
-		if(paramArr.Length > 0)
-			paramsText.Append(", ");
-		#>
-		public IEnumerable <#= method.Name #> ( <#= paramsText #> OperationReply< <#= TypeToString(method.ReturnType) #> > replyChannel)
+	{	#>
+		public Future< <#= TypeToString(method.ReturnType) #> > <#= method.Name #> ( <#= paramsText #> )
 <#+ }
 }
 
 void WriteMethodBody(MethodInfo method, Type contractType)
 {	#>
-	//var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
-			var request = new <#= contractType.Name + method.Name + "Request" #>();
+	var request = MessageFactory.New< <#= contractType.Name + method.Name + "Request" #> >();
 <#+ foreach(var par in method.GetParameters())
 	{	#>
 			request.<#= par.Name +"="+ par.Name #>;
@@ -181,20 +187,14 @@ void WriteMethodBody(MethodInfo method, Type contractType)
 	}
 	if(method.ReturnType == typeof(void))
 	{	#>
-			ExecuteOneWayServiceOperation(request);
-			//MessageFactory.Free(request);
+			ExecuteOneWayOperation(request);
 <#+ }
 	else
 	{	#>
-			var msgReply = new OperationReply<Message>();
-			foreach(object obj in ExecuteServiceOperation(request, msgReply))
-				 yield return obj;
-			if(msgReply.IsValid)
-				replyChannel.SetReply( ((<#= contractType.Name + method.Name + "Reply" #>)msgReply.Reply).RetVal, null);
-			else
-				replyChannel.SetReply(default(<#=  TypeToString(method.ReturnType) #>), msgReply.Error);
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
+			var finalFuture = new Future< <#= TypeToString(method.ReturnType) #> >();
+			ExecuteOperation(request, (replyMsg) => finalFuture.SetResult( ((<#= contractType.Name + method.Name + "Reply" #>)replyMsg).RetVal), (errorCode, errorDesc) => finalFuture.SetError(errorCode, errorDesc)); 
+			return finalFuture;
+
 <#+ }
 }
 
@@ -208,12 +208,12 @@ void WriteDispatcherBody(MethodInfo method, Type contractType)
 			paramsText.Append(", ");
 		paramsText.Append("msg."+paramArr[i].Name);
 	}
-	#>
-	var msg = (<#= contractType.Name + method.Name+ "Request" #>)input;
-<#+ 
+
 	if(method.ReturnType == typeof(void))
 	{	#>
+	var msg = (<#= contractType.Name + method.Name+ "Request" #>)input;
 			((<#= contractType.Name #>)target).<#= method.Name #>(<#= paramsText #>);
+			return null;
 <#+ }
 	else
 	{	#>

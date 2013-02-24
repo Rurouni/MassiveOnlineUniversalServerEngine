@@ -57,7 +57,7 @@ namespace SampleC2SProtocol
     }
 
     [DataContract]
-    public enum JoinRoomInvalidRetCode
+    public enum JoinRoomInvalidRetCode : byte
     {
         RoomNotFound,
         ClientNotAwaited

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using MOUSE.Core.ActorCoordination;
 
 namespace MOUSE.Core
 {
@@ -46,17 +45,6 @@ namespace MOUSE.Core
         {
             Lock = LockType.Write;
         }
-    }
-
-    [AttributeUsage(AttributeTargets.Class)]
-    public class ActorAttribute : Attribute
-    {
-        public ActorAttribute()
-        {
-            Coordinator = typeof (IsisActorCoordinator);
-        }
-
-        public Type Coordinator { get; set; }
     }
 
     [AttributeUsage(AttributeTargets.Class)]

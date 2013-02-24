@@ -25,6 +25,16 @@ namespace MOUSE.Core
             get { return MessageReliability.ReliableOrdered; }
         }
 
+        /// <summary>
+        /// used only for MessageFactory pooling safety checks
+        /// </summary>
+        public bool IsPooled { get; set; }
+
+        /// <summary>
+        /// Pooling debug only
+        /// </summary>
+        public bool InUse { get; set; }
+
         public void AttachHeader<THeader>(THeader header) where THeader : MessageHeader
         {
             if (_headers == null)

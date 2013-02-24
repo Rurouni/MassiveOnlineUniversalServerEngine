@@ -35,7 +35,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>..\Bin\</OutputPath>
+    <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <DebugType>full</DebugType>
     <PlatformTarget>x86</PlatformTarget>
@@ -77,6 +77,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Core.Portable\Core.Portable.csproj">
+      <Project>{4d4e147d-450f-4121-885b-b56e98a24c39}</Project>
+      <Name>Core.Portable</Name>
+    </ProjectReference>
     <ProjectReference Include="..\UnityClient\UnityClient.csproj">
       <Project>{FE5B33C4-3096-4C12-8B3C-AFEAFF4697EA}</Project>
       <Name>UnityClient</Name>

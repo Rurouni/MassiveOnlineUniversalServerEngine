@@ -4,25 +4,25 @@ using System.IO;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using MOUSE.Core;
-using UnityClient;
+using MOUSE.Unity;
 
 namespace Protocol.Generated
 {
 	[NetContract]
 	public interface IChatLogin
 	{
-		IEnumerable Login ( String name,  OperationReply< LoginResult > reply);
+		Future< LoginResult > Login ( String name );
 	}
 	[NetContract]
 	public interface IChatService
 	{
-		IEnumerable GetRooms (  OperationReply< List<String> > reply);
-		IEnumerable JoinOrCreateRoom ( String roomName,  OperationReply< JoinRoomResponse > reply);
+		Future< List<String> > GetRooms (  );
+		Future< JoinRoomResponse > JoinOrCreateRoom ( String roomName );
 	}
 	[NetContract]
 	public interface IChatRoomService
 	{
-		IEnumerable Join ( Int64 ticket,  OperationReply< List<String> > reply);
+		Future< List<String> > Join ( Int64 ticket );
 		void Leave (  );
 		void Say ( String message );
 	}
@@ -32,144 +32,113 @@ namespace Protocol.Generated
 		void OnRoomMessage ( String roomName, String message );
 	}
 	[NetProxy(ContractTypeId = 1279047273, ContractType = typeof(IChatLogin))]
-	public sealed class IChatLoginProxy : NodeServiceProxy, IChatLogin
+	public sealed class IChatLoginProxy : NetProxy, IChatLogin
 	{
-		public IEnumerable Login ( String name,  OperationReply< LoginResult > replyChannel)
+		public Future< LoginResult > Login ( String name )
 		{
-			//var request = MessageFactory.New< IChatLoginLoginRequest >();
-			var request = new IChatLoginLoginRequest();
+			var request = MessageFactory.New< IChatLoginLoginRequest >();
 			request.name=name;
-			var msgReply = new OperationReply<Message>();
-			foreach(object obj in ExecuteServiceOperation(request, msgReply))
-				 yield return obj;
-			if(msgReply.IsValid)
-				replyChannel.SetReply( ((IChatLoginLoginReply)msgReply.Reply).RetVal, null);
-			else
-				replyChannel.SetReply(default(LoginResult), msgReply.Error);
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
+			var finalFuture = new Future< LoginResult >();
+			ExecuteOperation(request, (replyMsg) => finalFuture.SetResult( ((IChatLoginLoginReply)replyMsg).RetVal), (errorCode, errorDesc) => finalFuture.SetError(errorCode, errorDesc)); 
+			return finalFuture;
+
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatLoginLoginRequest), ReplyMessage = typeof(IChatLoginLoginReply))]
-		public static void Login(IMessageFactory msgFactory, object target, Message input)
+		public static Message Login(IMessageFactory msgFactory, object target, Message input)
 		{
-			var msg = (IChatLoginLoginRequest)input;
-			throw new NotSupportedException();
+					throw new NotSupportedException();
 		}
 	}
 	[NetProxy(ContractTypeId = 4131147598, ContractType = typeof(IChatService))]
-	public sealed class IChatServiceProxy : NodeServiceProxy, IChatService
+	public sealed class IChatServiceProxy : NetProxy, IChatService
 	{
-		public IEnumerable GetRooms (  OperationReply< List<String> > replyChannel)
+		public Future< List<String> > GetRooms (  )
 		{
-			//var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
-			var request = new IChatServiceGetRoomsRequest();
-			var msgReply = new OperationReply<Message>();
-			foreach(object obj in ExecuteServiceOperation(request, msgReply))
-				 yield return obj;
-			if(msgReply.IsValid)
-				replyChannel.SetReply( ((IChatServiceGetRoomsReply)msgReply.Reply).RetVal, null);
-			else
-				replyChannel.SetReply(default(List<String>), msgReply.Error);
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
+			var request = MessageFactory.New< IChatServiceGetRoomsRequest >();
+			var finalFuture = new Future< List<String> >();
+			ExecuteOperation(request, (replyMsg) => finalFuture.SetResult( ((IChatServiceGetRoomsReply)replyMsg).RetVal), (errorCode, errorDesc) => finalFuture.SetError(errorCode, errorDesc)); 
+			return finalFuture;
+
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatServiceGetRoomsRequest), ReplyMessage = typeof(IChatServiceGetRoomsReply))]
-		public static void GetRooms(IMessageFactory msgFactory, object target, Message input)
+		public static Message GetRooms(IMessageFactory msgFactory, object target, Message input)
 		{
-			var msg = (IChatServiceGetRoomsRequest)input;
-			throw new NotSupportedException();
+					throw new NotSupportedException();
 		}
-		public IEnumerable JoinOrCreateRoom ( String roomName,  OperationReply< JoinRoomResponse > replyChannel)
+		public Future< JoinRoomResponse > JoinOrCreateRoom ( String roomName )
 		{
-			//var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
-			var request = new IChatServiceJoinOrCreateRoomRequest();
+			var request = MessageFactory.New< IChatServiceJoinOrCreateRoomRequest >();
 			request.roomName=roomName;
-			var msgReply = new OperationReply<Message>();
-			foreach(object obj in ExecuteServiceOperation(request, msgReply))
-				 yield return obj;
-			if(msgReply.IsValid)
-				replyChannel.SetReply( ((IChatServiceJoinOrCreateRoomReply)msgReply.Reply).RetVal, null);
-			else
-				replyChannel.SetReply(default(JoinRoomResponse), msgReply.Error);
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
+			var finalFuture = new Future< JoinRoomResponse >();
+			ExecuteOperation(request, (replyMsg) => finalFuture.SetResult( ((IChatServiceJoinOrCreateRoomReply)replyMsg).RetVal), (errorCode, errorDesc) => finalFuture.SetError(errorCode, errorDesc)); 
+			return finalFuture;
+
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatServiceJoinOrCreateRoomRequest), ReplyMessage = typeof(IChatServiceJoinOrCreateRoomReply))]
-		public static void JoinOrCreateRoom(IMessageFactory msgFactory, object target, Message input)
+		public static Message JoinOrCreateRoom(IMessageFactory msgFactory, object target, Message input)
 		{
-			var msg = (IChatServiceJoinOrCreateRoomRequest)input;
-			throw new NotSupportedException();
+					throw new NotSupportedException();
 		}
 	}
 	[NetProxy(ContractTypeId = 2616972471, ContractType = typeof(IChatRoomService))]
-	public sealed class IChatRoomServiceProxy : NodeServiceProxy, IChatRoomService
+	public sealed class IChatRoomServiceProxy : NetProxy, IChatRoomService
 	{
-		public IEnumerable Join ( Int64 ticket,  OperationReply< List<String> > replyChannel)
+		public Future< List<String> > Join ( Int64 ticket )
 		{
-			//var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
-			var request = new IChatRoomServiceJoinRequest();
+			var request = MessageFactory.New< IChatRoomServiceJoinRequest >();
 			request.ticket=ticket;
-			var msgReply = new OperationReply<Message>();
-			foreach(object obj in ExecuteServiceOperation(request, msgReply))
-				 yield return obj;
-			if(msgReply.IsValid)
-				replyChannel.SetReply( ((IChatRoomServiceJoinReply)msgReply.Reply).RetVal, null);
-			else
-				replyChannel.SetReply(default(List<String>), msgReply.Error);
-			//MessageFactory.Free(reply);
-			//MessageFactory.Free(request);
+			var finalFuture = new Future< List<String> >();
+			ExecuteOperation(request, (replyMsg) => finalFuture.SetResult( ((IChatRoomServiceJoinReply)replyMsg).RetVal), (errorCode, errorDesc) => finalFuture.SetError(errorCode, errorDesc)); 
+			return finalFuture;
+
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceJoinRequest), ReplyMessage = typeof(IChatRoomServiceJoinReply))]
-		public static void Join(IMessageFactory msgFactory, object target, Message input)
+		public static Message Join(IMessageFactory msgFactory, object target, Message input)
 		{
-			var msg = (IChatRoomServiceJoinRequest)input;
-			throw new NotSupportedException();
+					throw new NotSupportedException();
 		}
 		public void Leave (  )
 		{
-			//var request = MessageFactory.New< IChatRoomServiceLeaveRequest >();
-			var request = new IChatRoomServiceLeaveRequest();
-			ExecuteOneWayServiceOperation(request);
-			//MessageFactory.Free(request);
+			var request = MessageFactory.New< IChatRoomServiceLeaveRequest >();
+			ExecuteOneWayOperation(request);
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceLeaveRequest), ReplyMessage = null)]
-		public static void Leave(IMessageFactory msgFactory, object target, Message input)
+		public static Message Leave(IMessageFactory msgFactory, object target, Message input)
 		{
 			var msg = (IChatRoomServiceLeaveRequest)input;
 			((IChatRoomService)target).Leave();
+			return null;
 		}
 		public void Say ( String message )
 		{
-			//var request = MessageFactory.New< IChatRoomServiceSayRequest >();
-			var request = new IChatRoomServiceSayRequest();
+			var request = MessageFactory.New< IChatRoomServiceSayRequest >();
 			request.message=message;
-			ExecuteOneWayServiceOperation(request);
-			//MessageFactory.Free(request);
+			ExecuteOneWayOperation(request);
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceSayRequest), ReplyMessage = null)]
-		public static void Say(IMessageFactory msgFactory, object target, Message input)
+		public static Message Say(IMessageFactory msgFactory, object target, Message input)
 		{
 			var msg = (IChatRoomServiceSayRequest)input;
 			((IChatRoomService)target).Say(msg.message);
+			return null;
 		}
 	}
 	[NetProxy(ContractTypeId = 3421052361, ContractType = typeof(IChatRoomServiceCallback))]
-	public sealed class IChatRoomServiceCallbackProxy : NodeServiceProxy, IChatRoomServiceCallback
+	public sealed class IChatRoomServiceCallbackProxy : NetProxy, IChatRoomServiceCallback
 	{
 		public void OnRoomMessage ( String roomName, String message )
 		{
-			//var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
-			var request = new IChatRoomServiceCallbackOnRoomMessageRequest();
+			var request = MessageFactory.New< IChatRoomServiceCallbackOnRoomMessageRequest >();
 			request.roomName=roomName;
 			request.message=message;
-			ExecuteOneWayServiceOperation(request);
-			//MessageFactory.Free(request);
+			ExecuteOneWayOperation(request);
 		}
 		[NetOperationDispatcher(RequestMessage = typeof(IChatRoomServiceCallbackOnRoomMessageRequest), ReplyMessage = null)]
-		public static void OnRoomMessage(IMessageFactory msgFactory, object target, Message input)
+		public static Message OnRoomMessage(IMessageFactory msgFactory, object target, Message input)
 		{
 			var msg = (IChatRoomServiceCallbackOnRoomMessageRequest)input;
 			((IChatRoomServiceCallback)target).OnRoomMessage(msg.roomName, msg.message);
+			return null;
 		}
 	}
     public sealed class IChatLoginLoginRequest : Message
@@ -184,13 +153,13 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            w.Write(name);
+			StringSerializer.Serialize(name, w);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            name = r.ReadString();
+			name = StringSerializer.Deserialize(r);
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -208,13 +177,13 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            w.Write((Byte)RetVal);
+			w.Write((Byte)RetVal);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            RetVal = (LoginResult)r.ReadByte();
+			RetVal = (LoginResult)r.ReadByte();
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -253,36 +222,35 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            if(RetVal != null)
-            {
-                w.Write(true);
-                w.Write((int)RetVal.Count);
-                foreach(var element in RetVal)
-                    w.Write(element);
-            }
-            else
-                w.Write(false);
+			if(RetVal != null)
+			{
+				w.Write(true);
+				w.Write((int)RetVal.Count);
+				foreach(var element in RetVal)
+					StringSerializer.Serialize(element, w);
+			}
+			else
+				w.Write(false);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            {
-                bool isNotNull = r.ReadBoolean();
-                if(!isNotNull)
-                    RetVal = null;
-                else
-                {
-                    int lenght = r.ReadInt32();
-                    var list = new List<String>(lenght);
-                    for(int i = 0; i < lenght; i++)
-                    {
-                        var x = r.ReadString();
-                        list.Add(x);
-                    }
-                    RetVal = list;
-                }
-            }
+			{
+				if(!r.ReadBoolean())
+					RetVal = null;
+				else
+				{
+					int lenght = r.ReadInt32();
+					var list = new List<String>(lenght);
+					for(int i = 0; i < lenght; i++)
+					{
+						var x = StringSerializer.Deserialize(r);
+						list.Add(x);
+					}
+					RetVal = list;
+				}
+			}
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -300,13 +268,13 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            w.Write(roomName);
+			StringSerializer.Serialize(roomName, w);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            roomName = r.ReadString();
+			roomName = StringSerializer.Deserialize(r);
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -324,13 +292,13 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            JoinRoomResponseSerializer.Serialize(RetVal, w);
+			JoinRoomResponseSerializer.Serialize(RetVal, w);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            RetVal = JoinRoomResponseSerializer.Deserialize(r);
+			RetVal = JoinRoomResponseSerializer.Deserialize(r);
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -348,13 +316,13 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            w.Write(ticket);
+			w.Write(ticket);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            ticket = r.ReadInt64();
+			ticket = r.ReadInt64();
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -372,36 +340,35 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            if(RetVal != null)
-            {
-                w.Write(true);
-                w.Write((int)RetVal.Count);
-                foreach(var element in RetVal)
-                    w.Write(element);
-            }
-            else
-                w.Write(false);
+			if(RetVal != null)
+			{
+				w.Write(true);
+				w.Write((int)RetVal.Count);
+				foreach(var element in RetVal)
+					StringSerializer.Serialize(element, w);
+			}
+			else
+				w.Write(false);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            {
-                bool isNotNull = r.ReadBoolean();
-                if(!isNotNull)
-                    RetVal = null;
-                else
-                {
-                    int lenght = r.ReadInt32();
-                    var list = new List<String>(lenght);
-                    for(int i = 0; i < lenght; i++)
-                    {
-                        var x = r.ReadString();
-                        list.Add(x);
-                    }
-                    RetVal = list;
-                }
-            }
+			{
+				if(!r.ReadBoolean())
+					RetVal = null;
+				else
+				{
+					int lenght = r.ReadInt32();
+					var list = new List<String>(lenght);
+					for(int i = 0; i < lenght; i++)
+					{
+						var x = StringSerializer.Deserialize(r);
+						list.Add(x);
+					}
+					RetVal = list;
+				}
+			}
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -440,13 +407,13 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            w.Write(message);
+			StringSerializer.Serialize(message, w);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            message = r.ReadString();
+			message = StringSerializer.Deserialize(r);
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
@@ -465,21 +432,21 @@ namespace Protocol.Generated
         public override void Serialize(BinaryWriter w)
         {
             base.Serialize(w);
-            w.Write(roomName);
-            w.Write(message);
+			StringSerializer.Serialize(roomName, w);
+			StringSerializer.Serialize(message, w);
         }
 
         public override void Deserialize(BinaryReader r)
         {
             base.Deserialize(r);
-            roomName = r.ReadString();
-            message = r.ReadString();
+			roomName = StringSerializer.Deserialize(r);
+			message = StringSerializer.Deserialize(r);
         }
 
         public override MessagePriority Priority { get { return MessagePriority.Medium; } }
         public override MessageReliability Reliability { get { return MessageReliability.ReliableOrdered; } }
     }
-	
+
 	public enum LoginResult : byte
 	{
 		Ok = 0,
@@ -487,48 +454,92 @@ namespace Protocol.Generated
 		AlreadyRegistered = 2,
 	}
 	
+	[DataContract]
 	public class JoinRoomResponse
 	{
 		public UInt32 RoomActorId;
 		public Int64 Ticket;
 		public String ServerEndpoint;
 	}
-	
-	public enum JoinRoomInvalidRetCode : int
+
+	public enum JoinRoomInvalidRetCode : byte
 	{
 		RoomNotFound = 0,
 		ClientNotAwaited = 1,
 	}
 	
-    public static class JoinRoomResponseSerializer	
-    {
-        public static void Serialize(JoinRoomResponse x, BinaryWriter w)
-        {
-            if(x == null)
-            {
-                w.Write(false);
-                return;
-            }
-            w.Write(true);
-            w.Write(x.RoomActorId);
-            w.Write(x.Ticket);
-            w.Write(x.ServerEndpoint);
-        }
-        
-        public static JoinRoomResponse Deserialize(BinaryReader r)
-        {
-            {
-                bool isNotNull = r.ReadBoolean();
-                if(!isNotNull)
-                    return null;
-            }
-            var ret = new JoinRoomResponse();
-            ret.RoomActorId = r.ReadUInt32();
-            ret.Ticket = r.ReadInt64();
-            ret.ServerEndpoint = r.ReadString();
-            return ret;
-        }
-    }
+	public static class JoinRoomResponseSerializer	
+	{
+		public static void Serialize(JoinRoomResponse x, BinaryWriter w)
+		{
+			if(x == null)
+			{
+				w.Write(false);
+				return;
+			}
+			w.Write(true);
+			w.Write(x.RoomActorId);
+			w.Write(x.Ticket);
+			StringSerializer.Serialize(x.ServerEndpoint, w);
+		}
+		
+		public static JoinRoomResponse Deserialize(BinaryReader r)
+		{
+			{
+				bool isNotNull = r.ReadBoolean();
+				if(!isNotNull)
+					return null;
+			}
+			var ret = new JoinRoomResponse();
+			ret.RoomActorId = r.ReadUInt32();
+			ret.Ticket = r.ReadInt64();
+			ret.ServerEndpoint = StringSerializer.Deserialize(r);
+			return ret;
+		}
+	}
+
+	public static class ProtocolDescription
+	{
+		private static List<Message> s_messages;
+		private static List<NetProxy> s_proxies;
+
+		static ProtocolDescription()
+		{
+			s_messages  = new List<Message>();
+			s_messages.Add(new IChatLoginLoginRequest());
+			s_messages.Add(new IChatLoginLoginReply());
+			s_messages.Add(new IChatServiceGetRoomsRequest());
+			s_messages.Add(new IChatServiceGetRoomsReply());
+			s_messages.Add(new IChatServiceJoinOrCreateRoomRequest());
+			s_messages.Add(new IChatServiceJoinOrCreateRoomReply());
+			s_messages.Add(new IChatRoomServiceJoinRequest());
+			s_messages.Add(new IChatRoomServiceJoinReply());
+			s_messages.Add(new IChatRoomServiceLeaveRequest());
+			s_messages.Add(new IChatRoomServiceSayRequest());
+			s_messages.Add(new IChatRoomServiceCallbackOnRoomMessageRequest());
+			s_messages.Add(new MOUSE.Core.EmptyMessage());
+			s_messages.Add(new MOUSE.Core.ConnectRequest());
+			s_messages.Add(new MOUSE.Core.ConnectReply());
+			s_messages.Add(new MOUSE.Core.InvalidOperation());
+			s_messages.Add(new MOUSE.Core.SetInitialActorsList());
+
+			s_proxies = new List<NetProxy>();
+			s_proxies.Add(new IChatLoginProxy());
+			s_proxies.Add(new IChatServiceProxy());
+			s_proxies.Add(new IChatRoomServiceProxy());
+			s_proxies.Add(new IChatRoomServiceCallbackProxy());
+		}
+
+		public static List<Message> GetAllMessages()
+		{
+			return s_messages;
+		}
+
+		public static List<NetProxy> GetAllProxies()
+		{
+			return s_proxies;
+		}
+	}
 }
 
 

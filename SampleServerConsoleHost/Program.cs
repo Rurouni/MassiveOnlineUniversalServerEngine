@@ -81,13 +81,13 @@ namespace SampleServerConsoleHost
 
             var externalNetConf = new NetPeerConfiguration("ChatApp")
                 {
-                    ConnectionTimeout = 10000,
+                    ConnectionTimeout = 30,
                     Port = externalEndpoint.Port,
                     LocalAddress = externalEndpoint.Address
                 };
             var internalNetConf = new NetPeerConfiguration("ChatApp")
             {
-                ConnectionTimeout = 10000,
+                ConnectionTimeout = 30,
                 Port = internalEndpoint.Port,
                 LocalAddress = internalEndpoint.Address
             };

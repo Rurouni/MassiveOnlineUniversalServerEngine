@@ -3,6 +3,6 @@
 <#@ Assembly Name="$(SolutionDir)Bin\SampleC2SProtocol.dll" #>
 <#
     List<Assembly> asms = new List<Assembly>(AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name.Contains("SampleC2SProtocol")));
-    GenerateProtocol(asms);
+    GenerateAsyncProtocol("Protocol.Generated", asms);
 #>
 <#@ include file="..\Core\DomainGeneration\AsyncProtocol.ttinclude" #>

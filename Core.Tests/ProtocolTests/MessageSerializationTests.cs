@@ -23,7 +23,7 @@ namespace Core.Tests
         [Fact]
         public void MessageShouldBeSameAfterSerializationAndDeserialization()
         {
-            BinaryWriter writer = new BinaryWriter(new MemoryStream());
+            var writer = new BinaryWriter(new MemoryStream());
             IMessageFactory msgFactory = new MessageFactory(new Message[]
                 {
                     new ISomeServiceComplexRequest()
@@ -37,12 +37,12 @@ namespace Core.Tests
                 .With(x => x.SomeArrString, fixture.CreateMany<string>().ToList())
                 .With(x => x.SomeArrRec, fixture.CreateMany<SubData>().ToList()));
 
-            ISomeServiceComplexRequest msg = fixture.CreateAnonymous<ISomeServiceComplexRequest>();
+            var msg = fixture.CreateAnonymous<ISomeServiceComplexRequest>();
 
             //serialize and deserialize msg1
             msg.Serialize(writer);
             writer.Seek(0, SeekOrigin.Begin);
-            BinaryReader reader = new BinaryReader(writer.BaseStream);
+            var reader = new BinaryReader(writer.BaseStream);
             Message retMsg = msgFactory.Deserialize(reader);
 
             retMsg.Should().BeOfType<ISomeServiceComplexRequest>();
@@ -54,7 +54,9 @@ namespace Core.Tests
     {
         public static void ShouldBeEqualTo(this ISomeServiceComplexRequest m1, ISomeServiceComplexRequest m2)
         {
-            CompareObjects comparer = new CompareObjects();
+            var comparer = new CompareObjects();
+            comparer.ElementsToIgnore.Add("IsPooled");
+            
             if(!comparer.Compare(m1, m2))
             {
                 throw new Exception("Messages are not equal, Details:" + comparer.DifferencesString);

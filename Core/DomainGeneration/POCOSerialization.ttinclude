@@ -1,194 +1,306 @@
 ﻿<#+  
+void GenerateDTO(Type dtoType)
+{
+	if(dtoType.IsEnum)
+	{
+		var cs = new CSharpCodeProvider();
+
+	if(dtoType.ContainsAttribute<FlagsAttribute>())
+	{
+	Write("[Flags]");
+	}#>
+
+	public enum <#= dtoType.Name #> : <#= cs.GetTypeOutput(new CodeTypeReference(Enum.GetUnderlyingType(dtoType)))#>
+	{
+<#+	foreach (FieldInfo fi in dtoType.GetFields(BindingFlags.Public | BindingFlags.Static))
+	{ #>
+		<#= fi.Name + " = " + fi.GetRawConstantValue() #>,
+<#+ } #>
+	}
+<#+	}
+	else
+	{ #>
+	
+	[DataContract]
+	public class <#= dtoType.Name #>
+	{
+<#+	foreach (FieldInfo field in dtoType.GetFields())
+	{ #>
+		public <#= TypeToString(field.FieldType) + " " + field.Name #>;
+<#+ } #>
+	}
+<#+
+	}
+}
 void GenerateDTOSerialization(Type type) 
 {
-	if(type.IsEnum || type.IsArray)
+	if(IsPrimitive(type))
 		return;
 #>	
-    public static class <#= type.Name+"Serializer" #>	
-    {
-        public static void Serialize(<#= TypeToString(type) #> x, BinaryWriter w)
-        {
-            if(x == null)
-            {
-                w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
-                return;
-            }
-            w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
+	public static class <#= type.Name+"Serializer" #>	
+	{
+		public static void Serialize(<#= TypeToString(type) #> x, BinaryWriter w)
+		{
+			if(x == null)
+			{
+				w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
+				return;
+			}
+			w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
 <#+ foreach (var field in type.GetFields())
-        WriteComplex(field.FieldType, "x."+field.Name); #>
-        }
-        
-        public static <#= TypeToString(type) #> Deserialize(BinaryReader r)
-        {
-            {
-                bool isNotNull = r.Read<#= GetReadSuffix(typeof(bool)) #>();
-                if(!isNotNull)
-                    return null;
-            }
-            var ret = new <#= TypeToString(type) #>();
+		WriteComplex(field.FieldType, "x."+field.Name); #>
+		}
+		
+		public static <#= TypeToString(type) #> Deserialize(BinaryReader r)
+		{
+			{
+				bool isNotNull = r.Read<#= GetReadSuffix(typeof(bool)) #>();
+				if(!isNotNull)
+					return null;
+			}
+			var ret = new <#= TypeToString(type) #>();
 <#+ foreach (var field in type.GetFields())
-        ReadComplex(field.FieldType, "ret."+field.Name); #>
-            return ret;
-        }
-    }
+		ReadComplex(field.FieldType, "ret."+field.Name); #>
+			return ret;
+		}
+	}
 <#+  
 }
+bool IsPrimitive(Type type)
+{
+	return IsAtomic(type) 
+		|| IsArray(type) 
+		|| type.IsEnum
+		|| type == typeof(Guid)
+		|| (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>));
+}
+
 void WriteComplex(Type type, string name)
 {
-    if(IsAtomic(type))
-        WriteAtomic(type, name);
-    else if(IsArray(type))
-        WriteArray(type, name);
+	if(IsAtomic(type))
+		WriteAtomic(type, name);
+	//else if(type == typeof(string))
+	//	WriteString(type, name);
+	else if(IsArray(type))
+		WriteArray(type, name);
 	else if(type.IsEnum)
 		WriteEnum(type, name);
-    else 
-        WriteExternal(type, name);
+	else if(type == typeof(Guid))
+		WriteGuid(name);
+	else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+		WriteNullable(type, name);
+	else 
+		WriteExternal(type, name);
 }
 void WriteExternal(Type type, string name)
 { #>
-            <#= type.Name+"Serializer" #>.Serialize(<#= name #>, w);
+			<#= type.Name+"Serializer" #>.Serialize(<#= name #>, w);
 <#+ 
 }
 void WriteAtomic(Type type, string name)
 { #>
-            w.Write<#= GetWriteSuffix(type) #>(<#= name #>);
+			w.Write<#= GetWriteSuffix(type) #>(<#= name #>);
+<#+
+}
+void WriteGuid(string name)
+{ #>
+			w.Write(<#= name #>.ToByteArray());
 <#+
 }
 void WriteEnum(Type type, string name)
 { #>
-            w.Write<#= GetWriteSuffix(Enum.GetUnderlyingType(type)) #>((<#= TypeToString(Enum.GetUnderlyingType(type)) #>)<#= name #>);
+			w.Write<#= GetWriteSuffix(Enum.GetUnderlyingType(type)) #>((<#= TypeToString(Enum.GetUnderlyingType(type)) #>)<#= name #>);
 <#+
 }
 void WriteArray(Type type, string name)
 { #>
-            if(<#= name #> != null)
-            {
-                w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
-                w.Write<#= GetWriteSuffix(typeof(int)) #>((int)<#= name #>.Count);
-                foreach(var element in <#= name #>)
-        <#+ WriteComplex(type.GetGenericArguments()[0], "element");#>
-            }
-            else
-                w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
+			if(<#= name #> != null)
+			{
+				w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
+				w.Write<#= GetWriteSuffix(typeof(int)) #>((int)<#= name #>.Count);
+				foreach(var element in <#= name #>)
+		<#+ WriteComplex(type.GetGenericArguments()[0], "element");#>
+			}
+			else
+				w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
+<#+
+}
+void WriteNullable(Type type, string name)
+{ #>
+			if(<#= name #> != null)
+			{
+				w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
+	<#+ WriteComplex(type.GetGenericArguments()[0], name+".Value");#>
+			}
+			else
+				w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
+<#+
+}
+void WriteString(Type type, string name)
+{ #>
+			if(<#= name #> != null)
+			{
+				w.Write<#= GetWriteSuffix(typeof(bool)) #>(true);
+				w.Write(<#= name #>);
+			}
+			else
+				w.Write<#= GetWriteSuffix(typeof(bool)) #>(false);
 <#+
 }
 void ReadComplex(Type type, string name)
 {
-    if(IsAtomic(type))
-        ReadAtomic(type, name);
-    else if(IsArray(type))
-        ReadArray(type, name);
-    else if (type.IsEnum)
-	    ReadEnum(type, name);
-    else 
-        ReadExternal(type, name);
+	if(IsAtomic(type))
+		ReadAtomic(type, name);
+	//else if(type == typeof(string))
+	//	ReadString(type, name);
+	else if(IsArray(type))
+		ReadArray(type, name);
+	else if (type.IsEnum)
+		ReadEnum(type, name);
+	else if(type == typeof(Guid))
+		ReadGuid(name);
+	else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+		ReadNullable(type, name);
+	else 
+		ReadExternal(type, name);
 }
 void ReadExternal(Type type, string name)
 { #>
-            <#= name #> = <#= type.Name+"Serializer" #>.Deserialize(r);
+			<#= name #> = <#= type.Name+"Serializer" #>.Deserialize(r);
 <#+ 
 }
 void ReadAtomic(Type type, string name)
 { #>
-            <#= name #> = r.Read<#= GetReadSuffix(type) #>();
+			<#= name #> = r.Read<#= GetReadSuffix(type) #>();
 <#+
 }
 void ReadEnum(Type type, string name)
 { #>
-            <#= name #> = (<#= TypeToString(type) #>)r.Read<#= GetReadSuffix(Enum.GetUnderlyingType(type)) #>();
+			<#= name #> = (<#= TypeToString(type) #>)r.Read<#= GetReadSuffix(Enum.GetUnderlyingType(type)) #>();
+<#+
+}
+void ReadGuid(string name)
+{ #>
+			<#= name #> = new Guid(r.ReadBytes(16));
 <#+
 }
 void ReadArray(Type type, string name)
 { #>
-            {
-                bool isNotNull = r.Read<#= GetReadSuffix(typeof(bool)) #>();
-                if(!isNotNull)
-                    <#= name #> = null;
-                else
-                {
-                    int lenght = r.Read<#= GetReadSuffix(typeof(int)) #>();
-                    var list = new <#= TypeToString(type) #>(lenght);
-                    for(int i = 0; i < lenght; i++)
-                    {
-            <#+ ReadComplex(type.GetGenericArguments()[0], "var x"); #>
-                        list.Add(x);
-                    }
-                    <#= name #> = list;
-                }
-            }
+			{
+				if(!r.Read<#= GetReadSuffix(typeof(bool)) #>())
+					<#= name #> = null;
+				else
+				{
+					int lenght = r.Read<#= GetReadSuffix(typeof(int)) #>();
+					var list = new <#= TypeToString(type) #>(lenght);
+					for(int i = 0; i < lenght; i++)
+					{
+			<#+ ReadComplex(type.GetGenericArguments()[0], "var x"); #>
+						list.Add(x);
+					}
+					<#= name #> = list;
+				}
+			}
+<#+ 
+}
+void ReadNullable(Type type, string name)
+{ #>
+			{
+				if(!r.Read<#= GetReadSuffix(typeof(bool)) #>())
+					<#= name #> = null;
+				else
+				{
+		<#+ ReadComplex(type.GetGenericArguments()[0], name); #>
+				}
+			}
+<#+ 
+}
+void ReadString(Type type, string name)
+{ #>
+			{
+				if(!r.Read<#= GetReadSuffix(typeof(bool)) #>())
+					<#= name #> = null;
+				else
+				{
+					<#= name #> = r.ReadString();
+				}
+			}
 <#+ 
 }
 string TypeToString(Type type)
 {
-    if(type.IsArray)
-    {
-        return "List<" + TypeToString(type.GetElementType()) + ">";
-    }
-    else if(type.IsGenericType)
-    {
-        if(type.GetGenericTypeDefinition() == typeof(List<>))
-            return "List<" + TypeToString(type.GetGenericArguments()[0]) + ">";
-    }
-    return type.Name;
+	if(type.IsGenericType)
+	{
+		if(type.GetGenericTypeDefinition() == typeof(List<>))
+			return "List<" + TypeToString(type.GetGenericArguments()[0]) + ">";
+		if(type.GetGenericTypeDefinition() == typeof(Nullable<>))
+			return "Nullable<" + TypeToString(type.GetGenericArguments()[0]) + ">";
+	}
+	return type.Name;
 }
 bool IsAtomic(Type type)
 {
-    return type == typeof(byte)
-    ||type == typeof(short)
-    ||type == typeof(ushort)
-    ||type == typeof(int)
-    ||type == typeof(uint)
-    ||type == typeof(long)
-    ||type == typeof(ulong)
-    ||type == typeof(bool)
-    ||type == typeof(string);
+	return type == typeof(byte)
+	||type == typeof(short)
+	||type == typeof(ushort)
+	||type == typeof(int)
+	||type == typeof(uint)
+	||type == typeof(long)
+	||type == typeof(ulong)
+	||type == typeof(bool)
+	||type == typeof(float)
+	||type == typeof(double);
 }
 bool IsArray(Type type)
 {
-    return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>);
+	return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>);
 }
 string GetReadSuffix(Type type)
 {
-    if(type == typeof(byte))
-        return "Byte";
-    if (type == typeof(bool))
-        return "Boolean";
-    if(type == typeof(short))
-        return "Int16";
-    if(type == typeof(ushort))
-        return "UInt16";
-    if(type == typeof(int))
-        return "Int32";
-    if(type == typeof(uint))
-        return "UInt32";
-    if(type == typeof(long))
-        return "Int64";
-    if(type == typeof(ulong))
-        return "UInt64";
-    if(type == typeof(string))
-        return "String";
-    throw new Exception("Cannot map type:"+type);
+	if(type == typeof(byte))
+		return "Byte";
+	if (type == typeof(bool))
+		return "Boolean";
+	if(type == typeof(short))
+		return "Int16";
+	if(type == typeof(ushort))
+		return "UInt16";
+	if(type == typeof(int))
+		return "Int32";
+	if(type == typeof(uint))
+		return "UInt32";
+	if(type == typeof(long))
+		return "Int64";
+	if(type == typeof(ulong))
+		return "UInt64";
+	if(type == typeof(float))
+		return "Single";
+	if(type == typeof(double))
+		return "Double";
+	throw new Exception("Cannot map type:"+type);
 }
 string GetWriteSuffix(Type type)
 {
-    if(type == typeof(byte))
-        return "";
-    if (type == typeof(bool))
-        return "";
-    if(type == typeof(short))
-        return "";
-    if(type == typeof(ushort))
-        return "";
-    if(type == typeof(int))
-        return "";
-    if(type == typeof(uint))
-        return "";
-    if(type == typeof(long))
-        return "";
-    if(type == typeof(ulong))
-        return "";
-    if(type == typeof(string))
-        return "";
-    throw new Exception("Cannot map type:"+type);
+	if(type == typeof(byte))
+		return "";
+	if (type == typeof(bool))
+		return "";
+	if(type == typeof(short))
+		return "";
+	if(type == typeof(ushort))
+		return "";
+	if(type == typeof(int))
+		return "";
+	if(type == typeof(uint))
+		return "";
+	if(type == typeof(long))
+		return "";
+	if(type == typeof(ulong))
+		return "";
+	if(type == typeof(float))
+		return "";
+	if(type == typeof(double))
+		return "";
+	throw new Exception("Cannot map type:"+type);
 }
 #>

@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using Autofac;
-using ExitGames.Client.Photon;
-using MOUSE.Core;
+using Lidgren.Network;
+using LidgrenWrap;
+using MOUSE.Unity;
 using Protocol.Generated;
-using UnityClient;
+using NetPeer = MOUSE.Unity.NetPeer;
 
 namespace UnityClientTester
 {
@@ -21,80 +22,72 @@ namespace UnityClientTester
 
         public void Run()
         {
-            var builder = new ContainerBuilder();
 
-            //register core messages
-            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof (EmptyMessage)))
-                .Where(x => x.IsAssignableTo<Message>() && x != typeof (Message))
-                .As<Message>();
 
-            //register domain messages
-            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof (IChatLogin)))
-                .Where(x => x.IsAssignableTo<Message>() && x != typeof (Message))
-                .As<Message>();
+            var netConfiguration = new NetPeerConfiguration("ChatApp")
+            {
+                ConnectionTimeout = 10000,
+            };
+            var messageFactory = new MessageFactory(ProtocolDescription.GetAllMessages());
+            var dispatcher = new OperationDispatcher(messageFactory, ProtocolDescription.GetAllProxies());
+            var client = new NetNode<NetPeer>(new LidgrenNetProvider(netConfiguration), messageFactory, dispatcher);
+            client.Start();
 
-            //register domain service definitions and proxies
-            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof (IChatLogin)))
-                .Where(x => x.IsAssignableTo<NodeServiceProxy>() && x != typeof (NodeServiceProxy))
-                .As<NodeServiceProxy>();
+            client.PeerDisconnectedEvent.Subscribe((_) => Console.WriteLine("OnDisconnected"));
+            client.PeerConnectedEvent.Subscribe((_) => Console.WriteLine("OnConnected"));
+            
+            var connFuture = client.ConnectToServer("127.0.0.1:5055");
 
-            builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
-            builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
-            builder.Register(
-                c =>
-                new PhotonClient(c.Resolve<IMessageFactory>(), c.Resolve<IServiceProtocol>(), ConnectionProtocol.Udp,
-                                 "MouseChat"))
-                .As<INetClient>();
-            var container = builder.Build();
-
-            var client = container.Resolve<INetClient>();
-            //set callback handlers
-            client.SetHandler<IChatRoomServiceCallback>(this);
-            client.OnDisconnected.Subscribe((_) => Console.WriteLine("OnDisconnected"));
-            client.OnConnected.Subscribe((_) => Console.WriteLine("OnConnected"));
-            client.OnMessage.Subscribe((msg) => Console.WriteLine("OnReceived " + msg));
-
-            foreach (var o in client.Connect("127.0.0.1:5055"))
+            while (connFuture.State == FutureState.InProgress)
+            {
+                client.Update();
+                Thread.Sleep(10);
+            }
+            NetPeer peer = connFuture.Result;
+            peer.MessageEvent.Subscribe((msg) => Console.WriteLine("OnReceived " + msg));
+            var loginService = peer.GetProxy<IChatLogin>();
+            
+            var loginFuture = loginService.Login("UnityTester");
+            while (loginFuture.State == FutureState.InProgress)
             {
                 client.Update();
                 Thread.Sleep(10);
             }
 
-            var loginService = client.GetService<IChatLogin>();
-            var loginReply = new OperationReply<LoginResult>();
+            Console.WriteLine("Login Reply:" + loginFuture.Result);
 
-            foreach (var o in loginService.Login("UnityTester", loginReply))
+            var chatServiceProxy = peer.GetProxy<IChatService>();
+            var joinRoomFuture = chatServiceProxy.JoinOrCreateRoom("TestRoom");
+            while (joinRoomFuture.State == FutureState.InProgress)
             {
                 client.Update();
                 Thread.Sleep(10);
             }
 
-            Console.WriteLine("Login Reply:" + loginReply.Reply);
-
-            var chatServiceProxy = client.GetService<IChatService>();
-            var joinReply = new OperationReply<JoinRoomResponse>();
-
-            foreach (var o in chatServiceProxy.JoinOrCreateRoom("TestRoom", joinReply))
-            {
-                client.Update();
-                Thread.Sleep(10);
-            }
-
-            Console.WriteLine("CreateRoom RoomId:" + joinReply.Reply.RoomId);
-
-            var chatRoomServiceProxy = client.GetService<IChatRoomService>(joinReply.Reply.RoomId);
-            var roomContent = new OperationReply<List<string>>();
-
-            foreach (var o in chatRoomServiceProxy.Join(joinReply.Reply.Ticket, roomContent))
+            Console.WriteLine("CreateRoom RoomId:" + joinRoomFuture.Result.RoomActorId);
+            connFuture = client.ConnectToServer(joinRoomFuture.Result.ServerEndpoint);
+            while (connFuture.State == FutureState.InProgress)
             {
                 client.Update();
                 Thread.Sleep(10);
             }
             
+            var roomPeer = connFuture.Result;
+            roomPeer.SetHandler<IChatRoomServiceCallback>(this);
+            var chatRoomServiceProxy = roomPeer.GetProxy<IChatRoomService>(joinRoomFuture.Result.RoomActorId);
 
+            var connectRoomFuture = chatRoomServiceProxy.Join(joinRoomFuture.Result.Ticket);
 
-            foreach (var msg in roomContent.Reply)
+            while (connectRoomFuture.State == FutureState.InProgress)
+            {
+                client.Update();
+                Thread.Sleep(10);
+            }
+
+            foreach (var msg in connectRoomFuture.Result)
                 Console.WriteLine(msg);
+
+            
             while (true)
             {
                 client.Update();
@@ -103,9 +96,9 @@ namespace UnityClientTester
             
         }
 
-        public void OnRoomMessage(uint roomId, string message)
+        public void OnRoomMessage(string roomName, string message)
         {
-            Console.WriteLine("OnRoomMessage RoomId:" + roomId + " Message:" + message);
+            Console.WriteLine("OnRoomMessage Room:" + roomName + " Message:" + message);
         }
     }
 }

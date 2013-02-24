@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -61,6 +62,13 @@ namespace MOUSE.Core
         {
             _onDisconnectedSubject.OnNext(this);
             _onDisconnectedSubject.OnCompleted();
+
+            var exception = new ConnectionFailedException(Channel.EndPoint);
+            foreach (var pendingOp in PendingOperationsByRequestId.Values)
+            {
+                pendingOp.TCS.SetException(exception);
+            }
+            PendingOperationsByRequestId.Clear();
         }
 
         void INetChannelListener.OnNetData(BinaryReader reader)
@@ -77,6 +85,7 @@ namespace MOUSE.Core
                     {
                         var invMsg = msg as InvalidOperation;
                         continuation.TCS.SetException(new InvalidInput(invMsg.ErrorCode, invMsg.DebugDescription));
+                        Node.MessageFactory.Free(msg);
                     }
                     else
                         continuation.TCS.SetResult(msg);
@@ -91,11 +100,17 @@ namespace MOUSE.Core
             
         }
 
+        /// <summary>
+        /// you are responsible for freeing message at Messagefactory
+        /// </summary>
         public IObservable<T> ReceiveMessage<T>() where T : Message
         {
             return MessageEvent.OfType<T>();
         }
 
+        /// <summary>
+        /// you are responsible for freeing message at Messagefactory
+        /// </summary>
         public IObservable<T> ReceiveMessage<T>(TimeSpan waitTime) where T : Message
         {
             var cancelation = new CancellationTokenSource();
@@ -127,6 +142,7 @@ namespace MOUSE.Core
 
             Log.Debug("Sending " + context.Message);
             Channel.Send(context.Message);
+            MessageFactory.Free(context.Message);
 
             return continuation.TCS.Task;
         }
@@ -147,6 +163,10 @@ namespace MOUSE.Core
             get { return _onDisconnectedSubject; }
         }
 
+
+        /// <summary>
+        /// you are responsible for freeing message at Messagefactory
+        /// </summary>
         public IObservable<Message> MessageEvent
         {
             get { return _onMessageSubject; }
@@ -160,11 +180,15 @@ namespace MOUSE.Core
         public void ExecuteOneWayOperation(OperationContext context)
         {
             Channel.Send(context.Message);
+            MessageFactory.Free(context.Message);
         }
 
         public void ReplyWithError(Message requestMsg, ushort errorCode, string errorDesc)
         {
-            Reply(requestMsg, new InvalidOperation(errorCode, errorDesc));
+            var invalidMsg = Node.MessageFactory.New<InvalidOperation>();
+            invalidMsg.ErrorCode = errorCode;
+            invalidMsg.DebugDescription = errorDesc;
+            Reply(requestMsg, invalidMsg);
         }
 
         public void Reply(Message requestMsg, Message replyMsg)
@@ -180,6 +204,8 @@ namespace MOUSE.Core
             {
                 Log.Warn("Can't reply to {0} with {1} as source operation is one way", requestMsg, replyMsg);
             }
+
+            Node.MessageFactory.Free(replyMsg);
         }
     }
 
@@ -199,7 +225,7 @@ namespace MOUSE.Core
         }
     }
 
-    public class OperationContext
+    public struct OperationContext
     {
         public readonly Message Message;
         public readonly INetPeer Source;

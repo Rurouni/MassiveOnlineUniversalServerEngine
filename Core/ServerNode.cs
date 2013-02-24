@@ -49,7 +49,7 @@ namespace MOUSE.Core
         }
     }
 
-    public class C2SPeer : NetPeer
+    public class S2CPeer : NetPeer
     {
         private ConcurrentDictionary<uint, NetContractHandler> _handlersByNetContractId;
         
@@ -117,12 +117,14 @@ namespace MOUSE.Core
                     else
                     {
                         Log.Debug("Skipping {0} because no handler is present", msg);
+                        MessageFactory.Free(msg);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log.Error(ex.ToString);
+                MessageFactory.Free(msg);
+                Log.Error("Channel will be closed after: " + ex);
                 Channel.Close();
             }
         }
@@ -134,7 +136,7 @@ namespace MOUSE.Core
             {
                 if (operationHeader != null)
                 {
-                    if(operationHeader.Type != OperationType.Request)
+                    if (operationHeader.Type != OperationType.Request)
                     {
                         Log.Error("Received malformed service operation {0}", msg);
                         return;
@@ -165,8 +167,11 @@ namespace MOUSE.Core
             {
                 Log.ErrorException(string.Format("Error on processing {0} in {1}", msg, this), ex);
             }
+            finally
+            {
+                MessageFactory.Free(msg);
+            }
         }
-        
     }
 
     public class S2SPeer : NetPeer
@@ -194,11 +199,13 @@ namespace MOUSE.Core
                 else
                 {
                     Log.Warn("Received {0} without actor header, skip it", msg);
+                    MessageFactory.Free(msg);
                 }
             }
             catch (Exception ex)
             {
-                Log.Error(ex.ToString);
+                MessageFactory.Free(msg);
+                Log.Error("Channel will be closed after: " + ex);
                 Channel.Close();
             }
         }
@@ -219,9 +226,9 @@ namespace MOUSE.Core
 
         IActorCoordinator GetCoordinator<TNetContract>();
 
-        void DispatchOperationToActor(uint actorLocalId, Message msg, NetPeer peer, bool externalCall);
+        Task DispatchOperationToActor(uint actorLocalId, Message msg, NetPeer peer, bool externalCall);
 
-        INetNode<C2SPeer> ExternalNet { get; }
+        INetNode<S2CPeer> ExternalNet { get; }
         INetNode<S2SPeer> InternalNet { get; }
 
         IActorRepository Repository { get; }
@@ -242,7 +249,7 @@ namespace MOUSE.Core
         private readonly Dictionary<uint, IActorCoordinator> _actorCoordinatorsByPrimaryContractId = new Dictionary<uint, IActorCoordinator>();
 
 
-        public INetNode<C2SPeer> ExternalNet { get; set; }
+        public INetNode<S2CPeer> ExternalNet { get; set; }
         public INetNode<S2SPeer> InternalNet { get; set; }
 
         private readonly INodeCoordinator _coordinator;
@@ -285,7 +292,8 @@ namespace MOUSE.Core
         public ClusterView ClusterView { get; private set; }
 
         public IActorRepository Repository { get; private set; }
-        
+        public Type DefaultActorCoordinator { get; set; }
+
         public IOperationDispatcher Dispatcher { get; private set; }
         
         public IMessageFactory MessageFactory
@@ -295,15 +303,16 @@ namespace MOUSE.Core
 
         public ServerNode(INetProvider externalNetProvider, INetProvider internalNetProvider, INodeCoordinator coordinator,
             IMessageFactory factory, IOperationDispatcher protocol, IActorRepository repository,
-            Func<C2SPeer> clientPeerFactory)
+            Func<S2CPeer> clientPeerFactory)
         {
             _coordinator = coordinator;
             Repository = repository;
             Dispatcher = protocol;
-            ExternalNet = new NetNode<C2SPeer>(externalNetProvider, factory, protocol,
+            DefaultActorCoordinator = typeof(IsisActorCoordinator);
+            ExternalNet = new NetNode<S2CPeer>(externalNetProvider, factory, protocol,
                 peerFactory: () =>
                     {
-                        C2SPeer peer = clientPeerFactory();
+                        S2CPeer peer = clientPeerFactory();
                         peer.Node = this;
                         return peer;
                     });
@@ -312,11 +321,12 @@ namespace MOUSE.Core
 
             foreach (ActorDescription actorDesc in repository.ActorDescriptions)
             {
-                var actorCoord = (IActorCoordinator)Activator.CreateInstance(actorDesc.Attribute.Coordinator);
+                Type coordinatorType = actorDesc.Attribute.Coordinator ?? DefaultActorCoordinator;
+                var actorCoord = (IActorCoordinator)Activator.CreateInstance(coordinatorType);
                 actorCoord.Init(this, actorDesc.PrimaryContract.TypeId);
                 _actorCoordinatorsByPrimaryContractId.Add(actorDesc.PrimaryContract.TypeId, actorCoord);
             }
-
+            
             Fiber = new ServerFiber();
         }
 
@@ -412,7 +422,7 @@ namespace MOUSE.Core
             }
         }
 
-        public async void DispatchOperationToActor(uint actorLocalId, Message msg, NetPeer peer, bool externalCall)
+        public async Task DispatchOperationToActor(uint actorLocalId, Message msg, NetPeer peer, bool externalCall)
         {
             try
             {
@@ -432,23 +442,23 @@ namespace MOUSE.Core
                 Actor actor;
                 if (Repository.TryGet(actorLocalId, out actor))
                 {
-                    if(msg.GetHeader<OperationHeader>() != null)
+                    if (msg.GetHeader<OperationHeader>() != null)
                     {
-                        Message reply = await ((IOperationExecutor)actor).ExecuteOperation(new OperationContext(msg, peer));
+                        Message reply = await ((IOperationExecutor) actor).ExecuteOperation(new OperationContext(msg, peer));
                         peer.Reply(msg, reply);
 
                         Log.Debug("Dispatched {0} from {1} {2} : sending back reply {3}", msg, peer, actorLocalId, reply);
                     }
                     else
                     {
-                        ((IOperationExecutor)actor).ExecuteOneWayOperation(new OperationContext(msg, peer));
+                        ((IOperationExecutor) actor).ExecuteOneWayOperation(new OperationContext(msg, peer));
                     }
                 }
                 else
                 {
                     peer.ReplyWithError(msg, (ushort) BasicErrorCode.NonExistentActor, "Actor not present on this node");
                     Log.Debug("Dispatching {0} from {1} {2} : actor does not exist", msg, peer, actorLocalId);
-                    
+
                 }
             }
             catch (InvalidInput iex)
@@ -459,6 +469,10 @@ namespace MOUSE.Core
             catch (Exception ex)
             {
                 Log.ErrorException(string.Format("Error on Dispatching {0} from {1} to {2}", msg, peer, actorLocalId), ex);
+            }
+            finally
+            {
+                MessageFactory.Free(msg);
             }
         }
 

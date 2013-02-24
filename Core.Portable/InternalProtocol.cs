@@ -234,4 +234,18 @@ namespace MOUSE.Core
                 reader.ReadString());
         }
     }
+
+    public static class StringSerializer
+    {
+        public static void Serialize(string str, BinaryWriter writer)
+        {
+            writer.Write(str);
+        }
+
+        public static string Deserialize(BinaryReader reader)
+        {
+            return reader.ReadString();
+        }
+    }
+
 }
