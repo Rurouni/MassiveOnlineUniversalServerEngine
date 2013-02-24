@@ -29,13 +29,13 @@ On high level any project using MOUSE consists from such steps:
 	+ you implement callback interfaces if any and register your implementation with channel
 + Server:
 	+ You generate final protocol with help of async(Task based) t4 generator
-	+ You create inheritor from C2SPeer and register it with ServerNode, it will act as persistent connection to any client that has connected via external endpoint of this ServerNode
+	+ You create inheritor from S2CPeer and register it with ServerNode, it will act as persistent connection to any client that has connected via external endpoint of this ServerNode
 	+ You create any amount of classes inherited from Actor depending on your design(those would be bread and butter of your future scalability)
 	+ You implement protocol interfaces from generated via t4 file. You have basically 2 choices here
 		+ You can implement them directly in your custom C2SPeer class
 		+ You can implement them inside one or many of your custom actor classes
 	+ For each custom actor type you define coordinator type
-    + You call actors from C2S peers or other actors, coordinators deals with locating/creating new actors in clustered setup
+    + You call actors from S2C peers or other actors, coordinators deals with locating/creating new actors in clustered setup
     + You call client back via callback interfaces from custom C2SPeer or actors that you marked to be able to receive external connections
 	+ You start ServerNode configuring everything including what transport libraries use for internal and external connections
 	+ You add/remove nodes with this codebase depending on your load
@@ -63,11 +63,11 @@ Actors implementing same protocol contract are considered a group and each group
 	+ `Task<ReplyType>` if we want to get something back
 	+ `Task`  if  you just want to wait for completion on other side
 	+ `void` for one way non-async methods only(use with care as received message is recycled immediately upon control returns to proxy),
-+ each Actor and C2SPeer has own logical fiber, with blocking chunks fired in thread pool
++ each Actor and S2CPeer has own logical fiber, with blocking chunks fired in thread pool
 + each net contract method could be attributed with such lock levels:
 	+ None : processing happens on thread where net receive came
-	+ Read : processing in thread pool simultaniously with other Read operations
-	+ Write : no other operations would be processed until this one finishes (including all async cont)
+	+ Read : processing via peer or actor fiber in thread pool simultaniously with other Read operations
+	+ Write : processing via peer or actor fiber, no other operations would be processed until this one finishes (including all async cont)
 
 
 ##Planned
