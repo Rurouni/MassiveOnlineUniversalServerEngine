@@ -1,4 +1,7 @@
-﻿using MOUSE.Core;
+﻿
+
+
+using MOUSE.Core;
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -562,5 +565,6 @@ namespace Protocol.Generated
 		}
 	}
 }
+
 
 

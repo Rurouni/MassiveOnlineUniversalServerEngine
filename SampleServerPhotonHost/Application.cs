@@ -35,7 +35,7 @@ namespace SampleServerPhotonHost
                 .As<NetProxy>();
 
             //register domain service implementations
-            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(ChatManager)))
+            builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(UserManager)))
                 .Where(x => x.IsAssignableTo<Actor>() && x != typeof(Actor))
                 .As<Actor>();
 
@@ -43,7 +43,6 @@ namespace SampleServerPhotonHost
 
             builder.RegisterType<OperationDispatcher>().As<IOperationDispatcher>().SingleInstance();
             builder.RegisterType<ActorRepository>().As<IActorRepository>().SingleInstance();
-            builder.RegisterType<NullKeyValueStorage>().As<IKeyValueStorage>().SingleInstance();
             builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
             builder.Register(c => this).As<INetProvider>();
 

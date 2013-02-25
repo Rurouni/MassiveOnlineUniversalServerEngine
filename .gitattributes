@@ -1,5 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+*.cs text
+
 
 # Custom for Visual Studio
 *.cs     diff=csharp
@@ -20,3 +22,8 @@
 *.PDF	 diff=astextplain
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
+
+# Declare files that will always have CRLF line endings on checkout.
+*.sln       text eol=crlf
+*.t4        text eol=crlf
+*.t4include text eol=crlf
