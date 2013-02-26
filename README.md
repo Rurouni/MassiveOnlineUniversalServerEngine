@@ -43,7 +43,7 @@ On high level any project using MOUSE consists from such steps:
 If you know WCF everything above sounds quite familiar. So you can ask why we need something else. There are several reasons why you would not choose WCF for MMO game:
 + WCF is general and huge, it supports all kinds of enterprise scenarios and you pay in performance for things games never need
 + WCF doesn't have reliable/unreliable UDP transport from a box,  many online games need both reliable and unreliable traffic and easy way of defining which message is reliable and which not.
-+ Have fun consuming WCF services from C++ clients or old mono runtimes like Unity3d
++ Have fun consuming WCF services from C++ clients or limited mono runtimes like in Unity3d
 + WCF doesn't help you with coordination or consistent group views or multicasts, maximum scalability that you can get with WCF is when you have setup like this: hardware load balancer in front and set of stateless WCF services with same contract in the back. Have fun implementing open world MMO with such setup.
 
 
