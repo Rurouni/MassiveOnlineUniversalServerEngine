@@ -46,36 +46,6 @@ If you know WCF everything above sounds quite familiar. So you can ask why we ne
 + Have fun consuming WCF services from C++ clients or old mono runtimes like Unity3d
 + WCF doesn't help you with coordination or consistent group views or multicasts, maximum scalability that you can get with WCF is when you have setup like this: hardware load balancer in front and set of stateless WCF services with same contract in the back. Have fun implementing open world MMO with such setup.
 
-##Details
-Each actor and Peer has own logical fiber you can rely on this and forget about writing locks. This works even if you call any async method on actor proxy, fiber waits until Task of result is finished before starting processing another message. If you know that operation doesn't change anything you could attribute it with LockLevel.Read and all Read level operations could be processed simultaneously.
-Actors implementing same protocol contract are considered a group and each group of actors has own actor coordinator that is responsible for preserving consistency of the view of the actor group across all nodes in cluster. Actor coordinator also responsible for creating/removing actors on other nodes. Default actor coordinator uses Isis2 (http://isis2.codeplex.com/) internally and guarantees that only one actor with same name exist across all cluster at any moment of time. New actors are created at random nodes by default.
-
-+ Building primitives are:
-	+ Actor subclass
-		+ has some messaging contract in form of implemented interfaces
- 		+ has Name and local node Id if created
-   		+ OperationContex could be used to store client peer and send callback messages later
-	+ S2CPeer subclass
-		+ has some messaging contract in form of implemented interfaces
-  		+ could manage exposed contracts using `SetHandler<TNetContract>(TNetContract handler)` method
-		+ manages client state and acts as mediator to other actors calls depending on that state
-+ All communications are asynchronous RPC (relies on async/await feature of 4.5 Framework) of type
-	+ `Task<ReplyType>` if we want to get something back
-	+ `Task`  if  you just want to wait for completion on other side
-	+ `void` for one way non-async methods only(use with care as received message is recycled immediately upon control returns to proxy),
-+ each Actor and S2CPeer has own logical fiber, with blocking chunks fired in thread pool
-+ each net contract method could be attributed with such lock levels:
-	+ None : processing happens on thread where net receive came
-	+ Read : processing via peer or actor fiber in thread pool simultaniously with other Read operations
-	+ Write : processing via peer or actor fiber, no other operations would be processed until this one finishes (including all async cont)
-
-
-##Planned
-1. Send broadcasts and queries to group of actors of same type
-2. C++ client node and protocol generator
-3. Ability to persist actors in Redis
-4. ActorCoordinator that maintains required amount of replicas for each named actor
-5. Zookeeper based actor and node coordinators for those who don't want to rely on Isis2
 
 ## Tutorial 
 Here is very short quickstart that showcases main points of this framework.
@@ -265,6 +235,37 @@ LoginResult result = await loginService.Login(txtUserName.Text);
 ```
 As you see, sending request to server and having reply back is as simple as this.
 For more complex example you better look at Chat sample projects.
+
+##Details
+Each actor and Peer has own logical fiber you can rely on this and forget about writing locks. This works even if you call any async method on actor proxy, fiber waits until Task of result is finished before starting processing another message. If you know that operation doesn't change anything you could attribute it with LockLevel.Read and all Read level operations could be processed simultaneously.
+Actors implementing same protocol contract are considered a group and each group of actors has own actor coordinator that is responsible for preserving consistency of the view of the actor group across all nodes in cluster. Actor coordinator also responsible for creating/removing actors on other nodes. Default actor coordinator uses Isis2 (http://isis2.codeplex.com/) internally and guarantees that only one actor with same name exist across all cluster at any moment of time. New actors are created at random nodes by default.
+
++ Building primitives are:
+	+ Actor subclass
+		+ has some messaging contract in form of implemented interfaces
+ 		+ has Name and local node Id if created
+   		+ OperationContex could be used to store client peer and send callback messages later
+	+ S2CPeer subclass
+		+ has some messaging contract in form of implemented interfaces
+  		+ could manage exposed contracts using `SetHandler<TNetContract>(TNetContract handler)` method
+		+ manages client state and acts as mediator to other actors calls depending on that state
++ All communications are asynchronous RPC (relies on async/await feature of 4.5 Framework) of type
+	+ `Task<ReplyType>` if we want to get something back
+	+ `Task`  if  you just want to wait for completion on other side
+	+ `void` for one way non-async methods only(use with care as received message is recycled immediately upon control returns to proxy),
++ each Actor and S2CPeer has own logical fiber, with blocking chunks fired in thread pool
++ each net contract method could be attributed with such lock levels:
+	+ None : processing happens on thread where net receive came
+	+ Read : processing via peer or actor fiber in thread pool simultaniously with other Read operations
+	+ Write : processing via peer or actor fiber, no other operations would be processed until this one finishes (including all async cont)
+
+
+##Planned
+1. Send broadcasts and queries to group of actors of same type
+2. C++ client node and protocol generator
+3. Ability to persist actors in Redis
+4. ActorCoordinator that maintains required amount of replicas for each named actor
+5. Zookeeper based actor and node coordinators for those who don't want to rely on Isis2
 
 
 ## License - Mit
