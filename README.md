@@ -55,7 +55,7 @@ Actors implementing same protocol contract are considered a group and each group
 		+ has some messaging contract in form of implemented interfaces
  		+ has Name and local node Id if created
    		+ OperationContex could be used to store client peer and send callback messages later
-	+ C2SPeer subclass
+	+ S2CPeer subclass
 		+ has some messaging contract in form of implemented interfaces
   		+ could manage exposed contracts using `SetHandler<TNetContract>(TNetContract handler)` method
 		+ manages client state and acts as mediator to other actors calls depending on that state
