@@ -75,151 +75,197 @@ Actors implementing same protocol contract are considered a group and each group
 2. C++ client node and protocol generator
 3. Ability to persist actors in Redis
 4. ActorCoordinator that maintains required amount of replicas for each named actor
-5. Zookeeper based actor and node coordinators
+5. Zookeeper based actor and node coordinators for those who don't want to rely on Isis2
 
+## Tutorial 
+Here is very short quickstart that showcases main points of this framework.
+For details you better dive into Sample Project(this is simple chat server with rooms and basic user tracking) with such structure:
+* SampleC2SProtocol - protocol assembly for client to server communication
+* SampleS2SProtocol - protocol assembly for server to server communication as we don't want client even know about any of this operations
+* SampleServerLogic - all logic for our server, all implemented actors and custom peers are here
+* SampleServerConsoleHost - console runner for our server logic
+* SampleWpfClient - simple wpf client 
+You should run SampleConsoleHost to start server and SampleWPFClient to start client.
 
-
-## Tutorial (TBD)
-Look at projects named Sample, this is simple chat server with rooms and basic user tracking as showcase
-
-##OUTDATED (rework tutorial)
-### Client
-First of all you need protocol described in some dll (SampleC2SProtocol)
-It should contain net contracts of such form:
+Let's get started:
+#### Protocol
+We create new assembly and define some network contract in protocol assembly, it is simple C# interface with methods, methods could use any basic types or types you  defined in same assembly
 
 ``` C#
 [NetContract]
-public interface IChatService
+public interface IChatLogin
 {
-	List<string> GetRooms();
-        JoinRoomResponse JoinOrCreateRoom(string roomName);
+	[NetOperation(Reliability = MessageReliability.ReliableOrdered)]
+	LoginResult Login(string name);
 }
 ```
-You also need to add t4 file that will generate all messages/proxies, look GeneratedDomain.tt, here you just need to define assemblies that contain your net contracts
+#### Server
+We create console project for server and add there such t4 file (it would generate protocol implementation)
 
-Then you need to create client node. I am using Autofac to wire all things up, you can use anything you want,
-just note that all messages and proxies are exported as MEF parts, and here autofac helps me to correctly initialize ServiceProtocol and MessageFactory using this information
+``` C#
+<#@ output extension=".cs" #>
+<#@ Assembly Name="$(PathToOurProtocolAssemble)\OurProtocolAssembly.dll" #>
+<#
+	//if we have several protocol assemblies we filter all of them to this list
+    List<Assembly> asms = new List<Assembly>(AppDomain.CurrentDomain.GetAssemblies()
+    	.Where(x => x.GetName().Name.Contains("OurProtocolAssembly")));
+    GenerateAsyncProtocol("NamespaceThatWeWant", asms);
+#>
+<#@ include file="..\Core\DomainGeneration\AsyncProtocol.ttinclude" #>
+```
+We create inheritor from S2CPeer and implement there interface generated from protocol
+
+``` C#
+public class ChatClientPeer : S2CPeer, IChatLogin
+{
+    public override void OnCreated()
+    {
+        SetHandler<IChatLogin>(this);
+    }
+
+    [NetOperationHandler(Lock = LockType.Write)]
+    public async Task<LoginResult> Login(string name)
+    {
+        //Some logic
+        return LoginResult.Ok;
+    }
+}
+```
+As you have seen in generated interface all methods are actually returning Task<T> thats because on the server we never want to block and original interfaces
+are used only for protocol generation. In the end somebody could use xml or thrift here,
+but I like using C# interfaces as they provide clear syntax for grouping methods and defining reqest/reply pairs
+
+In main function on server we start ServerNode with our custom ChatClientPeer.
+ServerNode needs to know about all messages, proxies and actors.
+Here I am using Autofac to discover all this and register them with server node
 
 ``` C#
 var builder = new ContainerBuilder();
-//register chat messages and proxies as MEF parts
-builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetExecutingAssembly()));
-//register core messages as MEF parts
-builder.RegisterComposablePartCatalog(new AssemblyCatalog(Assembly.GetAssembly(typeof(INode))));
-builder.RegisterType<ServiceProtocol>().As<IServiceProtocol>().SingleInstance();
+
+//register core messages
+builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(EmptyMessage)))
+    .Where(x => x.IsAssignableTo<Message>() && x != typeof(Message))
+    .As<Message>();
+
+//register domain messages
+builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+    .Where(x => x.IsAssignableTo<Message>() && x != typeof(Message))
+    .As<Message>();
+
+//register domain service definitions and proxies
+builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+    .Where(x => x.IsAssignableTo<NetProxy>() && x != typeof(NetProxy))
+    .As<NetProxy>();
+
+//register actors
+builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+    .Where(x => x.IsAssignableTo<Actor>() && x != typeof(Actor))
+    .As<Actor>();
+
+builder.RegisterType<OperationDispatcher>().As<IOperationDispatcher>().SingleInstance();
+builder.RegisterType<ActorRepository>().As<IActorRepository>().SingleInstance();
 builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
-builder.Register(c => new PhotonNetClient("MouseChat")).As<INetProvider>().SingleInstance();
+
+var externalNetConf = new NetPeerConfiguration("ChatApp")
+    {
+        ConnectionTimeout = 30,
+        Port = externalEndpoint.Port,
+        LocalAddress = externalEndpoint.Address
+    };
+var internalNetConf = new NetPeerConfiguration("ChatApp")
+{
+    ConnectionTimeout = 30,
+    Port = internalEndpoint.Port,
+    LocalAddress = internalEndpoint.Address
+};
+var coordinator = new IsisNodeCoordinator();
+builder.Register(c => new ServerNode(
+        new LidgrenNetProvider(externalNetConf),
+        new LidgrenNetProvider(internalNetConf),
+        coordinator,
+        c.Resolve<IMessageFactory>(), c.Resolve<IOperationDispatcher>(), c.Resolve<IActorRepository>(),
+        () => new ChatClientPeer())) //factory method for creating our custom peers for connecting clients
+    .As<IServerNode>().SingleInstance();
+
+var container = builder.Build();
+
+var node = container.Resolve<IServerNode>();
+node.Start();
+
+// wait for some event to close our app, could be while(true) if you don't care
+```
+
+It has a bit of code but it is one time setup as we don't need to touch this if we add new network contracts or actors.
+For somebody who is curious what's going on here and why we have so many different types:
+LidgrenNetProvider is compatible wrapper on top of Lidgren. We have 2 of thouse as we need 2 seperate network listeners:
+one for external connections like clients and one for server nodes communicating to each other.
+MessageFactory is responsible for serializing/deserializing and pooling of messages.
+OperationDispatcher responsible for converting messages to RPC call and vice versa.
+ActorRepository will hold all actors and knows how to factory them.
+IsisNodeCoordinator will coordinate joining nodes in case of clustered setup.
+
+#### Client
+
+Now let's create client project and add protocol generation t4 file. Here we use .Net 4.5 for client so we can use same async protocol generator as fro server
+
+``` C#
+<#@ output extension=".cs" #>
+<#@ Assembly Name="$(PathToOurProtocolAssemble)\OurProtocolAssembly.dll" #>
+<#
+	//if we have several protocol assemblies we filter all of them to this list
+    List<Assembly> asms = new List<Assembly>(AppDomain.CurrentDomain.GetAssemblies()
+    	.Where(x => x.GetName().Name.Contains("OurProtocolAssembly")));
+    GenerateAsyncProtocol("NamespaceThatWeWant", asms);
+#>
+<#@ include file="..\Core\DomainGeneration\AsyncProtocol.ttinclude" #>
+```
+Now we can create ClientNode and register all messages, proxies with it. I am using Autofac to simplify registration
+
+var builder = new ContainerBuilder();
+``` C#
+//register core messages
+builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(EmptyMessage)))
+    .Where(x => x.IsAssignableTo<Message>() && x != typeof(Message))
+    .As<Message>();
+
+//register domain messages
+builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+    .Where(x => x.IsAssignableTo<Message>() && x != typeof(Message))
+    .As<Message>();
+
+//register domain service definitions and proxies
+builder.RegisterAssemblyTypes(Assembly.GetAssembly(typeof(IChatLogin)))
+    .Where(x => x.IsAssignableTo<NetProxy>() && x != typeof(NetProxy))
+    .As<NetProxy>();
+
+builder.RegisterType<OperationDispatcher>().As<IOperationDispatcher>().SingleInstance();
+builder.RegisterType<MessageFactory>().As<IMessageFactory>().SingleInstance();
+var netConf = new NetPeerConfiguration("ChatApp")
+{
+    ConnectionTimeout = 10000,
+};
+builder.Register(x => new LidgrenNetProvider(netConf)).As<INetProvider>().SingleInstance();
 builder.RegisterType<ClientNode>().As<IClientNode>();
 var container = builder.Build();
 
 _node = container.Resolve<IClientNode>();
-//set callback handlers
-_node.SetHandler<IChatRoomServiceCallback>(this);
-_node.DisconnectedEvent.Subscribe((_)=> OnMainChannelDisconnect());
 //start node thread and init network
 _node.Start();
 ```
+As you have noted we don't have ActorRepository in ClientNode. This is because client can't work actors directly(like create/remove or discover), 
+but it doesn't mean it can't call them. Client still able to call actors via network contract but we will see this in other tutorial that includes actors.
 
-Next important part is how we connect to server and communicate with it:
+Now we are ready to connect to server and issue some request to it.
 
 ``` C#
-await _node.ConnectToServer(new IPEndPoint(IPAddress.Parse(addrAndPort[0]), int.Parse(addrAndPort[1])));
-var loginService = await _node.GetService<IChatLogin>();
+_mainChannel = await _node.ConnectToServer(endpoint);
+var loginService = await _mainChannel.GetProxy<IChatLogin>();
+
 LoginResult result = await loginService.Login(txtUserName.Text);
 ```
-Interesting thing here is that you also await proxy object in `_node.GetService<IChatLogin>();`,
-that's because before returning proxy object on client server checks if client could access this service.
-And the last bit:
+As you see, sending request to server and having reply back is as simple as this.
+For more complex example you better look at Chat sample projects.
 
-``` C#
-try
-{
-	long ticket = await _chatServiceProxy.JoinRoom(room.Id);
-	_chatRoomServiceProxy = await _node.GetService<IChatRoomService>(room.Id);
-	List<string> history = await _chatRoomServiceProxy.Join(ticket);
-	txtChat.Clear();
-	foreach (var msg in history)
-		txtChat.AppendText(msg + "\n");
-}
-catch (InvalidInput iex)
-{
-	MessageBox.Show(((JoinRoomInvalidRetCode)iex.ErrorCode).ToString());
-}
-```
-it shows 2 important things:
-
-+ here `await _node.GetService<IChatRoomService>(room.Id);` we get proxy to service with id `room.Id`. If we dont provide any id when getting proxy it gets proxy to service with 0 id. It like singleton service.
-+ try-catch(InvalidInput) is used to process expected Incorrect Results, when server code throws InvalidInput exception it is rethrown on client, all other exceptions aren't rethrown
-
-Thats all for client, you can run SampleWPFClient to see how it works(currently it uses Photon as INetProvider, so you would need to host SampleServerPhotonHost in photon)
-### Server
-For server logic see SampleServerLogic, it's very straightforward, you can find 3 main entities there:
-First and minimum that you should have is C2SPeer inheritor ChatClient - it will be created for each connected client. Each peer has separate logical thread(fiber)
-
-``` C# 
-[Export(typeof(C2SPeer))]
-public class ChatClient : C2SPeer, IChatLogin, IChatService
-{
-	ClientState _state;
-	private ChatUserInfo _user;
-	uint _roomId;
-
-	public override void OnCreated()
-	{
-		Log = LogManager.GetLogger(string.Format("ChatClient<NetId:{0}>", Channel.Id));
-		SetHandler<IChatLogin>(this);
-		DisconnectedEvent.Subscribe(OnDisconnectAsync);
-		Log.Info("connected");
-	}
-	...
-```
-all initialization should be in `OnCreated()` method because neither constructor nor initializers will be called.
-C2SPeer could also enable/disable or delegate processing of various net contracts using `SetHandler<TNetContract>(obj);`
-
-Second you can find ChatManager service, it's not really needed for simple Chat,
-but it shows concept of internal manager over something(here over rooms) that is not available to client directly but usefull for server logic:
-like checking that we have no 2 users with the same name or finding rooms.
-Theoretically this service is bottleneck for users logging in but making this service scalable would overcomplicate sample
-
-``` C#
-[Export(typeof(NodeService))]
-[NodeService(AutoCreate = true, Persistant = false)]
-public class ChatManager : NodeService, IChatManager
-{
-	private uint _userCounter;
-	private uint _roomCounter;
-	private Dictionary<string, ChatUserInfo> _usersByName;
-	private Dictionary<uint, ChatUserInfo> _usersById;
-	private List<ChatRoomInfo> _rooms;
-
-
-	public override void OnCreated()
-	{
-	    _usersByName = new Dictionary<string, ChatUserInfo>();
-	    _usersById = new Dictionary<uint, ChatUserInfo>();
-	    _rooms = new List<ChatRoomInfo>();
-	    _userCounter = 1;
-	    _roomCounter = 1;
-	}
-        ...
-```
-
-You can see that here, as in C2SPeer, all initializations should also happen only in OnCreated method.
-
-The Last one is `ChatRoom` it's mostly like ChatManager, exept the fact that Id of service here really makes sense because 
-it's also the Id of the room. Also this service has externally visible net contract `IChatRoomService`
-and saves all C2SPeers joined this room into internal dictionaries as `ChatRoomClient`
-Sender C2SPeer could be accessed from `Context.Source`. Only note here: `Context` property could be safely used only before any `await` keyword. In continuations it becames invalid.
-
-Next interesting thing is how ChatRoom sends messages to other users of the room:
-
-``` C#
-var callback = client.Peer.As<IChatRoomServiceCallback>();
-callback.OnRoomMessage(Id, msg);
-```
-
-Other stuff looks similar to client code, everywhere you can get proxy to other services using Node.GetService<TNetContract>(id)
-and use this proxy to invoke RPC
 
 ## License - Mit
 
