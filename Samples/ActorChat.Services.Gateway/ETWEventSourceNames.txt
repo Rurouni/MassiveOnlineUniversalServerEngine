@@ -1,0 +1,7 @@
+﻿MOUSE-CoreEvents
+MOUSE-ActorCoreEvents
+Microsoft-ServiceFabric-Actors
+Microsoft-ServiceFabric-Services
+LidgrenEvents
+ActorChat-Services-GatewayService
+ActorChat-Services-SFRoomActor

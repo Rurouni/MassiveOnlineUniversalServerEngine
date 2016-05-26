@@ -1,0 +1,30 @@
+﻿{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUserName": {
+            "value": "Rurouni"
+        },
+        "certificateThumbprint": {
+            "value": "379D8012B54A4E83700408181F301519972E78C1"
+        },
+        "sourceVaultResourceId": {
+            "value": "/subscriptions/be825e12-2317-4055-bd8f-2a20253dbb91/resourceGroups/Global/providers/Microsoft.KeyVault/vaults/rurounisecrets"
+        },
+        "certificateUrlValue": {
+            "value": "https://rurounisecrets.vault.azure.net:443/secrets/rurounisfclustercert/c6e2fcdd812f4dd89255d684aba59468"
+        },
+        "clusterName": {
+            "value": "rurounisfcluster"
+        },
+        "vmSize": {
+            "value": "Standard_D1_V2"
+        },
+        "omsWorkspaceId": {
+            "value": "e041da0b-4f2b-4dcd-b361-b204687a5556"
+        },
+        "omsWorkspaceKey": {
+            "value": "5utYpQ/f6l/42lpb1UfAOEmPXaiDr1o0/LuIzNWfZaphrrLyUYut8Rw+InQ7Out3aH4Hsik41GgXW+HEbDAMvA=="
+        }
+    }
+}

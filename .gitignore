@@ -30,4 +30,5 @@ _ReSharper*/
 *.sdf
 *.sln.docstates
 *.ncrunch*
+packages/
 

@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ApplicationManifest xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ApplicationTypeName="OrleansTestType" ApplicationTypeVersion="1.0.0" xmlns="http://schemas.microsoft.com/2011/01/fabric">
+   <Parameters>
+      <Parameter Name="OrleansTestActor_InstanceCount" DefaultValue="-1" />
+   </Parameters>
+   <ServiceManifestImport>
+      <ServiceManifestRef ServiceManifestName="OrleansTestActorPkg" ServiceManifestVersion="1.0.0" />
+      <ConfigOverrides />
+      <Policies>
+         <RunAsPolicy CodePackageRef="Code" UserRef="SetupAdminUser" EntryPointType="Setup" />
+      </Policies>
+   </ServiceManifestImport>
+   <DefaultServices>
+      <Service Name="OrleansTestActor">
+         <StatelessService ServiceTypeName="OrleansTestActorType" InstanceCount="[OrleansTestActor_InstanceCount]">
+            <SingletonPartition />
+         </StatelessService>
+      </Service>
+   </DefaultServices>
+   <Principals>
+      <Users>
+         <User Name="SetupAdminUser">
+            <MemberOf>
+               <SystemGroup Name="Administrators" />
+            </MemberOf>
+         </User>
+      </Users>
+   </Principals>
+</ApplicationManifest>

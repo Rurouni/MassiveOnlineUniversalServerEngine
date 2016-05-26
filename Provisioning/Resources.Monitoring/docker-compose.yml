@@ -1,0 +1,43 @@
+﻿version: '2'
+services:
+    elasticsearch: 
+        image: "elasticsearch:latest"
+        ports: 
+            - "9200:9200"
+    kibana: 
+        image: "kibana:latest"
+        ports: 
+            - "5601:5601"
+        links: 
+            - elasticsearch
+        environment:
+            - ELASTICSEARCH_URL=http://elasticsearch:9200
+    influxdb: 
+        image: "tutum/influxdb:0.12"
+        ports: 
+            - "8083:8083"
+            - "8086:8086"
+        expose: 
+            - "8090"
+            - "8099"
+        environment: 
+            - "PRE_CREATE_DB=mousemetrics"
+    cadvisor: 
+        image: "google/cadvisor:latest"
+        volumes: 
+            - "/../:/rootfs:ro"
+            - "/var/run:/var/run:rw"
+            - "/sys:/sys:ro"
+            - "/var/lib/docker/:/var/lib/docker:ro"
+        links: 
+            - "influxdb:influxdb"
+        ports: 
+            - "8080:8080"
+        command: "-storage_driver=influxdb -storage_driver_db=mousemetrics -storage_driver_host=influxdb:8086"
+    grafana: 
+        image: "grafana/grafana:latest"
+        ports: 
+            - "3000:3000"
+        links: 
+            - "influxdb:influxdb"
+

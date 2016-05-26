@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>EtwStream.Core</name>
+    </assembly>
+    <members>
+        <member name="M:EtwStream.EventWrittenEventArgsExtensions.GetPayloadNames(Microsoft.Diagnostics.Tracing.EventWrittenEventArgs)">
+            <summary>
+            Get PeyloadNames from EventSource manifest.
+            </summary>
+        </member>
+        <member name="M:EtwStream.EventWrittenEventArgsExtensions.GetKeywordName(Microsoft.Diagnostics.Tracing.EventWrittenEventArgs)">
+            <summary>
+            Get KeywordDescription from EventSource manifest.
+            </summary>
+        </member>
+        <member name="M:EtwStream.EventWrittenEventArgsExtensions.GetTaskName(Microsoft.Diagnostics.Tracing.EventWrittenEventArgs)">
+            <summary>
+            Get TaskName from EventSource manifest.
+            </summary>
+        </member>
+        <member name="T:EtwStream.EventSchemaPortion">
+            <summary>
+            A portion of EventSchema to be required.
+            </summary>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromEventSource(Microsoft.Diagnostics.Tracing.EventSource,Microsoft.Diagnostics.Tracing.EventLevel,Microsoft.Diagnostics.Tracing.EventKeywords,System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>
+            Observe In-Process EventSource events. It's no across ETW.
+            </summary>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromEventSource(System.String,Microsoft.Diagnostics.Tracing.EventLevel,Microsoft.Diagnostics.Tracing.EventKeywords,System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>
+            Observe In-Process EventSource events. It's no across ETW.
+            </summary>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromTraceEvent(Microsoft.Diagnostics.Tracing.TraceEventLevel,System.String[])">
+            <summary>
+            Observe Out-of-Process ETW Realtime session by provider Name or string Guid.
+            </summary>
+            <param name="providerNameOrGuid">e.g.'MyEventSource'</param>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromTraceEvent(Microsoft.Diagnostics.Tracing.TraceEventLevel,System.Guid[])">
+            <summary>
+            Observe Out-of-Process ETW Realtime session by provider Guid.
+            </summary>
+            <param name="providerGuid">e.g.'2e5dba47-a3d2-4d16-8ee0-6671ffdcd7b5'</param>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromTraceEvent``2">
+            <summary>
+            Observe Out-of-Process ETW Realtime session by specified TraceEventParser.
+            </summary>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromClrTraceEvent">
+            <summary>
+            Observe Out-of-Process ETW CLR TraceEvent.
+            </summary>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromKernelTraceEvent(Microsoft.Diagnostics.Tracing.Parsers.KernelTraceEventParser.Keywords,Microsoft.Diagnostics.Tracing.Parsers.KernelTraceEventParser.Keywords)">
+            <summary>
+            Observe Out-of-Process ETW Kernel TraceEvent.
+            </summary>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromKernelTraceEvent``1(Microsoft.Diagnostics.Tracing.Parsers.KernelTraceEventParser.Keywords,Microsoft.Diagnostics.Tracing.Parsers.KernelTraceEventParser.Keywords)">
+            <summary>
+            Observe Out-of-Process ETW Kernel TraceEvent.
+            </summary>
+        </member>
+        <member name="M:EtwStream.ObservableEventListener.FromFileTail(System.String,System.Boolean,System.Text.Encoding)">
+            <summary>
+            Observe String-Line from file like tail -f.
+            </summary>
+            <param name="encoding">If null, use Encoding.UTF8</param>
+        </member>
+    </members>
+</doc>

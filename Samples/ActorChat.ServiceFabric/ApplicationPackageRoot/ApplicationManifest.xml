@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ApplicationManifest xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ApplicationTypeName="ActorChat.ServiceFabricType" ApplicationTypeVersion="1.0.2" xmlns="http://schemas.microsoft.com/2011/01/fabric">
+   <Parameters>
+      <Parameter Name="EventHubRoomActorService_InstanceCount" DefaultValue="-1" />
+      <Parameter Name="Gateway_InstanceCount" DefaultValue="1" />
+      <Parameter Name="RoomActorService_PartitionCount" DefaultValue="1" />
+      <Parameter Name="RoomActorService_MinReplicaSetSize" DefaultValue="2" />
+      <Parameter Name="RoomActorService_TargetReplicaSetSize" DefaultValue="3" />
+      <Parameter Name="SFRoomActorService_PartitionCount" DefaultValue="10" />
+      <Parameter Name="SFRoomActorService_MinReplicaSetSize" DefaultValue="2" />
+      <Parameter Name="SFRoomActorService_TargetReplicaSetSize" DefaultValue="3" />
+   </Parameters>
+   <ServiceManifestImport>
+      <ServiceManifestRef ServiceManifestName="ActorChat.Services.SFRoomActorPkg" ServiceManifestVersion="1.0.1" />
+   </ServiceManifestImport>
+   <ServiceManifestImport>
+      <ServiceManifestRef ServiceManifestName="ActorChat.Services.RoomActorServicePkg" ServiceManifestVersion="1.0.1" />
+   </ServiceManifestImport>
+   <ServiceManifestImport>
+      <ServiceManifestRef ServiceManifestName="ActorChat.Services.GatewayPkg" ServiceManifestVersion="1.0.1" />
+      <ConfigOverrides />
+   </ServiceManifestImport>
+   <DefaultServices>
+      <Service Name="GatewayService">
+         <StatelessService ServiceTypeName="GatewayServiceType" InstanceCount="[Gateway_InstanceCount]">
+            <SingletonPartition />
+         </StatelessService>
+      </Service>
+      <Service Name="SFRoomActorService" GeneratedIdRef="104e8ac1-1275-4d41-8d2f-079e11a1b971|Volatile">
+         <StatefulService ServiceTypeName="SFRoomActorServiceType" TargetReplicaSetSize="[RoomActorService_TargetReplicaSetSize]" MinReplicaSetSize="[RoomActorService_MinReplicaSetSize]">
+            <UniformInt64Partition PartitionCount="[RoomActorService_PartitionCount]" LowKey="-9223372036854775808" HighKey="9223372036854775807" />
+         </StatefulService>
+      </Service>
+      <Service Name="RoomActorService">
+         <StatefulService ServiceTypeName="RoomActorServiceType" TargetReplicaSetSize="[RoomActorService_TargetReplicaSetSize]" MinReplicaSetSize="[RoomActorService_MinReplicaSetSize]">
+            <UniformInt64Partition PartitionCount="[RoomActorService_PartitionCount]" LowKey="-9223372036854775808" HighKey="9223372036854775807" />
+         </StatefulService>
+      </Service>
+   </DefaultServices>
+</ApplicationManifest>

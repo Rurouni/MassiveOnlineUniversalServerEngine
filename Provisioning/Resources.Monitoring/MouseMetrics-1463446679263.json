@@ -1,0 +1,1265 @@
+{
+  "id": 1,
+  "title": "MouseMetrics",
+  "originalTitle": "MouseMetrics",
+  "tags": [],
+  "style": "dark",
+  "timezone": "browser",
+  "editable": true,
+  "hideControls": false,
+  "sharedCrosshair": false,
+  "rows": [
+    {
+      "collapse": false,
+      "editable": true,
+      "height": "250px",
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "datasource": null,
+          "editable": true,
+          "error": false,
+          "fill": 1,
+          "grid": {
+            "threshold1": null,
+            "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
+            "threshold2Color": "rgba(234, 112, 112, 0.22)"
+          },
+          "id": 1,
+          "isNew": true,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 12,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "bucketAggs": [
+                {
+                  "fake": true,
+                  "field": "fields.nodeName",
+                  "id": "3",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.serviceName",
+                  "id": "4",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.partitionId",
+                  "id": "5",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.replicaOrInstanceId",
+                  "id": "6",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "field": "@timestamp",
+                  "id": "2",
+                  "settings": {
+                    "interval": "auto",
+                    "min_doc_count": 0,
+                    "trimEdges": 0
+                  },
+                  "type": "date_histogram"
+                }
+              ],
+              "dsType": "elasticsearch",
+              "metrics": [
+                {
+                  "field": "fields.value",
+                  "id": "1",
+                  "meta": {},
+                  "settings": {},
+                  "type": "avg"
+                }
+              ],
+              "query": "_type:metric AND type:Gauge AND name:$GaugeName AND fields.nodeName:$NodeName AND fields.serviceName:$ServiceName AND fields.partitionId:$ServicePartitionId AND fields.replicaOrInstanceId:$ServiceInstanceId",
+              "refId": "A",
+              "timeField": "@timestamp"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "$GaugeName",
+          "tooltip": {
+            "msResolution": false,
+            "shared": true,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "show": true
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "showTitle": true,
+      "title": "Gauges"
+    },
+    {
+      "collapse": false,
+      "editable": true,
+      "height": "250px",
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "datasource": null,
+          "editable": true,
+          "error": false,
+          "fill": 1,
+          "grid": {
+            "threshold1": null,
+            "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
+            "threshold2Color": "rgba(234, 112, 112, 0.22)"
+          },
+          "id": 2,
+          "isNew": true,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 12,
+          "stack": true,
+          "steppedLine": false,
+          "targets": [
+            {
+              "bucketAggs": [
+                {
+                  "fake": true,
+                  "field": "fields.nodeName",
+                  "id": "3",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.serviceName",
+                  "id": "4",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.partitionId",
+                  "id": "5",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.replicaOrInstanceId",
+                  "id": "6",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "field": "@timestamp",
+                  "id": "2",
+                  "settings": {
+                    "interval": "auto",
+                    "min_doc_count": 0,
+                    "trimEdges": 0
+                  },
+                  "type": "date_histogram"
+                }
+              ],
+              "dsType": "elasticsearch",
+              "metrics": [
+                {
+                  "field": "fields.count",
+                  "id": "1",
+                  "meta": {},
+                  "settings": {},
+                  "type": "avg"
+                }
+              ],
+              "query": "_type:metric AND type:Counter AND name:$CounterName AND fields.nodeName:$NodeName AND fields.serviceName:$ServiceName AND fields.partitionId:$ServicePartitionId AND fields.replicaOrInstanceId:$ServiceInstanceId",
+              "refId": "A",
+              "timeField": "@timestamp"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "$CounterName",
+          "tooltip": {
+            "msResolution": false,
+            "shared": true,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "show": true
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "showTitle": true,
+      "title": "Counters"
+    },
+    {
+      "collapse": false,
+      "editable": true,
+      "height": "250px",
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "datasource": null,
+          "editable": true,
+          "error": false,
+          "fill": 1,
+          "grid": {
+            "threshold1": null,
+            "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
+            "threshold2Color": "rgba(234, 112, 112, 0.22)"
+          },
+          "id": 3,
+          "isNew": true,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 12,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "bucketAggs": [
+                {
+                  "fake": true,
+                  "field": "fields.nodeName",
+                  "id": "4",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.serviceName",
+                  "id": "5",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.partitionId",
+                  "id": "6",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.replicaOrInstanceId",
+                  "id": "7",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "field": "@timestamp",
+                  "id": "2",
+                  "settings": {
+                    "interval": "auto",
+                    "min_doc_count": 0,
+                    "trimEdges": 0
+                  },
+                  "type": "date_histogram"
+                }
+              ],
+              "dsType": "elasticsearch",
+              "metrics": [
+                {
+                  "field": "fields.meanRate",
+                  "id": "1",
+                  "meta": {},
+                  "settings": {},
+                  "type": "avg"
+                }
+              ],
+              "query": "_type:metric AND type:(Meter OR Timer) AND name:$MeterName AND fields.nodeName:$NodeName AND fields.serviceName:$ServiceName AND fields.partitionId:$ServicePartitionId AND fields.replicaOrInstanceId:$ServiceInstanceId",
+              "refId": "A",
+              "timeField": "@timestamp"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "$MeterName",
+          "tooltip": {
+            "msResolution": false,
+            "shared": true,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "show": true
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "title": "New row"
+    },
+    {
+      "collapse": false,
+      "editable": true,
+      "height": "250px",
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "datasource": null,
+          "editable": true,
+          "error": false,
+          "fill": 1,
+          "grid": {
+            "threshold1": null,
+            "threshold1Color": "rgba(216, 200, 27, 0.27)",
+            "threshold2": null,
+            "threshold2Color": "rgba(234, 112, 112, 0.22)"
+          },
+          "id": 4,
+          "isNew": true,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "connected",
+          "percentage": false,
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "span": 12,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "alias": "{{field}} {{term fields.nodeName}} {{term fields.serviceName}} {{term fields.partitionId}} {{term fields.replicaOrInstanceId}}",
+              "bucketAggs": [
+                {
+                  "fake": true,
+                  "field": "fields.nodeName",
+                  "id": "3",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.serviceName",
+                  "id": "4",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.partitionId",
+                  "id": "5",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "fake": true,
+                  "field": "fields.replicaOrInstanceId",
+                  "id": "6",
+                  "settings": {
+                    "order": "asc",
+                    "orderBy": "_term",
+                    "size": "10"
+                  },
+                  "type": "terms"
+                },
+                {
+                  "field": "@timestamp",
+                  "id": "2",
+                  "settings": {
+                    "interval": "auto",
+                    "min_doc_count": 0,
+                    "trimEdges": 0
+                  },
+                  "type": "date_histogram"
+                }
+              ],
+              "dsType": "elasticsearch",
+              "metrics": [
+                {
+                  "field": "fields.median",
+                  "id": "1",
+                  "meta": {},
+                  "settings": {},
+                  "type": "avg"
+                },
+                {
+                  "field": "fields.percentile75",
+                  "id": "7",
+                  "meta": {},
+                  "settings": {},
+                  "type": "avg"
+                },
+                {
+                  "field": "fields.percentile95",
+                  "id": "8",
+                  "meta": {},
+                  "settings": {},
+                  "type": "avg"
+                },
+                {
+                  "field": "fields.percentile99",
+                  "id": "9",
+                  "meta": {},
+                  "settings": {},
+                  "type": "avg"
+                }
+              ],
+              "query": "_type:metric AND type:Timer AND name:$TimerName AND fields.nodeName:$NodeName AND fields.serviceName:$ServiceName AND fields.partitionId:$ServicePartitionId AND fields.replicaOrInstanceId:$ServiceInstanceId",
+              "refId": "A",
+              "timeField": "@timestamp"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "$TimerName",
+          "tooltip": {
+            "msResolution": false,
+            "shared": false,
+            "value_type": "cumulative"
+          },
+          "type": "graph",
+          "xaxis": {
+            "show": true
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ]
+        }
+      ],
+      "showTitle": true,
+      "title": "Timers"
+    }
+  ],
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "tags": [],
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": null,
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "NodeName",
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "_Node_3",
+            "value": "_Node_3",
+            "selected": false
+          },
+          {
+            "text": "_Node_4",
+            "value": "_Node_4",
+            "selected": false
+          }
+        ],
+        "query": "{\"find\": \"terms\", \"field\": \"fields.nodeName\"}",
+        "refresh": 2,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {
+          "tags": [],
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": null,
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "ServiceName",
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "fabric:/SFActorsPerfTest/Gateway",
+            "value": "fabric:/SFActorsPerfTest/Gateway",
+            "selected": false
+          },
+          {
+            "text": "fabric:/SFActorsPerfTest/SFTestActorService",
+            "value": "fabric:/SFActorsPerfTest/SFTestActorService",
+            "selected": false
+          }
+        ],
+        "query": "{\"find\": \"terms\", \"field\": \"fields.serviceName\"}",
+        "refresh": 2,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {
+          "tags": [],
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": null,
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "ServicePartitionId",
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "0ce35aee-b5b1-4ffe-85a0-9447b1429e58",
+            "value": "0ce35aee-b5b1-4ffe-85a0-9447b1429e58",
+            "selected": false
+          },
+          {
+            "text": "6b7efd2c-b0c9-44c3-85e5-449467e05427",
+            "value": "6b7efd2c-b0c9-44c3-85e5-449467e05427",
+            "selected": false
+          }
+        ],
+        "query": "{\"find\": \"terms\", \"field\": \"fields.partitionId\"}",
+        "refresh": 2,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {
+          "tags": [],
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": null,
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "ServiceInstanceId",
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "131079132683832204",
+            "value": "131079132683832204",
+            "selected": false
+          }
+        ],
+        "query": "{\"find\": \"terms\", \"field\": \"fields.replicaOrInstanceId\"}",
+        "refresh": 2,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "current": {
+          "text": "% User Timer",
+          "value": "% User Timer"
+        },
+        "datasource": null,
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "GaugeName",
+        "options": [
+          {
+            "text": "% DPC Time",
+            "value": "% DPC Time",
+            "selected": false
+          },
+          {
+            "text": "% Interrupt time",
+            "value": "% Interrupt time",
+            "selected": false
+          },
+          {
+            "text": "% Privileged Timer",
+            "value": "% Privileged Timer",
+            "selected": false
+          },
+          {
+            "text": "% User Timer",
+            "value": "% User Timer",
+            "selected": true
+          },
+          {
+            "text": "Allocated Bytes/second",
+            "value": "Allocated Bytes/second",
+            "selected": false
+          },
+          {
+            "text": "Available RAM",
+            "value": "Available RAM",
+            "selected": false
+          },
+          {
+            "text": "CPU Usage",
+            "value": "CPU Usage",
+            "selected": false
+          },
+          {
+            "text": "Contention Rate / Sec",
+            "value": "Contention Rate / Sec",
+            "selected": false
+          },
+          {
+            "text": "Except Filters / Sec",
+            "value": "Except Filters / Sec",
+            "selected": false
+          },
+          {
+            "text": "Exceptions Thrown / Sec",
+            "value": "Exceptions Thrown / Sec",
+            "selected": false
+          },
+          {
+            "text": "Finallys / Sec",
+            "value": "Finallys / Sec",
+            "selected": false
+          },
+          {
+            "text": "Free System Page Table Entries",
+            "value": "Free System Page Table Entries",
+            "selected": false
+          },
+          {
+            "text": "Gen 0 heap size",
+            "value": "Gen 0 heap size",
+            "selected": false
+          },
+          {
+            "text": "Gen 1 heap size",
+            "value": "Gen 1 heap size",
+            "selected": false
+          },
+          {
+            "text": "Gen 2 heap size",
+            "value": "Gen 2 heap size",
+            "selected": false
+          },
+          {
+            "text": "IO Data Operations/sec",
+            "value": "IO Data Operations/sec",
+            "selected": false
+          },
+          {
+            "text": "IO Other Operations/sec",
+            "value": "IO Other Operations/sec",
+            "selected": false
+          },
+          {
+            "text": "Interrupts / sec",
+            "value": "Interrupts / sec",
+            "selected": false
+          },
+          {
+            "text": "Large Object Heap size",
+            "value": "Large Object Heap size",
+            "selected": false
+          },
+          {
+            "text": "Logical Disk Avg. sec/Read",
+            "value": "Logical Disk Avg. sec/Read",
+            "selected": false
+          },
+          {
+            "text": "Logical Disk Avg. sec/Write",
+            "value": "Logical Disk Avg. sec/Write",
+            "selected": false
+          },
+          {
+            "text": "Logical Disk Reads/sec",
+            "value": "Logical Disk Reads/sec",
+            "selected": false
+          },
+          {
+            "text": "Logical Disk Transfers/sec",
+            "value": "Logical Disk Transfers/sec",
+            "selected": false
+          },
+          {
+            "text": "Logical Disk Writes/sec",
+            "value": "Logical Disk Writes/sec",
+            "selected": false
+          },
+          {
+            "text": "Logical Threads",
+            "value": "Logical Threads",
+            "selected": false
+          },
+          {
+            "text": "Mb in all Heaps",
+            "value": "Mb in all Heaps",
+            "selected": false
+          },
+          {
+            "text": "Pages Input/sec",
+            "value": "Pages Input/sec",
+            "selected": false
+          },
+          {
+            "text": "Pages/sec",
+            "value": "Pages/sec",
+            "selected": false
+          },
+          {
+            "text": "Physical Disk Avg. sec/Read",
+            "value": "Physical Disk Avg. sec/Read",
+            "selected": false
+          },
+          {
+            "text": "Physical Disk Avg. sec/Write",
+            "value": "Physical Disk Avg. sec/Write",
+            "selected": false
+          },
+          {
+            "text": "Physical Disk Reads/sec",
+            "value": "Physical Disk Reads/sec",
+            "selected": false
+          },
+          {
+            "text": "Physical Disk Transfers/sec",
+            "value": "Physical Disk Transfers/sec",
+            "selected": false
+          },
+          {
+            "text": "Physical Disk Writes/sec",
+            "value": "Physical Disk Writes/sec",
+            "selected": false
+          },
+          {
+            "text": "Physical Threads",
+            "value": "Physical Threads",
+            "selected": false
+          },
+          {
+            "text": "Pinned Objects",
+            "value": "Pinned Objects",
+            "selected": false
+          },
+          {
+            "text": "Pool Nonpaged MBytes",
+            "value": "Pool Nonpaged MBytes",
+            "selected": false
+          },
+          {
+            "text": "Pool Paged MBytes",
+            "value": "Pool Paged MBytes",
+            "selected": false
+          },
+          {
+            "text": "Private MBytes",
+            "value": "Private MBytes",
+            "selected": false
+          },
+          {
+            "text": "Process CPU Usage",
+            "value": "Process CPU Usage",
+            "selected": false
+          },
+          {
+            "text": "Process Privileged Time",
+            "value": "Process Privileged Time",
+            "selected": false
+          },
+          {
+            "text": "Process User Time",
+            "value": "Process User Time",
+            "selected": false
+          },
+          {
+            "text": "Queue Length / sec",
+            "value": "Queue Length / sec",
+            "selected": false
+          },
+          {
+            "text": "SFActors.Gateway Threads",
+            "value": "SFActors.Gateway Threads",
+            "selected": false
+          },
+          {
+            "text": "SFActors.Gateway Uptime Hours",
+            "value": "SFActors.Gateway Uptime Hours",
+            "selected": false
+          },
+          {
+            "text": "SFActors.Gateway Uptime Seconds",
+            "value": "SFActors.Gateway Uptime Seconds",
+            "selected": false
+          },
+          {
+            "text": "SFTestActor Threads",
+            "value": "SFTestActor Threads",
+            "selected": false
+          },
+          {
+            "text": "SFTestActor Uptime Hours",
+            "value": "SFTestActor Uptime Hours",
+            "selected": false
+          },
+          {
+            "text": "SFTestActor Uptime Seconds",
+            "value": "SFTestActor Uptime Seconds",
+            "selected": false
+          },
+          {
+            "text": "Thread Pool Available Completion Ports",
+            "value": "Thread Pool Available Completion Ports",
+            "selected": false
+          },
+          {
+            "text": "Thread Pool Available Threads",
+            "value": "Thread Pool Available Threads",
+            "selected": false
+          },
+          {
+            "text": "Thread Pool Max Completion Ports",
+            "value": "Thread Pool Max Completion Ports",
+            "selected": false
+          },
+          {
+            "text": "Thread Pool Max Threads",
+            "value": "Thread Pool Max Threads",
+            "selected": false
+          },
+          {
+            "text": "Thread Pool Min Completion Ports",
+            "value": "Thread Pool Min Completion Ports",
+            "selected": false
+          },
+          {
+            "text": "Thread Pool Min Threads",
+            "value": "Thread Pool Min Threads",
+            "selected": false
+          },
+          {
+            "text": "Throw to Catch Depth / Sec",
+            "value": "Throw to Catch Depth / Sec",
+            "selected": false
+          },
+          {
+            "text": "Time in GC",
+            "value": "Time in GC",
+            "selected": false
+          },
+          {
+            "text": "Total Contentions",
+            "value": "Total Contentions",
+            "selected": false
+          },
+          {
+            "text": "Total Exceptions",
+            "value": "Total Exceptions",
+            "selected": false
+          },
+          {
+            "text": "Working Set",
+            "value": "Working Set",
+            "selected": false
+          }
+        ],
+        "query": "{\"find\": \"terms\", \"field\": \"name\", \"query\":\"type:Gauge\"}",
+        "refresh": 2,
+        "regex": "",
+        "tagValuesQuery": "{\"find\": \"terms\", \"field\": \"name\", \"query\":\"fields.group:$tag\"}",
+        "tagsQuery": "{\"find\": \"terms\", \"field\": \"fields.group\"}",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {
+          "text": "NetChannelsCount",
+          "value": "NetChannelsCount"
+        },
+        "datasource": null,
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "CounterName",
+        "options": [
+          {
+            "text": "ElasticSearchDrain_QueuedEvents",
+            "value": "ElasticSearchDrain_QueuedEvents",
+            "selected": false
+          },
+          {
+            "text": "NetChannelsCount",
+            "value": "NetChannelsCount",
+            "selected": true
+          }
+        ],
+        "query": "{\"find\": \"terms\", \"field\": \"name\", \"query\":\"type:Counter\"}",
+        "refresh": 2,
+        "regex": "",
+        "tagValuesQuery": "{\"find\": \"terms\", \"field\": \"name\", \"query\":\"fields.group:$tag\"}",
+        "tagsQuery": "{\"find\": \"terms\", \"field\": \"fields.group\"}",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {
+          "text": "SentRequestsDurationTimer",
+          "value": "SentRequestsDurationTimer"
+        },
+        "datasource": null,
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "TimerName",
+        "options": [
+          {
+            "text": "ElasticSearchDrain_ESRequestTimer",
+            "value": "ElasticSearchDrain_ESRequestTimer",
+            "selected": false
+          },
+          {
+            "text": "NodeUpdateTime",
+            "value": "NodeUpdateTime",
+            "selected": false
+          },
+          {
+            "text": "SentRequestsDurationTimer",
+            "value": "SentRequestsDurationTimer",
+            "selected": true
+          }
+        ],
+        "query": "{\"find\": \"terms\", \"field\": \"name\", \"query\":\"type:Timer\"}",
+        "refresh": 2,
+        "regex": "",
+        "tagValuesQuery": "{\"find\": \"terms\", \"field\": \"name\", \"query\":\"fields.group:$tag\"}",
+        "tagsQuery": "{\"find\": \"terms\", \"field\": \"fields.group\"}",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {
+          "text": "ReceivedMessagesMeter",
+          "value": "ReceivedMessagesMeter"
+        },
+        "datasource": null,
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "MeterName",
+        "options": [
+          {
+            "text": "ElasticSearchDrain_ESRequestTimer",
+            "value": "ElasticSearchDrain_ESRequestTimer",
+            "selected": false
+          },
+          {
+            "text": "ElasticSearchDrain_Errors",
+            "value": "ElasticSearchDrain_Errors",
+            "selected": false
+          },
+          {
+            "text": "ElasticSearchDrain_EventsReceived",
+            "value": "ElasticSearchDrain_EventsReceived",
+            "selected": false
+          },
+          {
+            "text": "ElasticSearchDrain_EventsSent",
+            "value": "ElasticSearchDrain_EventsSent",
+            "selected": false
+          },
+          {
+            "text": "NetChannelsConnected",
+            "value": "NetChannelsConnected",
+            "selected": false
+          },
+          {
+            "text": "NetChannelsDisconnected",
+            "value": "NetChannelsDisconnected",
+            "selected": false
+          },
+          {
+            "text": "NodeUpdateTime",
+            "value": "NodeUpdateTime",
+            "selected": false
+          },
+          {
+            "text": "ReceivedMessagesMeter",
+            "value": "ReceivedMessagesMeter",
+            "selected": true
+          },
+          {
+            "text": "SentMessagesMeter",
+            "value": "SentMessagesMeter",
+            "selected": false
+          },
+          {
+            "text": "SentRequestsDurationTimer",
+            "value": "SentRequestsDurationTimer",
+            "selected": false
+          },
+          {
+            "text": "SentRequestsFailedMeter",
+            "value": "SentRequestsFailedMeter",
+            "selected": false
+          },
+          {
+            "text": "SentRequestsMeter",
+            "value": "SentRequestsMeter",
+            "selected": false
+          }
+        ],
+        "query": "{\"find\": \"terms\", \"field\": \"name\", \"query\":\"type:(Meter OR Timer)\"}",
+        "refresh": 2,
+        "regex": "",
+        "tagValuesQuery": "{\"find\": \"terms\", \"field\": \"name\", \"query\":\"fields.group:$tag\"}",
+        "tagsQuery": "{\"find\": \"terms\", \"field\": \"fields.group\"}",
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "refresh": false,
+  "schemaVersion": 12,
+  "version": 13,
+  "links": []
+}

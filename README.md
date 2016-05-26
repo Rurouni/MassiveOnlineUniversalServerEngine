@@ -1,5 +1,5 @@
 ##General Info
-M.O.U.S.E v2 - better, faster, on Azure Service Fabric and with 0 documentation...
+M.O.U.S.E v2 - better, faster, runs on Azure Service Fabric...
 
 ## License - Mit
 
