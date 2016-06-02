@@ -31,36 +31,14 @@ namespace ActorChat.Services.RoomActorService
         protected override IMessageProcessingLockConfigBuilder ConfigureLocks(IMessageProcessingLockConfigBuilder builder)
         {
             return base.ConfigureLocks(builder)
-                .Lock<TestStateless>(LockType.Write);
+                .Lock<JoinRoomS2S>(LockType.Write);
         }
 
         protected override IMessageHandlingConfigBuilder ConfigureHandlers(IMessageHandlingConfigBuilder builder)
         {
             return builder
                 .HandleRequestAsync<JoinRoomS2S, JoinRoomResponse>(Process)
-                .HandleMessage<SayS2S>(Process)
-                .HandleRequestAsync<TestStateless, OperationResult>(Process)
-                .HandleRequestAsync<TestStateful, OperationResult>(Process);
-        }
-
-        async Task<OperationResult> Process(TestStateless msg, IOperationContext arg2)
-        {
-            if(msg.SleepDurationMs > 0)
-                await Task.Delay(msg.SleepDurationMs);
-
-            return OperationResult.Success;
-        }
-
-        async Task<OperationResult> Process(TestStateful msg, IOperationContext arg2)
-        {
-            using (var trans = _stateManager.CreateTransaction())
-            {
-                await _state.AddOrUpdateAsync(trans, ActorRef.Key.Id, (x) => DateTime.UtcNow, (x, _) => DateTime.UtcNow);
-
-                await trans.CommitAsync();
-            }
-
-            return OperationResult.Success;
+                .HandleMessage<SayS2S>(Process);
         }
 
         async public Task<JoinRoomResponse> Process(JoinRoomS2S request, IOperationContext context)

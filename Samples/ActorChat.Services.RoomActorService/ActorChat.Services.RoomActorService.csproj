@@ -9,9 +9,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ActorChat.Services.RoomActorService</RootNamespace>
     <AssemblyName>ActorChat.Services.RoomActorService</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <DebugSymbols>true</DebugSymbols>
@@ -62,6 +63,14 @@
     </Reference>
     <Reference Include="Microsoft.ServiceFabric.Services, Version=5.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64">
       <HintPath>..\..\packages\Microsoft.ServiceFabric.Services.2.0.217\lib\net45\Microsoft.ServiceFabric.Services.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Serilog, Version=1.5.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Serilog.1.5.14\lib\net45\Serilog.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Serilog.FullNetFx, Version=1.5.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Serilog.1.5.14\lib\net45\Serilog.FullNetFx.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -117,6 +126,10 @@
     <ProjectReference Include="..\..\Telemetry\Core.Telemetry.Serilog\Core.Telemetry.Serilog.csproj">
       <Project>{e178ef7a-4beb-4c34-aee0-7b4f361f0721}</Project>
       <Name>Core.Telemetry.Serilog</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Telemetry\Core.Telemetry.ServiceFabric.Serilog\Core.Telemetry.ServiceFabric.Serilog.csproj">
+      <Project>{9C51312E-2CA0-469A-939E-A2555A751C58}</Project>
+      <Name>Core.Telemetry.ServiceFabric.Serilog</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Transport\LidgrenWrap\LidgrenWrap.csproj">
       <Project>{ABA23F21-69B5-4F58-9E33-5D3CC5A788E7}</Project>

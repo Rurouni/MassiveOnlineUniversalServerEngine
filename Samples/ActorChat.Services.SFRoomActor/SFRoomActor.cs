@@ -38,20 +38,6 @@ namespace ActorChat.Services.SFRoomActor
             return Task.FromResult(0);
         }
 
-        async public Task<OperationResult> TestStateless(TestStateless msg)
-        {
-            if (msg.SleepDurationMs > 0)
-                await Task.Delay(msg.SleepDurationMs);
-
-            return OperationResult.Success;
-        }
-
-        async public Task<OperationResult> TestStateful(TestStateful msg)
-        {
-            await StateManager.SetStateAsync<DateTime>("Dict", DateTime.UtcNow);
-            return OperationResult.Success;
-        }
-
         async public Task<JoinRoomResponse> JoinRoom(JoinRoomS2S request)
         {
             if (_roomMembers.Count >= MaxRoomSize)

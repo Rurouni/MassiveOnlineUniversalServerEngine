@@ -196,7 +196,8 @@ namespace SFActors.Gateway
 
             var config = new ClientConfiguration
             {
-                DataConnectionString = "DefaultEndpointsProtocol=https;AccountName=actorchatstorage;AccountKey=1hCY/Ak2TFrqE61cMhbPU5rkv9PuDfX7QQFU4tXCSc2AO78hLdm6u3PrGrZbUzOj7OkIZ93YKbU81VSVnBMbPg==",
+                //DataConnectionString = "DefaultEndpointsProtocol=https;AccountName=actorchatstorage;AccountKey=1hCY/Ak2TFrqE61cMhbPU5rkv9PuDfX7QQFU4tXCSc2AO78hLdm6u3PrGrZbUzOj7OkIZ93YKbU81VSVnBMbPg==",
+                DataConnectionString = "UseDevelopmentStorage=true",
                 PropagateActivityId = true,
                 DefaultTraceLevel = Severity.Info,
                 GatewayProvider = ClientConfiguration.GatewayProviderType.AzureTable,

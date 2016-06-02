@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Diagnostics.Tracing;
 using System.Threading.Tasks;
-using Microsoft.Diagnostics.Tracing;
 using Microsoft.ServiceFabric.Services.Runtime;
 
 namespace SFActors.Gateway

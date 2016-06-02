@@ -5,9 +5,11 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Telemetry;
 using Microsoft.Orleans.ServiceFabric.Silo;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
+using MOUSE.Core.Azure.ServiceFabric;
 using Orleans.Runtime;
 using Orleans.Runtime.Configuration;
 using Orleans.Runtime.Counters;
@@ -43,6 +45,8 @@ namespace OrleansTestActor
         {
             var config = new ClusterConfiguration();
 
+            var orleansConfig = new FabricConfigProvider<OrleansConfig>("OrleansConfig").Config;
+
             // Configure logging and metrics collection.
             //config.Defaults.StartupTypeName = typeof(SiloServiceLocator).AssemblyQualifiedName;
             config.Defaults.TraceFileName = null;
@@ -61,7 +65,7 @@ namespace OrleansTestActor
             //        { "DataConnectionString", "DefaultEndpointsProtocol=https;AccountName=actorchatstorage;AccountKey=1hCY/Ak2TFrqE61cMhbPU5rkv9PuDfX7QQFU4tXCSc2AO78hLdm6u3PrGrZbUzOj7OkIZ93YKbU81VSVnBMbPg==" },
             //        { "UseJsonFormat", true.ToString(CultureInfo.InvariantCulture) }
             //    });
-            config.Globals.DataConnectionString = "DefaultEndpointsProtocol=https;AccountName=actorchatstorage;AccountKey=1hCY/Ak2TFrqE61cMhbPU5rkv9PuDfX7QQFU4tXCSc2AO78hLdm6u3PrGrZbUzOj7OkIZ93YKbU81VSVnBMbPg==";
+            config.Globals.DataConnectionString = orleansConfig.DataConnectionString;
             config.Globals.ReminderServiceType = GlobalConfiguration.ReminderServiceProviderType.AzureTable;
             config.Globals.LivenessType = GlobalConfiguration.LivenessProviderType.AzureTable;
 
@@ -71,5 +75,10 @@ namespace OrleansTestActor
 
             return config;
         }
+    }
+
+    internal class OrleansConfig
+    {
+        public string DataConnectionString { get; set; }
     }
 }

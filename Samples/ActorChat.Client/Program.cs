@@ -68,7 +68,7 @@ namespace ActorChat.Client
                 try
                 {
                     node.Start();
-                    node.ExecuteChatUserFlow(roomName);
+                    node.ExecuteChatUserFlow(roomName).Wait();
                 }
                 catch (Exception ex)
                 {
@@ -105,30 +105,18 @@ namespace ActorChat.Client
             Console.WriteLine("You are connected, say something or write 'exit' to quit");
             bool exit = false;
 
-            const int MaxMessages = 10;
             while (!exit)
             {
-                //await Task.Yield(); //client uses single threaded processing, so it's better noto block it with Console.Readline
-                //string text = Console.ReadLine();
-                //if (text == "exit")
-                //{
-                //    exit = true;
-                //}
-                //else
-                //{
-                //    node.SendOneWay(new Say { Text = text });
-                //}
-                var timer = Stopwatch.StartNew();
-                List<Task<OperationResult>> tasks = new List<Task<OperationResult>>(MaxMessages);
-                for (int i = 0; i < MaxMessages; i++)
+                await Task.Yield(); //client uses single threaded processing, so it's better noto block it with Console.Readline
+                string text = Console.ReadLine();
+                if (text == "exit")
                 {
-                    tasks.Add(node.SendRequestAsync<OperationResult>(new TestStateless()));
+                    exit = true;
                 }
-
-                await Task.WhenAll(tasks);
-                Console.WriteLine(timer.ElapsedMilliseconds);
-
-                //Thread.Sleep(1000);
+                else
+                {
+                    node.SendOneWay(new Say { Text = text });
+                }
             }
         }
     }

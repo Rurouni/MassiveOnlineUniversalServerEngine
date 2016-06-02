@@ -33,8 +33,11 @@ using MOUSE.Core.Interfaces.Configuration;
 using MOUSE.Core.Interfaces.Logging;
 using MOUSE.Core.Interfaces.Serialization;
 using MOUSE.Core.Logging;
+using MOUSE.Core.Logging.Serilog;
 using MOUSE.Core.Misc;
 using MOUSE.Core.Serialization;
+using Serilog;
+using Serilog.Exceptions;
 
 namespace ActorChat.Services.RoomActorService
 {
@@ -50,9 +53,19 @@ namespace ActorChat.Services.RoomActorService
 
             builder.Register(c => new ProtobufMessageSerializer(typeof(Message).Assembly, typeof(JoinRoom).Assembly, typeof(JoinRoomS2S).Assembly)).As<IMessageSerializer>();
 
-            builder.RegisterInstance(CoreEventsETWLogger.Instance).As<ICoreEvents>();
-            builder.RegisterInstance(ActorCoreEventsETWLogger.Instance).As<IActorCoreEvents>();
-            builder.RegisterInstance(LidgrenEventsETWLogger.Instance).As<ILidgrenEvents>();
+            var logger = new LoggerConfiguration()
+                .ConfigureMOUSETypesDestructure()
+                .MinimumLevel.Verbose()
+                .Enrich.With(new AzureServiceFabricSerilogEnricher(Context))
+                .Enrich.With<ExceptionEnricher>()
+                .WriteTo.Trace()
+                .CreateLogger();
+
+            builder.RegisterInstance(logger).As<ILogger>();
+
+            builder.RegisterType<SerilogCoreEvents>().As<ICoreEvents>();
+            builder.RegisterType<SerilogActorCoreEvents>().As<IActorCoreEvents>();
+            builder.RegisterType<SerilogLidgrenEvents>().As<ILidgrenEvents>();
 
             var roomActorsEndpoint = FabricRuntime.GetActivationContext().GetEndpoint("RoomActors");
 

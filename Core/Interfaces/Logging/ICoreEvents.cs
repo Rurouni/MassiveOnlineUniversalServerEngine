@@ -1,10 +1,8 @@
 using System;
 using System.Net;
-using EventSourceProxy.NuGet;
 
 namespace MOUSE.Core.Interfaces.Logging
 {
-    [EventSourceImplementation(Name = "MOUSE-CoreEvents")]
     public interface ICoreEvents
     {
         void NodeStarted(INetNode node);
