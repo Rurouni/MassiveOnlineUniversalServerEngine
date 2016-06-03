@@ -30,16 +30,6 @@ namespace SFTestActor
             return this.StateManager.TryAddStateAsync("count", 0);
         }
 
-        Task<int> ISFTestActor.GetCountAsync()
-        {
-            return this.StateManager.GetStateAsync<int>("count");
-        }
-
-        Task ISFTestActor.SetCountAsync(int count)
-        {
-            return this.StateManager.AddOrUpdateStateAsync("count", count, (key, value) => count > value ? count : value);
-        }
-
         async public Task<OperationResult> TestStateless(TestStateless msg)
         {
             if (msg.SleepDurationMs > 0)

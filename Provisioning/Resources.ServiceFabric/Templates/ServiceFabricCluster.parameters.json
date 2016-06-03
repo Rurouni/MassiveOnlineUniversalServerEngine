@@ -19,12 +19,6 @@
         },
         "vmSize": {
             "value": "Standard_D1_V2"
-        },
-        "omsWorkspaceId": {
-            "value": "e041da0b-4f2b-4dcd-b361-b204687a5556"
-        },
-        "omsWorkspaceKey": {
-            "value": "5utYpQ/f6l/42lpb1UfAOEmPXaiDr1o0/LuIzNWfZaphrrLyUYut8Rw+InQ7Out3aH4Hsik41GgXW+HEbDAMvA=="
         }
     }
 }

@@ -15,19 +15,6 @@ namespace SFTestActor.Interfaces
     /// </summary>
     public interface ISFTestActor : IActor
     {
-        /// <summary>
-        /// TODO: Replace with your own actor method.
-        /// </summary>
-        /// <returns></returns>
-        Task<int> GetCountAsync();
-
-        /// <summary>
-        /// TODO: Replace with your own actor method.
-        /// </summary>
-        /// <param name="count"></param>
-        /// <returns></returns>
-        Task SetCountAsync(int count);
-
         Task<OperationResult> TestStateless(TestStateless msg);
         Task<OperationResult> TestStateful(TestStateful msg);
     }
