@@ -1,11 +1,9 @@
 using System;
-using EventSourceProxy.NuGet;
 using MOUSE.Core.Actors;
 using MOUSE.Core.Interfaces.Actors;
 
 namespace MOUSE.Core.Interfaces.Logging
 {
-    [EventSourceImplementation(Name = "MOUSE-ActorCoreEvents")]
     public interface IActorCoreEvents
     {
         void ReceivedMessageForActor(IActor actor, IOperationContext operation);

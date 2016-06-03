@@ -34,9 +34,12 @@ using MOUSE.Core.Interfaces.Configuration;
 using MOUSE.Core.Interfaces.Logging;
 using MOUSE.Core.Interfaces.Serialization;
 using MOUSE.Core.Logging;
+using MOUSE.Core.Logging.Serilog;
 using MOUSE.Core.Serialization;
 using Owin;
 using Owin.Metrics;
+using Serilog;
+using Serilog.Exceptions;
 
 namespace ActorChat.Services.Gateway
 {
@@ -50,30 +53,23 @@ namespace ActorChat.Services.Gateway
             float timeoutDebugMultiplier = 10;
             var builder = new ContainerBuilder();
 
-            //var logger = new LoggerConfiguration()
-            //    .ConfigureMOUSETypesDestructure()
-            //    .MinimumLevel.Verbose()
-            //    .Enrich.With<AzureSerilogEnricher>()
-            //    .Enrich.With<ExceptionEnricher>()
-            //    .WriteTo.Trace()
-            //    .WriteTo.Logentries("e788ef02-f9ae-4b77-a2b0-166efaa091f3")
-            //    //.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri("http://rurouniels.cloudapp.net:9200/")))
-            //    .CreateLogger();
+            var logger = new LoggerConfiguration()
+                .ConfigureMOUSETypesDestructure()
+                .MinimumLevel.Verbose()
+                .Enrich.With(new AzureServiceFabricSerilogEnricher(Context))
+                .Enrich.With<ExceptionEnricher>()
+                .WriteTo.Trace()
+                .CreateLogger();
 
-            //builder.RegisterInstance(logger).As<ILogger>();
+            builder.RegisterInstance(logger).As<ILogger>();
 
             builder.Register(c => new ProtobufMessageSerializer(typeof(Message).Assembly, typeof(JoinRoom).Assembly, typeof(JoinRoomS2S).Assembly)).As<IMessageSerializer>();
 
-            builder.RegisterInstance(CoreEventsETWLogger.Instance).As<ICoreEvents>();
-            builder.RegisterInstance(ActorCoreEventsETWLogger.Instance).As<IActorCoreEvents>();
-            builder.RegisterInstance(LidgrenEventsETWLogger.Instance).As<ILidgrenEvents>();
-            builder.RegisterInstance(EventHubActorSystemEventsETWLogger.Instance).As<IAzureEventHubActorSystemEvents>();
 
-            //builder.RegisterType<SerilogCoreEvent>().As<ICoreEvents>();
-            //builder.RegisterType<SerilogActorCoreEvents>().As<IActorCoreEvents>();
-            //builder.RegisterType<SerilogLidgrenEvents>().As<ILidgrenEvents>();
-            //builder.RegisterType<SerilogAzureEventHubActorSystemEvents>().As<IAzureEventHubActorSystemEvents>();
-            //Trace.Listeners.Add(new ConsoleTraceListener());
+            builder.RegisterType<SerilogCoreEvents>().As<ICoreEvents>();
+            builder.RegisterType<SerilogActorCoreEvents>().As<IActorCoreEvents>();
+            builder.RegisterType<SerilogLidgrenEvents>().As<ILidgrenEvents>();
+            builder.RegisterType<SerilogAzureEventHubActorSystemEvents>().As<IAzureEventHubActorSystemEvents>();
 
             var publicEndpoint = FabricRuntime.GetActivationContext().GetEndpoint("Public");
             var publicSFEndpoint = FabricRuntime.GetActivationContext().GetEndpoint("PublicSF");

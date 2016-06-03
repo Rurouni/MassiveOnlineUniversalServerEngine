@@ -12,9 +12,6 @@ namespace ActorChat.Services.SFRoomActor.Interfaces
 {
     public interface ISFRoomActor : IActor, IActorEventPublisher<IRoomCallbacks>
     {
-        Task<OperationResult> TestStateless(TestStateless msg);
-        Task<OperationResult> TestStateful(TestStateful msg);
-
         Task<JoinRoomResponse> JoinRoom(JoinRoomS2S msg);
 
         Task Say(SayS2S msg);

@@ -57,22 +57,4 @@ namespace ActorChat.Gateway.Protocol
         [DataMember(Order = 2)]
         public string Text { get; set; }
     }
-
-    [DataContract]
-    public class TestStateless : Message
-    {
-        public override MessageReliability Reliability => MessageReliability.Reliable;
-
-        [DataMember(Order = 1)]
-        public int SleepDurationMs { get; set; }
-
-        [DataMember(Order = 2)]
-        public List<int> Data { get; set; }
-    }
-
-    [DataContract]
-    public class TestStateful : Message
-    {
-        public override MessageReliability Reliability => MessageReliability.Reliable;
-    }
 }

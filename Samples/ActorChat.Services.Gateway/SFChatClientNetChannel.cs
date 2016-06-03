@@ -35,23 +35,9 @@ namespace ActorChat.Services.Gateway
                 //.UseFiber(new SimpleFiber(TaskScheduler.Default, 100))
                 .UseConfigurableDispatcher(config => config
                     .HandleRequestAsync<JoinRoom, JoinRoomResponse>(OnRoomJoin)
-                    .HandleMessageAsync<Say>(OnSay)
-                    .HandleRequestAsync<TestStateless, OperationResult>(OnTestStateless)
-                    .HandleRequestAsync<TestStateful, OperationResult>(OnTestStateful),
+                    .HandleMessageAsync<Say>(OnSay),
 
                     throwIfUnhandled: false);
-        }
-
-        Task<OperationResult> OnTestStateless(TestStateless msg, IOperationContext context)
-        {
-            //return Task.FromResult(msg);
-            return _room.TestStateless(msg);
-        }
-
-        Task<OperationResult> OnTestStateful(TestStateful msg, IOperationContext context)
-        {
-            //return Task.FromResult(msg);
-            return _room.TestStateful(msg);
         }
 
         async Task<JoinRoomResponse> OnRoomJoin(JoinRoom msg, IOperationContext context)

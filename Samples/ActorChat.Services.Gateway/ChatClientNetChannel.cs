@@ -41,23 +41,9 @@ namespace ActorChat.Services.Gateway
                 .UseFiber(new SimpleFiber(TaskScheduler.Default, 10)) // no more than 10 parallel request from same client
                 .UseConfigurableDispatcher(config => config
                     .HandleRequestAsync<JoinRoom, JoinRoomResponse>(OnRoomJoin)
-                    .HandleMessage<Say>(OnSay)
-                    .HandleRequestAsync<TestStateless, OperationResult>(OnTestStateless)
-                    .HandleRequestAsync<TestStateful, OperationResult>(OnTestStateful),
+                    .HandleMessage<Say>(OnSay),
 
                     throwIfUnhandled: false);
-        }
-
-        Task<OperationResult> OnTestStateless(TestStateless msg, IOperationContext context)
-        {
-            //return Task.FromResult(msg);
-            return _room.SendAsync<OperationResult>(msg, context);
-        }
-
-        Task<OperationResult> OnTestStateful(TestStateful msg, IOperationContext context)
-        {
-            //return Task.FromResult(msg);
-            return _room.SendAsync<OperationResult>(msg, context);
         }
 
         async Task<JoinRoomResponse> OnRoomJoin(JoinRoom msg, IOperationContext context)

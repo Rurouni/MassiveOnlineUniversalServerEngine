@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Reactive.Linq;
 using EtwStream;
@@ -15,7 +16,7 @@ namespace Core.Telemetry
         {
             var pid = Process.GetCurrentProcess().Id;
             pipe.RegisterObserver(ObservableEventListener
-                .FromTraceEvent(TraceEventLevel.Verbose, providers.Select(x=>x.Name).ToArray())
+                .FromTraceEvent(providers.Select(x=>x.Name).ToArray())
                 .Where(ev => !isFilteringOnlyOwnProcess || ev.ProcessID == pid)
                 .Select(ev => new TelemetryEvent()
                 {

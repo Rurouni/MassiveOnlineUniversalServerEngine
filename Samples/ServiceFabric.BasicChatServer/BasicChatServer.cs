@@ -11,7 +11,6 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using BasicChat.Protocol;
-using EventSourceProxy;
 using Lidgren.Network;
 using LidgrenWrap;
 using Microsoft.ServiceFabric.Data;
@@ -47,17 +46,14 @@ namespace ServiceFabric.BasicChatServer
 
         INetNode CreateNetNode(StatefulServiceContext initParams)
         {
-            var lidgrenEventsLogger = LidgrenEventsETWLogger.Instance;
-            var coreEventsLogger = CoreEventsETWLogger.Instance;
+            var logger = new LoggerConfiguration()
+                .ConfigureMOUSETypesDestructure()
+                .MinimumLevel.Verbose()
+                .WriteTo.Seq("http://localhost:5341/")
+                .CreateLogger();
 
-            //var logger = new LoggerConfiguration()
-            //    .ConfigureMOUSETypesDestructure()
-            //    .MinimumLevel.Verbose()
-            //    .WriteTo.Seq("http://localhost:5341/")
-            //    .CreateLogger();
-
-            //var coreEventsLogger = new SerilogCoreEvents(logger);
-            //var lidgrenEventsLogger = new SerilogLidgrenEvents(logger);
+            var coreEventsLogger = new SerilogCoreEvents(logger);
+            var lidgrenEventsLogger = new SerilogLidgrenEvents(logger);
 
 
             var messageSerializer = new ProtobufMessageSerializer(typeof(Message).Assembly, typeof(Say).Assembly);

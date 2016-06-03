@@ -1,10 +1,8 @@
 using System;
-using EventSourceProxy.NuGet;
 using MOUSE.Core.Actors;
 
 namespace MOUSE.Core.Azure
 {
-    [EventSourceImplementation(Name = "MOUSE-EventHubActorSystemEvents")]
     public interface IAzureEventHubActorSystemEvents
     {
         void ReceivedUnboundReply(ushort actorSystemId, Message message);
@@ -19,17 +17,5 @@ namespace MOUSE.Core.Azure
         void ReceivedMessageForActor(ActorKey actorKey, Message message);
         void ReceivedExpiredMessage(DateTime timestamp);
         void FailedToSendMessage(Guid requestId, Message msg, Exception exception);
-    }
-
-    static public class EventHubActorSystemEventsETWLogger
-    {
-        static EventHubActorSystemEventsETWLogger()
-        {
-            EventSourceImplementer.RegisterProvider<IAzureEventHubActorSystemEvents>(new ToStringObjectSerializer());
-
-            Instance = EventSourceImplementer.GetEventSourceAs<IAzureEventHubActorSystemEvents>();
-        }
-
-        static public IAzureEventHubActorSystemEvents Instance { get; }
     }
 }
