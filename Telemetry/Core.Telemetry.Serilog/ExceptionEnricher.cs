@@ -203,7 +203,7 @@ namespace Serilog.Exceptions
             data.Add("Message", exception.Message);
             data.Add("Source", exception.Source);
             data.Add("StackTrace", exception.StackTrace);
-            data.Add("TargetSite", exception.TargetSite.ToString());
+            data.Add("TargetSite", exception.TargetSite?.ToString()??"");
 
             if (exception.InnerException != null)
             {

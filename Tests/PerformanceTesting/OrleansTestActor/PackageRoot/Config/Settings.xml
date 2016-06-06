@@ -1,9 +1,20 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
-<Settings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/2011/01/fabric">
-  <!-- Add your custom configuration sections and parameters here -->
-  
-  <Section Name="OrleansConfig">
-    <Parameter Name="DataConnectionString" Value="UseDevelopmentStorage=True;" />
-  </Section>
-  
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Settings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns="http://schemas.microsoft.com/2011/01/fabric">
+
+	<Section Name="OrleansConfig">
+		<Parameter Name="DataConnectionString" Value="UseDevelopmentStorage=True;" />
+	</Section>
+
+	<Section Name="ElasticSearchLogs">
+		<Parameter Name="ElasticSearchUri" Value="" />
+		<Parameter Name="ElasticSearchIndexName" Value="mouselogs" />
+	</Section>
+	
+	<Section Name="ElasticSearchMetrics">
+		<Parameter Name="ElasticSearchUri" Value="" />
+		<Parameter Name="ElasticSearchIndexName" Value="mousemetrics" />
+	</Section>
+
 </Settings>

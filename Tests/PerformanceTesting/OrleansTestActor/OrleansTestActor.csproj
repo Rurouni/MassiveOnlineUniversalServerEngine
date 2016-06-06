@@ -39,6 +39,14 @@
     <AdditionalFileItemNames>$(AdditionalFileItemNames);None</AdditionalFileItemNames>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Elasticsearch.Net, Version=2.0.0.0, Culture=neutral, PublicKeyToken=96c599bbe3e70f5d, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\Elasticsearch.Net.2.3.2\lib\net46\Elasticsearch.Net.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Metrics, Version=0.3.7.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\Metrics.NET.0.3.7\lib\net45\Metrics.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Microsoft.Azure.KeyVault.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\Microsoft.Azure.KeyVault.Core.1.0.0\lib\net40\Microsoft.Azure.KeyVault.Core.dll</HintPath>
       <Private>True</Private>
@@ -51,6 +59,7 @@
       <HintPath>..\..\..\packages\Microsoft.CodeAnalysis.CSharp.1.0.0\lib\net45\Microsoft.CodeAnalysis.CSharp.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="Microsoft.Data.Edm, Version=5.7.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\Microsoft.Data.Edm.5.7.0\lib\net40\Microsoft.Data.Edm.dll</HintPath>
       <Private>True</Private>
@@ -119,6 +128,18 @@
       <HintPath>..\..\..\packages\Microsoft.Orleans.OrleansRuntime.1.2.1\lib\net451\OrleansRuntime.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Serilog, Version=1.5.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\Serilog.1.5.14\lib\net45\Serilog.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Serilog.FullNetFx, Version=1.5.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\Serilog.1.5.14\lib\net45\Serilog.FullNetFx.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Serilog.Sinks.Elasticsearch, Version=3.0.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\..\..\packages\Serilog.Sinks.Elasticsearch.3.0.134\lib\net45\Serilog.Sinks.Elasticsearch.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Collections.Immutable, Version=1.1.36.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\System.Collections.Immutable.1.1.36\lib\portable-net45+win8+wp8+wpa81\System.Collections.Immutable.dll</HintPath>
@@ -169,6 +190,22 @@
     <ProjectReference Include="..\..\..\Core\Core.csproj">
       <Project>{cc2d2c8b-6b03-4585-a421-58b796a69780}</Project>
       <Name>Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Telemetry\Core.Telemetry.Orleans.MetricsNet\Core.Telemetry.Orleans.MetricsNet.csproj">
+      <Project>{584042FF-1371-45DC-962F-655CCCA4C574}</Project>
+      <Name>Core.Telemetry.Orleans.MetricsNet</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Telemetry\Core.Telemetry.Orleans.Serilog\Core.Telemetry.Orleans.Serilog.csproj">
+      <Project>{A7F2CBC8-E15F-4CE9-BA9C-6C3E37783D39}</Project>
+      <Name>Core.Telemetry.Orleans.Serilog</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Telemetry\Core.Telemetry.Serilog\Core.Telemetry.Serilog.csproj">
+      <Project>{E178EF7A-4BEB-4C34-AEE0-7B4F361F0721}</Project>
+      <Name>Core.Telemetry.Serilog</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Telemetry\Core.Telemetry.ServiceFabric.Serilog\Core.Telemetry.ServiceFabric.Serilog.csproj">
+      <Project>{9C51312E-2CA0-469A-939E-A2555A751C58}</Project>
+      <Name>Core.Telemetry.ServiceFabric.Serilog</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\..\Telemetry\Core.Telemetry\Core.Telemetry.csproj">
       <Project>{56da3163-5d28-473f-bfc4-5c19107f0425}</Project>

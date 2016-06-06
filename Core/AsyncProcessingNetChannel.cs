@@ -32,7 +32,7 @@ namespace MOUSE.Core
 
         protected virtual IMessageProcessingPipeBuilder Configure(IMessageProcessingPipeBuilder builder)
         {
-            throw new NotImplementedException("You should always override Configure in child class if you are using this class as base");
+            throw new NotSupportedException("You should always override Configure in child class if you are using this class as base");
         }
 
         public void ReconfigureProcessingPipe(Func<IMessageProcessingPipeBuilder, IMessageProcessingPipeBuilder> reconfigurator)
@@ -41,50 +41,51 @@ namespace MOUSE.Core
             _processor = _pipeBuilder.Build();
         }
 
-        protected override void OnIncomingMessage(Message msg)
+		//intended async void use
+        protected async override void OnIncomingMessage(Message msg)
         {
-            var operationContext = new OperationContext(this, msg);
-            Trace.CorrelationManager.ActivityId = operationContext.ActivityId;
-            _processor(operationContext)
-                .ContinueWith(msgTask => Reply(msgTask, operationContext));
-        }
+			var operationContext = new OperationContext(this, msg);
+			Guid prevActivityId = Trace.CorrelationManager.ActivityId;
+			Trace.CorrelationManager.ActivityId = operationContext.ActivityId;
+			try
+			{
+				var result = await _processor(operationContext);
+				Logger.OperationProcessed(Node, this, operationContext);
+				if (msg != null)
+				{
+					Reply(operationContext, result);
+				}
+			}
+			catch (OperationCanceledException ocex)
+			{
+				Logger.OperationProcessingFailed(Node, this, operationContext, ocex);
+				ReplyWithError(operationContext, (ushort)BasicErrorCode.OperationTimeout, "Operation timeout");
+			}
+			catch (Exception ex)
+			{
+				var baseException = ex.GetBaseException();
+				Logger.OperationProcessingFailed(Node, this, operationContext, baseException);
+
+				if (baseException is ProcessingException)
+				{
+					var invalidInputException = baseException as ProcessingException;
+					ReplyWithError(operationContext, invalidInputException.ErrorCode, invalidInputException.Message);
+				}
+				else
+					ReplyWithError(operationContext, (ushort)BasicErrorCode.Unknown, baseException.Message);
+				throw;
+			}
+			finally
+			{
+				Trace.CorrelationManager.ActivityId = prevActivityId;
+			}
+		}
 
         protected override void OnDisconnected()
         {
             base.OnDisconnected();
             var operationContext = new OperationContext(this, new PeerDisconnected());
             _processor(operationContext); //ignore response message
-        }
-
-        void Reply(Task<Message> msgTask, OperationContext operation)
-        {
-            if (msgTask.IsFaulted)
-            {
-                var baseException = msgTask.Exception.GetBaseException();
-                Logger.OperationProcessingFailed(Node, this, operation, baseException);
-
-                if (baseException is ProcessingException)
-                {
-                    var invalidInputException = baseException as ProcessingException;
-                    ReplyWithError(operation, invalidInputException.ErrorCode, invalidInputException.Message);
-                }
-                else
-                    ReplyWithError(operation, (ushort)BasicErrorCode.Unknown, baseException.Message);
-            }
-            else if (msgTask.IsCanceled)
-            {
-                Logger.OperationProcessingFailed(Node, this, operation, msgTask.Exception);
-                ReplyWithError(operation, (ushort)BasicErrorCode.OperationTimeout, "Operation timeout");
-            }
-            else
-            {
-                Logger.OperationProcessed(Node, this, operation);
-                var msg = msgTask.Result;
-                if (msg != null)
-                {
-                    Reply(operation, msg);
-                }
-            }
         }
     }
 }

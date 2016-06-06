@@ -3,6 +3,7 @@
    <Parameters>
       <Parameter Name="OrleansTestActor_InstanceCount" DefaultValue="-1" />
       <Parameter Name="OrleansTestActor_DataConnectionString" DefaultValue="UseDevelopmentStorage=True;" />
+      <Parameter Name="ElasticSearchUri" DefaultValue="http://mousemetrics.westeurope.cloudapp.azure.com:9200" />
    </Parameters>
    <ServiceManifestImport>
       <ServiceManifestRef ServiceManifestName="OrleansTestActorPkg" ServiceManifestVersion="1.0.0" />
@@ -11,6 +12,12 @@
             <Settings>
                <Section Name="OrleansConfig">
                   <Parameter Name="DataConnectionString" Value="[OrleansTestActor_DataConnectionString]" />
+               </Section>
+               <Section Name="ElasticSearchLogs">
+                  <Parameter Name="ElasticSearchUri" Value="[ElasticSearchUri]" />
+               </Section>
+               <Section Name="ElasticSearchMetrics">
+                  <Parameter Name="ElasticSearchUri" Value="[ElasticSearchUri]" />
                </Section>
             </Settings>
          </ConfigOverride>

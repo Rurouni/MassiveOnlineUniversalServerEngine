@@ -193,8 +193,7 @@ namespace SFActors.Gateway
 
             _netNodes = container.Resolve<IEnumerable<INetNode>>();
 
-
-            var config = new ClientConfiguration
+			var config = new ClientConfiguration
             {
                 //DataConnectionString = "DefaultEndpointsProtocol=https;AccountName=actorchatstorage;AccountKey=1hCY/Ak2TFrqE61cMhbPU5rkv9PuDfX7QQFU4tXCSc2AO78hLdm6u3PrGrZbUzOj7OkIZ93YKbU81VSVnBMbPg==",
                 DataConnectionString = "UseDevelopmentStorage=true",
@@ -234,7 +233,7 @@ namespace SFActors.Gateway
                     }), "LoadBalancerReplier");
         }
 
-        async protected override Task RunAsync(CancellationToken cancellationToken)
+        protected async override Task RunAsync(CancellationToken cancellationToken)
         {
             while (true)
             {

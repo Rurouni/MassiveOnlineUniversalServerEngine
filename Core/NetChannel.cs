@@ -94,8 +94,7 @@ namespace MOUSE.Core
                             {
                                 _requestsFailedMeter.Mark();
                                 Logger.NetChannelRequestFailed(Node, this, invMsg, operationHeader.RequestId, durationMs);
-                                continuation.TCS.SetException(new ProcessingException(invMsg.ErrorCode,
-                                    invMsg.ErrorString));
+                                continuation.TCS.SetException(new ProcessingException(invMsg.ErrorCode, invMsg.ErrorString));
                             }
                             else
                                 continuation.TCS.SetResult(msg);

@@ -126,7 +126,7 @@ module Program =
         
             let config = Configuration(mbraceStorageConnectionString, mbraceServiceBusConnectionString)
 
-            let userScenario = (fun (userId,node,cT) -> statefullLoopUserScenario(userId, node, cT, batchSize, sleepMS))
+            let userScenario = (fun (userId,node,cT) -> statelessLoopUserScenario(userId, node, cT, batchSize, sleepMS))
         
             let perfTest = cloud {
                 let! ct = Cloud.CreateCancellationTokenSource()

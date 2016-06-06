@@ -45,7 +45,7 @@
 #r "../../../../packages/FSharpx.Collections.1.14.0/lib/net40/FSharpx.Collections.dll"
 #r "../../../../packages/FSharpx.Extras.1.10.3/lib/40/FSharpx.Extras.dll"
 #r "../../../../Telemetry/Core.Telemetry/bin/x64/Debug/Core.Telemetry.dll"
+#r "../../../../Telemetry/Core.Telemetry.Serilog/bin/x64/Debug/Core.Telemetry.Serilog.dll"
 #r "../../../Core.Tests.Integration/bin/x64/Debug/Core.Tests.Integration.dll"
 #r "../../../../Transport/LidgrenWrap/bin/x64/Debug/LidgrenWrap.dll"
 #r "../../PerfTests.Protocol/bin/x64/Debug/PerfTests.Protocol.dll"
-#r "../../../../Telemetry/Core.Telemetry.Serilog/bin/x64/Debug/Core.Telemetry.Serilog.dll"

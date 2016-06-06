@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using System.Fabric;
 using System.Linq;
@@ -159,9 +158,9 @@ namespace OrleansTestActor
         {
             WriteEvent(ServiceRequestFailedEventId, exception);
         }
-        #endregion
+		#endregion
 
-        #region Private methods
+		#region Private methods
 #if UNSAFE
         private int SizeInBytes(string s)
         {
@@ -175,6 +174,6 @@ namespace OrleansTestActor
             }
         }
 #endif
-        #endregion
-    }
+		#endregion
+	}
 }
