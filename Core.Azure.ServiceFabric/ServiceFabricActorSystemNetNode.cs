@@ -50,7 +50,6 @@ namespace MOUSE.Core.Azure.ServiceFabric
             INetNodeConfig config = null, IBufferPool bufferPool = null, IPEndPoint publicAddress = null, Func<TActor> actorFactory = null)
             : base(name, net, coreLogger, messageSerializer, null, config, publicAddress)
         {
-            _logger = logger;
             ChannelFactory = (node, transport) =>
             {
                 var channel = new ActorSystemNetChannel(node, transport, messageSerializer, coreLogger, config, bufferPool);
