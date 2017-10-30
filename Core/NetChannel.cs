@@ -85,7 +85,7 @@ namespace MOUSE.Core
                         continuation.Expiration.Cancel();
                         if (!continuation.TCS.Task.IsCompleted)
                         {
-                            var durationMs = (DateTime.Now - continuation.StartTime).Milliseconds;
+                            var durationMs = (DateTime.Now - continuation.StartTime).TotalMilliseconds;
                             _requestDurationTimer.Record(durationMs, TimeUnit.Milliseconds);
                             Logger.NetChannelRequestCompleted(Node, this, msg, operationHeader.RequestId, durationMs);
 
