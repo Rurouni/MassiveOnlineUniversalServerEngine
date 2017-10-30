@@ -162,7 +162,7 @@ namespace MOUSE.Core
             PendingConnection continuation;
             if (_pendingConnections.TryRemove(transportChannel.EndPoint, out continuation))
             {
-                _logger.ConnectionSucceeded(this, continuation.Target, channel, (DateTime.Now - continuation.StartTime).Milliseconds);
+                _logger.ConnectionSucceeded(this, continuation.Target, channel, (DateTime.Now - continuation.StartTime).TotalMilliseconds);
                 continuation.Expiration.Cancel();
                 continuation.TCS.SetResult(channel);
             }
